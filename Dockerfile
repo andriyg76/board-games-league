@@ -21,8 +21,10 @@ RUN go mod download
 # Copy backend source code
 COPY . .
 
+COPY --from=frontend-builder /app/frontend/dist ./frontendfs
+
 # Build the backend
-RUN go build -o /app/main .
+RUN go build -o /app/main -v .
 
 # Stage 3: Create the final image
 FROM ubuntu:latest
@@ -34,9 +36,6 @@ RUN apt-get update && apt-get install -y ca-certificates
 
 # Copy the backend binary
 COPY --from=backend-builder /app/main .
-
-# Copy the frontend build artifacts
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Expose the port the app runs on
 EXPOSE 8080

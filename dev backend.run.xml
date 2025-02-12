@@ -3,7 +3,7 @@
     <module name="board-games-league" />
     <working_directory value="$PROJECT_DIR$/board-games-league" />
     <envs>
-      <env name="FRONTEND_URL" value="http://localhost:8000" />
+      <env name="_FRONTEND_URL" value="http://localhost:8000" />
     </envs>
     <kind value="PACKAGE" />
     <package value="github.com/andriyg76/bgl" />

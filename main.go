@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/andriyg76/bgl/frontendfs"
 	log "github.com/andriyg76/glog"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -23,7 +24,7 @@ func main() {
 	)
 
 	r.Route("/api", func(r chi.Router) {
-		r.Get("/aut	h/google", googleAuthHandler)
+		r.Get("/auth/google", googleAuthHandler)
 		r.Get("/auth/google/callback", googleCallbackHandler)
 	})
 
@@ -42,9 +43,9 @@ func main() {
 			})
 		}
 	} else {
-		log.Info("Serving frontend from: %s", "./frontend/dist")
+		log.Info("Serving frontend from embed fs")
 		// Serve static files from the frontend build directory
-		r.Handle("/*", http.StripPrefix("/", http.FileServer(http.Dir("./frontend/dist"))))
+		r.Handle("/*", http.StripPrefix("/", http.FileServer(http.FS(frontendfs.Frontend))))
 	}
 
 	err := http.ListenAndServe(":8080", r)
