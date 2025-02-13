@@ -1,7 +1,9 @@
 package main
 
 import (
+	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/frontendfs"
+	"github.com/andriyg76/bgl/repositories"
 	log "github.com/andriyg76/glog"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -12,6 +14,13 @@ import (
 )
 
 func main() {
+	mongodb, err := db.NewMongoDB(os.Getenv("MONGODB_URI"), "your_database_name")
+	if err != nil {
+		log.Fatal("Failed to connect to MongoDB:", err)
+	}
+
+	repositories.NewUserRepository(mongodb.Collection("users"))
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
@@ -49,8 +58,7 @@ func main() {
 		r.Handle("/*", http.StripPrefix("/", http.FileServer(http.FS(frontendfs.Frontend))))
 	}
 
-	err := http.ListenAndServe(":8080", r)
-	if err != nil {
+	if err := http.ListenAndServe(":8080", r); err != nil {
 		log.Error("Error attaching to listen socket %v", err)
 		os.Exit(1)
 	}
