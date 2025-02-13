@@ -50,15 +50,21 @@ func googleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   24 * 60 * 60, // 24 hours
 	})
 
-	claims := r.Context().Value("user").(*Claims)
 	json.NewEncoder(w).Encode(map[string]string{
-		"email": claims.Email,
-		"name":  claims.Name,
+		"email":   user.Email,
+		"name":    user.Name,
+		"picture": user.AvatarURL,
 	})
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	// Clear the auth cookie
+	clearCookies(w)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func clearCookies(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    "",
@@ -68,8 +74,6 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
-
-	w.WriteHeader(http.StatusOK)
 }
 
 type Config struct {
@@ -88,15 +92,17 @@ func loadConfig() Config {
 }
 
 type Claims struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	Email   string `json:"email"`
+	Name    string `json:"name"`
+	Picture string `json:"picture"`
 	jwt.StandardClaims
 }
 
 func createAuthToken(user goth.User) (string, error) {
 	claims := Claims{
-		Email: user.Email,
-		Name:  user.Name,
+		Email:   user.Email,
+		Name:    user.Name,
+		Picture: user.AvatarURL,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 			IssuedAt:  time.Now().Unix(),
@@ -107,7 +113,7 @@ func createAuthToken(user goth.User) (string, error) {
 	return token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 }
 
-func AuthMiddleware(next http.Handler) http.Handler {
+func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("auth_token")
 		if err != nil {
@@ -134,6 +140,8 @@ func AuthMiddleware(next http.Handler) http.Handler {
 }
 
 func handleUnauthorized(w http.ResponseWriter, r *http.Request) {
+	clearCookies(w)
+
 	// Create a new request with the provider specified
 	authReq := r.WithContext(r.Context())
 	q := authReq.URL.Query()
@@ -152,11 +160,17 @@ func handleUnauthorized(w http.ResponseWriter, r *http.Request) {
 }
 
 func getUserHandler(w http.ResponseWriter, r *http.Request) {
-	claims := r.Context().Value("user").(*Claims)
-	json.NewEncoder(w).Encode(map[string]string{
-		"email": claims.Email,
-		"name":  claims.Name,
-	})
+	if claims, ok := r.Context().Value("user").(*Claims); !ok {
+		log.Error("Failed to parse user claims %v", r.Context().Value("user"))
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	} else {
+		json.NewEncoder(w).Encode(map[string]string{
+			"email":   claims.Email,
+			"name":    claims.Name,
+			"picture": claims.Picture,
+		})
+	}
 }
 
 func googleAuthHandler(w http.ResponseWriter, r *http.Request) {

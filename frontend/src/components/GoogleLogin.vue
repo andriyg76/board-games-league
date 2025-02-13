@@ -18,7 +18,7 @@
           <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
         </svg>
       </span>
-      Sign in with Google
+      Login in with Google
     </button>
     <logout-button/>
   </div>
@@ -29,10 +29,11 @@ import { defineComponent } from 'vue';
 import LogoutButton from "@/components/LogoutButton.vue";
 
 export default defineComponent({
-  name: 'GoogleSignIn',
+  name: 'GoogleLogin',
   components: {LogoutButton},
   props: {
     url: null,
+    backUrl: null,
   },
   data() {
     return {
@@ -64,11 +65,11 @@ export default defineComponent({
       if (this.theUrl) {
         // Store the current route to redirect back after auth
         const currentRoute = this.$router.currentRoute.value;
-        localStorage.setItem('auth_redirect', currentRoute.fullPath);
+        localStorage.setItem('auth_redirect', this.backUrl || currentRoute.fullPath);
 
         this.$router.push({
           name: 'auth-redirect',
-          params: { url: this.theUrl }
+          params: { url: this.theUrl },
         });
       }
     },

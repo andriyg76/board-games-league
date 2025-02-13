@@ -12,7 +12,7 @@ export default defineComponent( {
       const queryParams = new URLSearchParams(window.location.search);
 
       // Forward these parameters to your backend
-      const response = await fetch(`/api/auth/google/callback?${queryParams.toString()}`);
+      const response = await fetch(`/api/auth/google/callback?${queryParams.toString()}`, { method: 'POST' });
 
       if (!response.ok) {
         throw new Error('Auth callback failed');
@@ -24,7 +24,7 @@ export default defineComponent( {
       this.$router.push(redirectPath);
     } catch (error) {
       console.error('Auth callback failed:', error);
-      this.$router.push('/login');
+      this.$router.push('/ui/user');
     }
   }
 })

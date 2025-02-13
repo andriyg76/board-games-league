@@ -4,13 +4,13 @@
   <div>
     <h3>I am a {{ user }}</h3>
 
-    <google-sign-in url="url"/>
+    <google-login :url="url"/>
   </div>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import GoogleSignIn from '@/components/GoogleSignin.vue';
+import GoogleLogin from '@/components/GoogleLogin.vue';
 
 export default defineComponent({
   data() {
@@ -30,7 +30,7 @@ export default defineComponent({
     fetch('/api/user').then(r => handleResponse(r, this));
   },
   components: {
-    GoogleSignIn
+    GoogleLogin
   }
 });
 </script>

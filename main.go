@@ -25,13 +25,13 @@ func main() {
 	r.Use(middleware.Logger)
 
 	r.Route("/api", func(r chi.Router) {
-		r.Get("/auth/google", googleAuthHandler)
-		r.Get("/auth/google/callback", googleCallbackHandler)
+		//		r.Post("/auth/google", googleAuthHandler)
+		r.Post("/auth/google/callback", googleCallbackHandler)
 		r.Post("/auth/logout", logoutHandler)
 
 		// Protected routes
 		r.Group(func(r chi.Router) {
-			r.Use(AuthMiddleware)
+			r.Use(authMiddleware)
 			// Add your protected endpoints here
 			r.Get("/user", getUserHandler)
 		})

@@ -8,6 +8,18 @@
   <router-view/>
 </template>
 
+<script setup lang="ts">
+import LogoutButton from "@/components/LogoutButton.vue";
+import {defineComponent} from "vue";
+
+defineComponent({
+  components: {
+    LogoutButton
+  },
+})
+
+</script>
+
 <style>
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
@@ -30,6 +42,3 @@ nav a.router-link-exact-active {
   color: #42b983;
 }
 </style>
-<script setup lang="ts">
-import LogoutButton from "@/components/LogoutButton.vue";
-</script>
