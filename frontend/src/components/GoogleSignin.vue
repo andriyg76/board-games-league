@@ -32,21 +32,12 @@ export default defineComponent({
   name: 'GoogleSignIn',
   components: {LogoutButton},
   props: {
-    url: {
-      type: String,
-      default: null,
-    }
+    url: null,
   },
   data() {
     return {
       loading: false,
-      authUrl: null as string | null,
-      get theUrl() {
-        return this.url || this.authUrl;
-      },
-      set theUrl(value: string | null) {
-        this.authUrl = value;
-      },
+      theUrl: this.url,
     }
   },
   methods: {
