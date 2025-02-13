@@ -1,7 +1,9 @@
 <template>
   <nav>
     <router-link to="/">Home</router-link> |
-    <router-link to="/about">About</router-link>
+    <router-link to="/about">About</router-link> |
+    <router-link to="/ui/user">User</router-link> |
+    <logout-button/>
   </nav>
   <router-view/>
 </template>
@@ -28,3 +30,6 @@ nav a.router-link-exact-active {
   color: #42b983;
 }
 </style>
+<script setup lang="ts">
+import LogoutButton from "@/components/LogoutButton.vue";
+</script>
