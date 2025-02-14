@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	log "github.com/andriyg76/glog"
 	"github.com/golang-jwt/jwt"
+	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/google"
@@ -14,17 +15,24 @@ import (
 )
 
 func init() {
-	config := loadConfig()
 	goth.UseProviders(
 		google.New(
 			config.GoogleClientID,
 			config.GoogleClientSecret,
 			config.CallbackURL,
+			"openid",
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
 		),
 	)
 }
 
+var config = loadConfig()
+var store = sessions.NewCookieStore(config.SessionSecret)
+
 func googleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	r.URL.Query().Add("provider", "google")
+
 	user, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
 		log.Error("Auth completion failed: %v", err)
@@ -80,7 +88,8 @@ type Config struct {
 	GoogleClientID     string
 	GoogleClientSecret string
 	CallbackURL        string
-	// Add other config fields as needed
+	SessionSecret      []byte
+	JwtSecret          []byte
 }
 
 func loadConfig() Config {
@@ -88,6 +97,8 @@ func loadConfig() Config {
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 		CallbackURL:        os.Getenv("AUTH_CALLBACK_URL"),
+		SessionSecret:      []byte(os.Getenv("SESSION_SECRET")),
+		JwtSecret:          []byte(os.Getenv("JWT_SECRET")),
 	}
 }
 
@@ -110,7 +121,7 @@ func createAuthToken(user goth.User) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	return token.SignedString(config.JwtSecret)
 }
 
 func authMiddleware(next http.Handler) http.Handler {
@@ -122,7 +133,7 @@ func authMiddleware(next http.Handler) http.Handler {
 		}
 
 		token, err := jwt.ParseWithClaims(cookie.Value, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-			return []byte(os.Getenv("JWT_SECRET")), nil
+			return config.JwtSecret, nil
 		})
 
 		if err != nil || !token.Valid {
@@ -173,6 +184,10 @@ func getUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func googleAuthHandler(w http.ResponseWriter, r *http.Request) {
+func handleLogin(w http.ResponseWriter, r *http.Request) {
+	gothic.Logout(w, r)
+
+	r.URL.Query().Add("provider", "google")
+
 	gothic.BeginAuthHandler(w, r)
 }

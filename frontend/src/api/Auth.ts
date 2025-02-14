@@ -4,7 +4,12 @@ export interface User {
     picture?: string | null;
 }
 
+
 export  default {
+    get googleLoginEntrypoint() {
+        return `/api/auth/google?random=${Math.random()}`
+    },
+
     async logout(): Promise<void> {
         const response = await fetch('/api/auth/logout', {
             method: 'POST',
@@ -29,5 +34,16 @@ export  default {
         }
 
         return response.json();
+    },
+    async handleGoogleCallback(params: string) {
+        // Forward these parameters to your backend
+        const response = await fetch(`/api/auth/google/callback?${params}`,  {
+            credentials: 'include',
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            throw new Error('Auth callback failed');
+        }
     }
 }

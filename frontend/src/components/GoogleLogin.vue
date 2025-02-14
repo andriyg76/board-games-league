@@ -20,62 +20,37 @@
       </span>
       Login in with Google
     </button>
-    <logout-button/>
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-import LogoutButton from "@/components/LogoutButton.vue";
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import Auth from "@/api/Auth";
 
-export default defineComponent({
-  name: 'GoogleLogin',
-  components: {LogoutButton},
-  props: {
-    url: null,
-    backUrl: null,
-  },
-  data() {
-    return {
-      loading: false,
-      theUrl: this.url,
-    }
-  },
-  methods: {
-    async handleSignIn() {
-      if (!this.theUrl) {
-        this.loading = true;
-        try {
-          const response = await fetch('/api/user');
-          if (response.status === 401) {
-            const authUrl = response.headers.get('X-Auth-URL');
-            if (authUrl) {
-              this.theUrl = authUrl;
-            } else {
-              console.error('No auth URL provided');
-            }
-          }
-        } catch (error) {
-          console.error('Sign in failed:', error);
-        } finally {
-          this.loading = false;
-        }
-      }
+const router = useRouter();
+const loading = ref(false);
 
-      if (this.theUrl) {
-        // Store the current route to redirect back after auth
-        const currentRoute = this.$router.currentRoute.value;
-        localStorage.setItem('auth_redirect', this.backUrl || currentRoute.fullPath);
-
-        this.$router.push({
-          name: 'auth-redirect',
-          params: { url: this.theUrl },
-        });
-      }
-    },
+const handleSignIn = async () => {
+  try {
+    let url = Auth.googleLoginEntrypoint;
+    console.info("Redirecting to: ", url)
+    loading.value = true;
+    // Store the current route to redirect back after auth
+    const currentRoute = router.currentRoute.value;
+    localStorage.setItem('auth_redirect', currentRoute.fullPath);
+    await router.push({
+      name: 'auth-redirect',
+      params: {url: url},
+    });
+  } catch (e) {
+    console.error("error login start", e);
+  } finally {
+    loading.value = false;
   }
-});
+};
 </script>
+
 
 <style scoped>
 .google-signin {

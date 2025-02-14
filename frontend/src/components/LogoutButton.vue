@@ -1,5 +1,6 @@
 <template>
   <template v-if="loggedIn">
+    <img :src="user.picture" v-if="user.picture" height="32" width="32" :alt="`${user.name} - ${user.email}`"/>
     <button class="logout-button" disabled v-if="loading">Logging out...</button>
     <button
         @click="handleLogout"
@@ -9,51 +10,40 @@
     >
       {{ loading ? 'Logging out...' : 'Logout' }}
     </button>
-    <img :src="user.picture" v-if="user.picture" height="32" width="32" alt="{{ user.name }} - {{ user.email }}"/>
   </template>
   <button v-else class="logout-button" @click="router.push('/ui/user')">Login</button>
 </template>
 
-<script lang="ts">
-import {defineComponent} from 'vue';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import Auth, {User} from '@/api/Auth';
+import Auth, { User } from '@/api/Auth';
 
-export default defineComponent({
-  data() {
-    return {
-      user: {} as User,
-      loading: false,
-      router: useRouter()
-    }
-  },
-  async mounted() {
-    try {
-      this.user = (await Auth.getUser()) || {}
-    } catch(error) {
-      console.error('Failed to get user:', error);
-    }
-  },
-  computed: {
-    loggedIn() {
-      return !!this.user.email;
-    }
-  },
-  methods: {
-    async handleLogout(){
-      this.loading = true;
-      try {
-        await Auth.logout();
-        await this.router.push('/login');
-      } catch (error) {
-        console.error('Logout failed:', error);
-      } finally {
-        this.loading = false;
-      }
-    }
+const user = ref<User>({} as User);
+const loading = ref(false);
+const router = useRouter();
+
+const loggedIn = computed(() => !!user.value.email);
+
+const handleLogout = async () => {
+  loading.value = true;
+  try {
+    await Auth.logout();
+    await router.push('/login');
+  } catch (error) {
+    console.error('Logout failed:', error);
+  } finally {
+    loading.value = false;
   }
-})
+};
 
+onMounted(async () => {
+  try {
+    user.value = (await Auth.getUser()) || {};
+  } catch (error) {
+    console.error('Failed to get user:', error);
+  }
+});
 </script>
 
 <style scoped>

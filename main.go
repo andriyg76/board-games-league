@@ -25,7 +25,7 @@ func main() {
 	r.Use(middleware.Logger)
 
 	r.Route("/api", func(r chi.Router) {
-		//		r.Post("/auth/google", googleAuthHandler)
+		r.Get("/auth/google", handleLogin)
 		r.Post("/auth/google/callback", googleCallbackHandler)
 		r.Post("/auth/logout", logoutHandler)
 

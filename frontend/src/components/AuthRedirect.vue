@@ -1,22 +1,21 @@
-<!-- AuthRedirect.vue -->
 <template>
   <div class="redirect-loading">Redirecting...</div>
 </template>
 
-<script>
-export default {
-  name: 'AuthRedirect',
-  created() {
-    const
-        url = this.$route.params.url,
-        backurl = this.$route.params.backurl
-    ;
-    localStorage.setItem('auth_redirect', backurl  || this.$route.path);
-    if (url) {
-      window.location.href = url;
-    } else {
-      this.$router.push('/');
-    }
-  }
+<script lang="ts" setup>
+import {useRoute, useRouter} from 'vue-router';
+
+const route = useRoute();
+const router = useRouter();
+
+const url = route.params.url as string | undefined;
+const backurl = route.params.backurl as string | undefined;
+
+localStorage.setItem('auth_redirect', backurl || route.path);
+
+if (url) {
+  window.location.href = url;
+} else {
+  router.push('/');
 }
 </script>

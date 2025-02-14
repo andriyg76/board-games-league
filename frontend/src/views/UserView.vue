@@ -1,33 +1,27 @@
-<h3>I am user</h3>
-
 <template>
   <div>
+    <google-login/>
     <h3>I am a {{ user }}</h3>
-
-    <google-login :url="url"/>
   </div>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue';
 import GoogleLogin from '@/components/GoogleLogin.vue';
+import Auth, {User} from "@/api/Auth";
 
 export default defineComponent({
   data() {
     return {
-      user: 'user',
-      url: null,
+      user: {} as User,
     }
   },
-  mounted() {
-    function handleResponse(response: Response, target: { url: string | null; user: string } ) {
-      if (response.status === 200) {
-        response.json().then(data => target.user = data)
-      } if (response.status === 401) {
-        target.url = response.headers.get('X-Auth-URL');
-      }
+  async mounted() {
+    try {
+      this.user = (await Auth.getUser()) || {}
+    } catch (e) {
+      console.error("Error getting user: ", e)
     }
-    fetch('/api/user').then(r => handleResponse(r, this));
   },
   components: {
     GoogleLogin

@@ -2,30 +2,24 @@
   <div class="callback-loading">Completing authentication...</div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-export default defineComponent( {
-  name: 'AuthCallback',
-  async created() {
-    try {
-      // Get all query parameters from current URL
-      const queryParams = new URLSearchParams(window.location.search);
+<script lang="ts" setup>
+import { useRouter } from 'vue-router';
+import Auth from '@/api/Auth';
 
-      // Forward these parameters to your backend
-      const response = await fetch(`/api/auth/google/callback?${queryParams.toString()}`, { method: 'POST' });
+const router = useRouter();
 
-      if (!response.ok) {
-        throw new Error('Auth callback failed');
-      }
+try {
+  // Get all query parameters from current URL
+  const queryParams = new URLSearchParams(window.location.search);
 
-      const redirectPath = localStorage.getItem('auth_redirect') || '/dashboard';
-      localStorage.removeItem('auth_redirect'); // Clean up
+  await Auth.handleGoogleCallback(queryParams.toString());
 
-      this.$router.push(redirectPath);
-    } catch (error) {
-      console.error('Auth callback failed:', error);
-      this.$router.push('/ui/user');
-    }
-  }
-})
+  const redirectPath = localStorage.getItem('auth_redirect') || '/';
+  localStorage.removeItem('auth_redirect'); // Clean up
+
+  router.push(redirectPath);
+} catch (error) {
+  console.error('Auth callback failed:', error);
+  router.push('/ui/user');
+}
 </script>
