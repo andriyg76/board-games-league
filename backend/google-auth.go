@@ -41,21 +41,21 @@ func googleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	delete(session.Values, "state")
 
 	if storedState != nil && state != storedState.(string) {
-		log.Error("Auth completion failed: State token mismatch")
+		_ = log.Error("Auth completion failed: State token mismatch")
 		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
 
 	user, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
-		log.Error("Auth completion failed: %v", err)
+		_ = log.Error("Auth completion failed: %v", err)
 		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
 
 	token, err := createAuthToken(user)
 	if err != nil {
-		log.Error("Token creation failed: %v", err)
+		_ = log.Error("Token creation failed: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -71,14 +71,17 @@ func googleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   24 * 60 * 60, // 24 hours
 	})
 
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"email":   user.Email,
 		"name":    user.Name,
 		"picture": user.AvatarURL,
-	})
+	}); err != nil {
+		_ = log.Error("serialising error %v", err)
+		http.Error(w, "serialising error", http.StatusInternalServerError)
+	}
 }
 
-func logoutHandler(w http.ResponseWriter, r *http.Request) {
+func logoutHandler(w http.ResponseWriter, _ *http.Request) {
 	// Clear the auth cookie
 	clearCookies(w)
 
@@ -86,13 +89,17 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
-	gothic.Logout(w, r)
+	_ = gothic.Logout(w, r)
 
 	query := r.URL.Query()
 	if state := query.Get("state"); state != "" {
 		session, _ := store.Get(r, "auth-session")
 		session.Values["state"] = state
-		session.Save(r, w)
+		if err := session.Save(r, w); err != nil {
+			_ = log.Error("serialising session error %v", err)
+			http.Error(w, "serialising error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	gothic.BeginAuthHandler(w, r)
@@ -176,7 +183,7 @@ func authMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func handleUnauthorized(w http.ResponseWriter, r *http.Request) {
+func handleUnauthorized(w http.ResponseWriter, _ *http.Request) {
 	clearCookies(w)
 
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -184,14 +191,17 @@ func handleUnauthorized(w http.ResponseWriter, r *http.Request) {
 
 func getUserHandler(w http.ResponseWriter, r *http.Request) {
 	if claims, ok := r.Context().Value("user").(*claims); !ok {
-		log.Error("Failed to parse user claims %v", r.Context().Value("user"))
+		_ = log.Error("Failed to parse user claims %v", r.Context().Value("user"))
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	} else {
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"email":   claims.Email,
 			"name":    claims.Name,
 			"picture": claims.Picture,
-		})
+		}); err != nil {
+			_ = log.Error("serialising error %v", err)
+			http.Error(w, "serialising error", http.StatusInternalServerError)
+		}
 	}
 }

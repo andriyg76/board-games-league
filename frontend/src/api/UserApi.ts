@@ -21,7 +21,7 @@ export default {
 
         return await response.json();
     },
-    async checkAlias(alias: string): Promise<{ isUnique: boolean }> {
+    async checkAlias(alias: string | null): Promise<{ isUnique: boolean }> {
         const response = await fetch(`/api/user/alias/exist?alias=${alias}`, {
             credentials: 'include',
             method: "POST"

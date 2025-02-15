@@ -18,10 +18,9 @@
 </template>
 
 <script lang="ts" setup>
-import {defineComponent, onMounted, ref} from 'vue';
+import {onMounted, ref} from 'vue';
 import GoogleLogin from '@/components/GoogleLogin.vue';
-import Auth, { User } from "@/api/Auth";
-import UserApi from "@/api/UserApi";
+import UserApi, { User } from "@/api/UserApi";
 
 const user = ref({} as User)
 
@@ -41,7 +40,7 @@ const isAliasUnique = ref(false)
 
 async function checkAliasUniqueness() {
   try {
-    const response = await UserApi.checkAlias(user.value.alias);
+    const response = await UserApi.checkAlias(user.value.alias || "");
     isAliasUnique.value = response.isUnique;
   } catch (e) {
     console.error("Error checking alias uniqueness: ", e);

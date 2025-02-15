@@ -52,7 +52,7 @@ func main() {
 		log.Info("Running revese proxy to url: %s", frontendURL)
 		proxyURL, err := url.Parse(frontendURL)
 		if err != nil {
-			log.Error("Can't parse frontend url: %v", err)
+			_ = log.Error("Can't parse frontend url: %v", err)
 			os.Exit(1)
 		} else {
 			proxy := httputil.NewSingleHostReverseProxy(proxyURL)
@@ -72,7 +72,7 @@ func main() {
 	log.Info("Listening on %s... Ctrl+C to break server processing", listenAddress)
 
 	if err := http.ListenAndServe(listenAddress, r); err != nil {
-		log.Error("Error attaching to listen socket %v", err)
+		_ = log.Error("Error attaching to listen socket %v", err)
 		os.Exit(1)
 	}
 	log.Info("Exiting...")
