@@ -39,10 +39,9 @@ const handleSignIn = async () => {
     // Store the current route to redirect back after auth
     const currentRoute = router.currentRoute.value;
     localStorage.setItem('auth_redirect', currentRoute.fullPath);
-    await router.push({
-      name: 'auth-redirect',
-      params: {url: url},
-    });
+    if (url) {
+      window.location.href = url;
+    } 
   } catch (e) {
     console.error("error login start", e);
   } finally {

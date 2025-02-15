@@ -12,12 +12,20 @@ try {
   // Get all query parameters from current URL
   const queryParams = new URLSearchParams(window.location.search);
 
-  await Auth.handleGoogleCallback(queryParams.toString());
-
-  const redirectPath = localStorage.getItem('auth_redirect') || '/';
-  localStorage.removeItem('auth_redirect'); // Clean up
-
-  router.push(redirectPath);
+  Auth.handleGoogleCallback(queryParams.toString()).
+    then((user) => {
+      if (user) {
+        console.log("User ", user, " authenticated")
+      } else {
+        console.log("User is not authenticated")
+      }
+    }).
+    finally(() => {
+      const redirectPath = localStorage.getItem('auth_redirect') || '/';
+      localStorage.removeItem('auth_redirect'); // Clean up
+      console.info("Redirecting to: ", redirectPath)
+      router.push(redirectPath);
+    })
 } catch (error) {
   console.error('Auth callback failed:', error);
   router.push('/ui/user');

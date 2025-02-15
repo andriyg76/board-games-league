@@ -30,8 +30,21 @@ func init() {
 var config = loadConfig()
 var store = sessions.NewCookieStore(config.SessionSecret)
 
+func init() {
+	gothic.Store = store
+}
+
 func googleCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	r.URL.Query().Add("provider", "google")
+	session, _ := store.Get(r, "auth-session")
+	state := r.URL.Query().Get("state")
+	storedState := session.Values["state"]
+	delete(session.Values, "state")
+
+	if storedState != nil && state != storedState.(string) {
+		log.Error("Auth completion failed: State token mismatch")
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
+		return
+	}
 
 	user, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
@@ -72,6 +85,19 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func handleLogin(w http.ResponseWriter, r *http.Request) {
+	gothic.Logout(w, r)
+
+	query := r.URL.Query()
+	if state := query.Get("state"); state != "" {
+		session, _ := store.Get(r, "auth-session")
+		session.Values["state"] = state
+		session.Save(r, w)
+	}
+
+	gothic.BeginAuthHandler(w, r)
+}
+
 func clearCookies(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
@@ -102,7 +128,7 @@ func loadConfig() Config {
 	}
 }
 
-type Claims struct {
+type claims struct {
 	Email   string `json:"email"`
 	Name    string `json:"name"`
 	Picture string `json:"picture"`
@@ -110,7 +136,7 @@ type Claims struct {
 }
 
 func createAuthToken(user goth.User) (string, error) {
-	claims := Claims{
+	claims := claims{
 		Email:   user.Email,
 		Name:    user.Name,
 		Picture: user.AvatarURL,
@@ -132,7 +158,7 @@ func authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		token, err := jwt.ParseWithClaims(cookie.Value, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(cookie.Value, &claims{}, func(token *jwt.Token) (interface{}, error) {
 			return config.JwtSecret, nil
 		})
 
@@ -141,7 +167,7 @@ func authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if claims, ok := token.Claims.(*Claims); ok {
+		if claims, ok := token.Claims.(*claims); ok {
 			ctx := context.WithValue(r.Context(), "user", claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		} else {
@@ -153,25 +179,11 @@ func authMiddleware(next http.Handler) http.Handler {
 func handleUnauthorized(w http.ResponseWriter, r *http.Request) {
 	clearCookies(w)
 
-	// Create a new request with the provider specified
-	authReq := r.WithContext(r.Context())
-	q := authReq.URL.Query()
-	q.Add("provider", "google")
-	authReq.URL.RawQuery = q.Encode()
-
-	url, err := gothic.GetAuthURL(w, authReq)
-	if err != nil {
-		log.Error("Failed to get auth URL: %v", err)
-		http.Error(w, "Authentication failed", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("X-Auth-URL", url)
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
 }
 
 func getUserHandler(w http.ResponseWriter, r *http.Request) {
-	if claims, ok := r.Context().Value("user").(*Claims); !ok {
+	if claims, ok := r.Context().Value("user").(*claims); !ok {
 		log.Error("Failed to parse user claims %v", r.Context().Value("user"))
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
@@ -182,12 +194,4 @@ func getUserHandler(w http.ResponseWriter, r *http.Request) {
 			"picture": claims.Picture,
 		})
 	}
-}
-
-func handleLogin(w http.ResponseWriter, r *http.Request) {
-	gothic.Logout(w, r)
-
-	r.URL.Query().Add("provider", "google")
-
-	gothic.BeginAuthHandler(w, r)
 }

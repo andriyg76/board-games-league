@@ -5,9 +5,16 @@ export interface User {
 }
 
 
+
 export  default {
     get googleLoginEntrypoint() {
-        return `/api/auth/google?random=${Math.random()}`
+        const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let stateToken = "";
+        for (let i = 0; i < 64; i++) {
+            stateToken += letters.charAt(Math.floor(Math.random() * letters.length));
+        }
+
+        return `/api/auth/google?provider=google&state=${stateToken}`;
     },
 
     async logout(): Promise<void> {
@@ -26,16 +33,16 @@ export  default {
         });
 
         if (response.status == 401) {
-            return Promise.resolve(null);
+            return null;
         }
 
         if (!response.ok) {
             throw new Error('Failed to get user');
         }
 
-        return response.json();
+        return await response.json();
     },
-    async handleGoogleCallback(params: string) {
+    async handleGoogleCallback(params: string) : Promise<User | null> {
         // Forward these parameters to your backend
         const response = await fetch(`/api/auth/google/callback?${params}`,  {
             credentials: 'include',
@@ -45,5 +52,7 @@ export  default {
         if (!response.ok) {
             throw new Error('Auth callback failed');
         }
+
+        return await response.json() || {}
     }
 }

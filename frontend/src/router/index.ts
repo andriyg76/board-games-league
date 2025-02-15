@@ -13,11 +13,6 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/UserView.vue')
   },
   {
-    path: '/auth-redirect/:url',
-    name: 'auth-redirect',
-    component: () => import('../components/AuthRedirect.vue')
-  },
-  {
     path: '/auth-callback',
     name: 'auth-callback',
     component: () => import('../components/AuthCallback.vue')

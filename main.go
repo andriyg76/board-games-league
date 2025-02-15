@@ -14,12 +14,16 @@ import (
 )
 
 func main() {
+	log.Info("Starting...")
+
 	mongodb, err := db.NewMongoDB(os.Getenv("MONGODB_URI"), "your_database_name")
 	if err != nil {
 		log.Fatal("Failed to connect to MongoDB:", err)
 	}
 
 	repositories.NewUserRepository(mongodb.Collection("users"))
+
+	log.Info("Database connector initialised")
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -57,8 +61,13 @@ func main() {
 		// Serve static files from the frontend build directory
 		r.Handle("/*", http.StripPrefix("/", http.FileServer(http.FS(frontendfs.Frontend))))
 	}
+	log.Info("Http routers configured...")
 
-	if err := http.ListenAndServe(":8080", r); err != nil {
+	listenAddress := ":8080"
+
+	log.Info("Listening on %s... Ctrl+C to break server processing", listenAddress)
+
+	if err := http.ListenAndServe(listenAddress, r); err != nil {
 		log.Error("Error attaching to listen socket %v", err)
 		os.Exit(1)
 	}

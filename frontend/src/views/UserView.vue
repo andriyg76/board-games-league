@@ -1,7 +1,11 @@
 <template>
   <div>
-    <google-login/>
-    <h3>I am a {{ user }}</h3>
+    <google-login v-if="isLoggedIn"/>
+    <template v-else>
+      <h3>I am a {{ user.name }}</h3>
+      <h4>Email {{ user.email }}</h4>
+      <img v-if="user.picture" :src="user.picture" :alt="`${user.name} - ${user.email}`"/>
+    </template>
   </div>
 </template>
 
