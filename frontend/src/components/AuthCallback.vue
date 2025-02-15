@@ -15,9 +15,9 @@ try {
   Auth.handleGoogleCallback(queryParams.toString()).
     then((user) => {
       if (user) {
-        console.log("User ", user, " authenticated")
+        console.log("UserApi ", user, " authenticated")
       } else {
-        console.log("User is not authenticated")
+        console.log("UserApi is not authenticated")
       }
     }).
     finally(() => {

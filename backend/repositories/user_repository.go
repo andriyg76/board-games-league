@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
 
@@ -15,9 +16,27 @@ type UserRepository struct {
 }
 
 func NewUserRepository(db *mongo.Collection) *UserRepository {
-	return &UserRepository{
+	repository := &UserRepository{
 		collection: db,
 	}
+	repository.ensureIndexes()
+	return repository
+}
+
+func (r *UserRepository) ensureIndexes() {
+	indexModel := mongo.IndexModel{
+		Keys:    bson.M{"alias": 1},
+		Options: options.Index().SetUnique(true),
+	}
+	_, err := r.collection.Indexes().CreateOne(context.Background(), indexModel)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
+	_, err := r.collection.InsertOne(ctx, user)
+	return err
 }
 
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
@@ -50,4 +69,12 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 
 	_, err := r.collection.UpdateOne(ctx, filter, update)
 	return err
+}
+
+func (r *UserRepository) AliasExists(ctx context.Context, alias string) (bool, error) {
+	count, err := r.collection.CountDocuments(ctx, bson.M{"alias": alias})
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

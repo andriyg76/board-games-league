@@ -4,6 +4,7 @@ import (
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/frontendfs"
 	"github.com/andriyg76/bgl/repositories"
+	"github.com/andriyg76/bgl/userapi"
 	log "github.com/andriyg76/glog"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -21,7 +22,7 @@ func main() {
 		log.Fatal("Failed to connect to MongoDB:", err)
 	}
 
-	repositories.NewUserRepository(mongodb.Collection("users"))
+	userrepository := repositories.NewUserRepository(mongodb.Collection("users"))
 
 	log.Info("Database connector initialised")
 
@@ -38,6 +39,9 @@ func main() {
 			r.Use(authMiddleware)
 			// Add your protected endpoints here
 			r.Get("/user", getUserHandler)
+
+			r.Post("/user/alias/exist", userapi.NewCheckAliasUniqueness(userrepository))
+			r.Put("/user/update", userapi.UpdateUser(userrepository))
 		})
 		r.Handle("/*", http.NotFoundHandler())
 	})

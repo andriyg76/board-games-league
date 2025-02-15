@@ -15,11 +15,11 @@ FROM golang:1.23 as backend-builder
 WORKDIR /app
 
 # Install Go dependencies
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
 # Copy backend source code
-COPY . .
+COPY backend/ ./
 
 COPY --from=frontend-builder /app/frontend/dist ./frontendfs
 

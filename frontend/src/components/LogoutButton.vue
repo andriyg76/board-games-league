@@ -17,7 +17,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import Auth, { User } from '@/api/Auth';
+import Auth from '@/api/Auth';
+import UserApi, { User } from "@/api/UserApi";
 
 const user = ref<User>({} as User);
 const loading = ref(false);
@@ -39,7 +40,7 @@ const handleLogout = async () => {
 
 onMounted(async () => {
   try {
-    user.value = (await Auth.getUser()) || {};
+    user.value = (await UserApi.getUser()) || {};
   } catch (error) {
     console.error('Failed to get user:', error);
   }

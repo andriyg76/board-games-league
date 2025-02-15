@@ -1,12 +1,6 @@
-export interface User {
-    email?: string | null;
-    name?: string | null;
-    picture?: string | null;
-}
+import {User} from "@/api/UserApi";
 
-
-
-export  default {
+export default {
     get googleLoginEntrypoint() {
         const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         let stateToken = "";
@@ -27,24 +21,8 @@ export  default {
             throw new Error('Logout failed');
         }
     },
-    async getUser(): Promise<User | null> {
-        const response = await fetch('/api/user', {
-            credentials: 'include',
-        });
-
-        if (response.status == 401) {
-            return null;
-        }
-
-        if (!response.ok) {
-            throw new Error('Failed to get user');
-        }
-
-        return await response.json();
-    },
-    async handleGoogleCallback(params: string) : Promise<User | null> {
-        // Forward these parameters to your backend
-        const response = await fetch(`/api/auth/google/callback?${params}`,  {
+    async handleGoogleCallback(params: string): Promise<User | null> {
+        const response = await fetch(`/api/auth/google/callback?${params}`, {
             credentials: 'include',
             method: 'POST'
         });
@@ -53,6 +31,6 @@ export  default {
             throw new Error('Auth callback failed');
         }
 
-        return await response.json() || {}
+        return await response.json() || {};
     }
 }
