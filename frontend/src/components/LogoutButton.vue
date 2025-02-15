@@ -1,17 +1,15 @@
 <template>
   <template v-if="loggedIn">
-    <img :src="user.picture" v-if="user.picture" height="32" width="32" :alt="`${user.name} - ${user.email}`"/>
-    <button class="logout-button" disabled v-if="loading">Logging out...</button>
-    <button
+    <v-btn color="primary"
         @click="handleLogout"
         :disabled="loading"
         class="logout-button"
-        v-else
     >
       {{ loading ? 'Logging out...' : 'Logout' }}
-    </button>
+      <v-img  :src="user.picture" v-if="user.picture" height="32" width="32" :alt="`${user.name} - ${user.email}`"/>
+    </v-btn>
   </template>
-  <button v-else class="logout-button" @click="router.push('/ui/user')">Login</button>
+  <v-btn color="primary" v-else class="logout-button" @click="router.push('/ui/user')">Login</v-btn>
 </template>
 
 <script setup lang="ts">
@@ -47,18 +45,3 @@ onMounted(async () => {
 });
 </script>
 
-<style scoped>
-.logout-button {
-  padding: 8px 16px;
-  background-color: #f56565;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.logout-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-</style>

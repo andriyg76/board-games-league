@@ -1,7 +1,8 @@
 <template>
   <div class="home">
-    <HelloWorld msg="Welcome to Your Vue.js + TypeScript App"/>
   </div>
+
+  <v-btn color="primary">Hello, Vuetify!</v-btn>
 </template>
 
 <script lang="ts">

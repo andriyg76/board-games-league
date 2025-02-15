@@ -5,13 +5,13 @@
       <h3>I am a {{ user.name }}</h3>
       <h4>Email: {{ user.email }}</h4>
       <h4>Alias:
-        <input v-model="user.alias" @input="checkAliasUniqueness" placeholder="Enter alias"/>
+        <v-text-field v-model="user.alias" @input="checkAliasUniqueness" placeholder="Enter alias" append-icon="edit"/>
         <span v-if="isAliasUnique">✔️</span>
         <span v-else>❌</span>
       </h4>
-      <button @click="updateAlias" :disabled="!isAliasUnique">Update Alias</button>
+      <v-btn color="primary" @click="updateAlias" :disabled="!isAliasUnique">Update Alias</v-btn>
       <p>
-        <img v-if="user.picture" :src="user.picture" :alt="`${user.name} - ${user.email}`"/>
+        <v-img v-if="user.picture" :src="user.picture" :alt="`${user.name} - ${user.email}`" height="64" width="64"/>
       </p>
     </template>
   </div>

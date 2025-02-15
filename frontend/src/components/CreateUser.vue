@@ -4,7 +4,7 @@
     <p v-if="message">{{ message }}</p>
     <div v-if="email">
       <p>Email: {{ email }}</p>
-      <button @click="createUser">Create</button>
+      <v-btn @click="createUser">Create</v-btn>
     </div>
     <div v-else>
       <p>Email parameter is missing</p>

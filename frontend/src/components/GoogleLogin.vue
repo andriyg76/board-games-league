@@ -4,7 +4,7 @@
     <div v-if="loading" class="loading">
       Loading...
     </div>
-    <button
+    <v-btn
         v-else
         @click="handleSignIn"
         class="google-btn"
@@ -19,7 +19,7 @@
         </svg>
       </span>
       Login in with Google
-    </button>
+    </v-btn>
   </div>
 </template>
 
@@ -52,43 +52,5 @@ const handleSignIn = async () => {
 
 
 <style scoped>
-.google-signin {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100px;
-}
 
-.google-btn {
-  display: flex;
-  align-items: center;
-  padding: 12px 24px;
-  background-color: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
-  font-weight: 500;
-  color: #757575;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.google-btn:hover {
-  background-color: #f8f8f8;
-}
-
-.google-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.google-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 12px;
-}
-
-.loading {
-  color: #666;
-}
 </style>
