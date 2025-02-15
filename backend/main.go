@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/frontendfs"
 	"github.com/andriyg76/bgl/repositories"
@@ -22,7 +23,7 @@ func main() {
 		log.Fatal("Failed to connect to MongoDB:", err)
 	}
 
-	userrepository := repositories.NewUserRepository(mongodb.Collection("users"))
+	userRepository := repositories.NewUserRepository(mongodb.Collection("users"))
 
 	log.Info("Database connector initialised")
 
@@ -30,18 +31,20 @@ func main() {
 	r.Use(middleware.Logger)
 
 	r.Route("/api", func(r chi.Router) {
-		r.Get("/auth/google", handleLogin)
-		r.Post("/auth/google/callback", googleCallbackHandler)
-		r.Post("/auth/logout", logoutHandler)
+		r.Get("/auth/google", auth.HandleLogin(userRepository))
+		r.Post("/auth/google/callback", auth.GoogleCallbackHandler(userRepository))
+		r.Post("/auth/logout", auth.LogoutHandler(userRepository))
 
 		// Protected routes
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware)
+			r.Use(auth.Middleware(userRepository))
 			// Add your protected endpoints here
-			r.Get("/user", getUserHandler)
+			r.Get("/user", userapi.GetUserHandler(userRepository))
 
-			r.Post("/user/alias/exist", userapi.NewCheckAliasUniqueness(userrepository))
-			r.Put("/user/update", userapi.UpdateUser(userrepository))
+			r.Post("/user/alias/exist", userapi.CheckAliasUniquenessHandler(userRepository))
+			r.Put("/user/update", userapi.UpdateUser(userRepository))
+
+			r.Put("/admin/user/create", userapi.AdminCreateUserHandler(userRepository))
 		})
 		r.Handle("/*", http.NotFoundHandler())
 	})

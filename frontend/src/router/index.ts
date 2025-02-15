@@ -16,7 +16,12 @@ const routes: Array<RouteRecordRaw> = [
     path: '/auth-callback',
     name: 'auth-callback',
     component: () => import('../components/AuthCallback.vue')
-  }
+  },
+  {
+    path: '/ui/admin/create-user',
+    name: 'CreateUser',
+    component: () => import('../components/CreateUser.vue'),
+  },
 ]
 
 const router = createRouter({

@@ -18,15 +18,13 @@
 </template>
 
 <script lang="ts" setup>
-import {onMounted, ref} from 'vue';
+import {computed, onMounted, ref} from 'vue';
 import GoogleLogin from '@/components/GoogleLogin.vue';
 import UserApi, { User } from "@/api/UserApi";
 
 const user = ref({} as User)
 
-function isLoggedIn() {
-  return !!user.value.email
-}
+const isLoggedIn = computed(() => !!user.value.email);
 
 onMounted(async () => {
   try {
