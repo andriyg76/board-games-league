@@ -4,6 +4,7 @@ interface User {
     name: string;
     email: string;
     picture?: string;
+    alias: string;
 }
 
 const state = reactive({
