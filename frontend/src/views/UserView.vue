@@ -21,6 +21,7 @@
 import GoogleLogin from '@/components/GoogleLogin.vue';
 import UserApi from "@/api/UserApi";
 import userStore from '@/store/user';
+import {ref} from "vue";
 
 const isAliasUnique = ref(false);
 
