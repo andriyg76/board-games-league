@@ -1,7 +1,6 @@
 <template>
   <div>
-    <google-login v-if="!userStore.state.loggedIn"/>
-    <template v-else>
+    <template v-if="userStore.state.loggedIn">
       <h3>I am a {{ userStore.state.user.name }}</h3>
       <h4>Email: {{ userStore.state.user.email }}</h4>
       <h4>Alias:
@@ -18,7 +17,6 @@
 </template>
 
 <script lang="ts" setup>
-import GoogleLogin from '@/components/GoogleLogin.vue';
 import UserApi from "@/api/UserApi";
 import userStore from '@/store/user';
 import {ref} from "vue";

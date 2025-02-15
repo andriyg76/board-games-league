@@ -5,11 +5,11 @@
            :disabled="loading"
            class="logout-button"
     >
-      {{ loading ? 'Logging out...' : 'Logout' }}
       <v-img  :src="userStore.state.user.picture" v-if="userStore.state.user.picture" height="32" width="32" :alt="`${userStore.state.user.name} - ${userStore.state.user.email}`"/>
+      {{ loading ? 'Logging out...' : 'Logout' }}
     </v-btn>
   </template>
-  <v-btn color="primary" v-else class="logout-button" @click="router.push('/ui/user')">Login</v-btn>
+  <v-btn color="primary" v-else @click="startLogin">Login</v-btn>
 </template>
 
 <script setup lang="ts">
@@ -30,6 +30,24 @@ const handleLogout = async () => {
     await router.push('/login');
   } catch (error) {
     console.error('Logout failed:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const startLogin = async () => {
+  try {
+    let url = Auth.googleLoginEntrypoint;
+    console.info("Redirecting to: ", url)
+    loading.value = true;
+    // Store the current route to redirect back after auth
+    const currentRoute = router.currentRoute.value;
+    localStorage.setItem('auth_redirect', currentRoute.fullPath);
+    if (url) {
+      window.location.href = url;
+    }
+  } catch (e) {
+    console.error("error login start", e);
   } finally {
     loading.value = false;
   }
