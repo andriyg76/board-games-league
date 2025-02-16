@@ -1,36 +1,49 @@
-<h3>I am user</h3>
-
 <template>
   <div>
-    <h3>I am a {{ user }}</h3>
-
-    <google-sign-in url="url"/>
+    <template v-if="userStore.state.loggedIn">
+      <h3>I am a {{ userStore.state.user.name }}</h3>
+      <h4>Email: {{ userStore.state.user.email }}</h4>
+      <h4>Alias:
+        <v-text-field v-model="userStore.state.user.alias" @input="checkAliasUniqueness" placeholder="Enter alias" append-icon="edit"/>
+        <span v-if="isAliasUnique">✔️</span>
+        <span v-else>❌</span>
+      </h4>
+      <v-btn color="primary" @click="updateAlias" :disabled="!isAliasUnique">Update Alias</v-btn>
+      <p>
+        <v-img v-if="userStore.state.user.picture" :src="userStore.state.user.picture" :alt="`${userStore.state.user.name} - ${userStore.state.user.email}`" height="64" width="64"/>
+      </p>
+    </template>
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-import GoogleSignIn from '@/components/GoogleSignin.vue';
+<script lang="ts" setup>
+import UserApi from "@/api/UserApi";
+import userStore from '@/store/user';
+import {ref} from "vue";
 
-export default defineComponent({
-  data() {
-    return {
-      user: 'user',
-      url: null,
-    }
-  },
-  mounted() {
-    function handleResponse(response: Response, target: { url: string | null; user: string } ) {
-      if (response.status === 200) {
-        response.json().then(data => target.user = data)
-      } if (response.status === 401) {
-        target.url = response.headers.get('X-Auth-URL');
-      }
-    }
-    fetch('/api/user').then(r => handleResponse(r, this));
-  },
-  components: {
-    GoogleSignIn
+const isAliasUnique = ref(false);
+
+async function checkAliasUniqueness() {
+  try {
+    const response = await UserApi.checkAlias(userStore.state.user.alias || "");
+    isAliasUnique.value = response.isUnique;
+  } catch (e) {
+    console.error("Error checking alias uniqueness: ", e);
+    isAliasUnique.value = false;
   }
-});
+}
+
+const isAliasUpdated = ref(false);
+
+async function updateAlias() {
+  if (isAliasUnique.value) {
+    try {
+      await UserApi.updateUser(userStore.state.user);
+      isAliasUpdated.value = true;
+    } catch (e) {
+      console.error("Error updating alias: ", e);
+      isAliasUpdated.value = false;
+    }
+  }
+}
 </script>
