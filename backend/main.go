@@ -18,7 +18,7 @@ import (
 func main() {
 	log.Info("Starting...")
 
-	mongodb, err := db.NewMongoDB(os.Getenv("MONGODB_URI"), "your_database_name")
+	mongodb, err := db.NewMongoDB(os.Getenv("MONGODB_URI"))
 	if err != nil {
 		log.Fatal("Failed to connect to MongoDB:", err)
 	}

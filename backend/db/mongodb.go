@@ -3,8 +3,11 @@ package db
 
 import (
 	"context"
+	"github.com/andriyg76/glog"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -13,7 +16,7 @@ type MongoDB struct {
 	database *mongo.Database
 }
 
-func NewMongoDB(uri, dbName string) (*MongoDB, error) {
+func NewMongoDB(uri string) (*MongoDB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -26,6 +29,16 @@ func NewMongoDB(uri, dbName string) (*MongoDB, error) {
 	err = client.Ping(ctx, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	u, err := url.Parse(uri)
+	if err != nil {
+		return nil, err
+	}
+	dbName := strings.TrimPrefix(u.Path, "/")
+	if dbName == "" {
+		client.Disconnect(ctx)
+		return nil, glog.Error("database is not specified in mongo url")
 	}
 
 	return &MongoDB{
