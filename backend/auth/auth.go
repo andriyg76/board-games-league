@@ -171,7 +171,7 @@ func ensureGothInit(r *http.Request) {
 		glog.Info("Late goth init...")
 		hostName := utils.GetHostUrl(r)
 
-		callbackUrl := hostName + "/auth-callback"
+		callbackUrl := hostName + "/ui/auth-callback" // defined at frontend/src/router/index.ts
 
 		glog.Info("Google auth callback url: %v", callbackUrl)
 
@@ -291,7 +291,7 @@ func isSuperAdmin(email string) bool {
 
 func sendNewUserToDiscord(r *http.Request, user *models.User) error {
 	domain := utils.GetHostUrl(r)
-	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?email=%s", domain, user.Email)
+	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?email=%s", domain, user.Email) // defined at frontend/src/router/index.ts
 	payload := map[string]string{
 		"content": fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, user.Email, createUserLink),
 	}

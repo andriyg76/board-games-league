@@ -13,12 +13,12 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/UserView.vue')
   },
   {
-    path: '/auth-callback',
+    path: '/ui/auth-callback', // constant at backend/auth/auth.go
     name: 'auth-callback',
     component: () => import('../components/AuthCallback.vue')
   },
   {
-    path: '/ui/admin/create-user',
+    path: '/ui/admin/create-user', // constant at backend/auth/auth.go
     name: 'CreateUser',
     component: () => import('../components/CreateUser.vue'),
   },
