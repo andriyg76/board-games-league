@@ -18,9 +18,10 @@ import (
 func main() {
 	log.Info("Starting...")
 
-	mongodb, err := db.NewMongoDB(os.Getenv("MONGODB_URI"))
+	mongourl := os.Getenv("MONGODB_URI")
+	mongodb, err := db.NewMongoDB(mongourl)
 	if err != nil {
-		log.Fatal("Failed to connect to MongoDB:", err)
+		log.Fatal("Failed to connect to MongoDB:, connection: %s %v", mongourl, err)
 	}
 
 	userRepository := repositories.NewUserRepository(mongodb.Collection("users"))

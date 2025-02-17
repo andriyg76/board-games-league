@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -25,19 +26,9 @@ import (
 var superAdmins = strings.Split(os.Getenv("SUPERADMINS"), ",")
 
 func init() {
-	goth.UseProviders(
-		google.New(
-			config.GoogleClientID,
-			config.GoogleClientSecret,
-			config.CallbackURL,
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		),
-	)
 	glog.Info("Registered superadmins: %v", superAdmins)
 }
 
-var config = loadConfig()
 var store = sessions.NewCookieStore(config.SessionSecret)
 
 func init() {
@@ -46,6 +37,8 @@ func init() {
 
 func GoogleCallbackHandler(repository *repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ensureGothInit(r)
+
 		session, _ := store.Get(r, "auth-session")
 		state := r.URL.Query().Get("state")
 		storedState := session.Values["state"]
@@ -161,7 +154,9 @@ func GoogleCallbackHandler(repository *repositories.UserRepository) http.Handler
 }
 
 func LogoutHandler(_ *repositories.UserRepository) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ensureGothInit(r)
+
 		// Clear the auth cookie
 		clearCookies(w)
 
@@ -169,8 +164,32 @@ func LogoutHandler(_ *repositories.UserRepository) http.HandlerFunc {
 	}
 }
 
+var gothInitOnce sync.Once
+
+func ensureGothInit(r *http.Request) {
+	gothInitOnce.Do(func() {
+		glog.Info("Late goth init...")
+		hostName := utils.GetHostUrl(r)
+
+		callbackUrl := hostName + "/auth-callback"
+
+		glog.Info("Google auth callback url: %v", callbackUrl)
+
+		goth.UseProviders(
+			google.New(
+				config.GoogleClientID,
+				config.GoogleClientSecret,
+				callbackUrl,
+				"https://www.googleapis.com/auth/userinfo.email",
+				"https://www.googleapis.com/auth/userinfo.profile",
+			),
+		)
+	})
+}
 func HandleLogin(_ *repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ensureGothInit(r)
+
 		_ = gothic.Logout(w, r)
 
 		query := r.URL.Query()
@@ -200,22 +219,16 @@ func clearCookies(w http.ResponseWriter) {
 	})
 }
 
-type Config struct {
+var config = struct {
 	GoogleClientID     string
 	GoogleClientSecret string
-	CallbackURL        string
 	SessionSecret      []byte
 	JwtSecret          []byte
-}
-
-func loadConfig() Config {
-	return Config{
-		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-		CallbackURL:        os.Getenv("AUTH_CALLBACK_URL"),
-		SessionSecret:      []byte(os.Getenv("SESSION_SECRET")),
-		JwtSecret:          []byte(os.Getenv("JWT_SECRET")),
-	}
+}{
+	GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+	GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+	SessionSecret:      []byte(os.Getenv("SESSION_SECRET")),
+	JwtSecret:          []byte(os.Getenv("JWT_SECRET")),
 }
 
 func createAuthToken(user goth.User) (string, error) {
@@ -277,20 +290,10 @@ func isSuperAdmin(email string) bool {
 }
 
 func sendNewUserToDiscord(r *http.Request, user *models.User) error {
-	var domain string
-	origin := r.Header.Get("Origin")
-	if origin != "" {
-		domain = origin
-	} else {
-		scheme := r.URL.Scheme
-		if scheme == "" {
-			scheme = "http" // default to http if no scheme is available
-		}
-		domain = fmt.Sprintf("%s://%s", scheme, r.Host)
-	}
+	domain := utils.GetHostUrl(r)
 	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?email=%s", domain, user.Email)
 	payload := map[string]string{
-		"content": fmt.Sprintf("New user login: %s (%s). Click [%s](%s) to create the user.", user.Name, user.Email, createUserLink, createUserLink),
+		"content": fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, user.Email, createUserLink),
 	}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
