@@ -25,7 +25,16 @@ func init() {
 	glog.Info("Registered superadmins: %v", superAdmins)
 }
 
-var store = sessions.NewCookieStore(config.SessionSecret)
+var store = sessions.NewCookieStore(func() []byte {
+	var secret = []byte(os.Getenv("SESSION_SECRET"))
+	if len(secret) == 0 {
+		glog.Warn("SESSION_SECRET is empty, generating session secret")
+		secret = utils.GenerateRandomKey(32)
+	} else {
+		glog.Info("SESSION_SECRET is set with %d-th value", len(secret))
+	}
+	return secret
+}())
 
 func GoogleCallbackHandler(repository repositories.UserRepository, provider ExternalAuthProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +49,7 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 			return
 		}
 
-		externalUser, err := provider.CompleteUserAuth(w, r)
+		externalUser, err := provider.CompleteUserAuthHandler(w, r)
 		if err != nil {
 			_ = glog.Error("Auth completion failed: %v", err)
 			http.Error(w, "Authentication failed", http.StatusUnauthorized)
@@ -145,7 +154,7 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 
 func LogoutHandler(_ repositories.UserRepository, provider ExternalAuthProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		provider.Logout(w, r)
+		_ = provider.LogoutHandler(w, r)
 
 		// Clear the auth cookie
 		clearCookies(w)
@@ -161,27 +170,30 @@ type ExternalUser struct {
 }
 
 type ExternalAuthProvider interface {
-	BeginAuthHandler(w http.ResponseWriter, r *http.Request)
-	CompleteUserAuth(w http.ResponseWriter, r *http.Request) (ExternalUser, error)
-	Logout(w http.ResponseWriter, r *http.Request) error
+	BeginUserAuthHandler(w http.ResponseWriter, r *http.Request)
+	CompleteUserAuthHandler(w http.ResponseWriter, r *http.Request) (ExternalUser, error)
+	LogoutHandler(w http.ResponseWriter, r *http.Request) error
 }
 
 func HandleBeginLoginFlow(provider ExternalAuthProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_ = provider.Logout(w, r)
+		_ = provider.LogoutHandler(w, r)
 
 		query := r.URL.Query()
 		if state := query.Get("state"); state != "" {
-			session, _ := store.Get(r, "auth-session")
+			session, err := store.Get(r, "auth-session")
+			if err != nil {
+				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error handling session context")
+				return
+			}
 			session.Values["state"] = state
 			if err := session.Save(r, w); err != nil {
-				_ = glog.Error("serialising session error %v", err)
-				http.Error(w, "serialising error", http.StatusInternalServerError)
+				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "serialising session error")
 				return
 			}
 		}
 
-		provider.BeginAuthHandler(w, r)
+		provider.BeginUserAuthHandler(w, r)
 	}
 }
 
@@ -200,11 +212,9 @@ func clearCookies(w http.ResponseWriter) {
 var config = struct {
 	GoogleClientID     string
 	GoogleClientSecret string
-	SessionSecret      []byte
 }{
 	GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 	GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-	SessionSecret:      []byte(os.Getenv("SESSION_SECRET")),
 }
 
 func Middleware(_ repositories.UserRepository) func(http.Handler) http.Handler {
@@ -218,7 +228,7 @@ func Middleware(_ repositories.UserRepository) func(http.Handler) http.Handler {
 
 			profile, err := user_profile.ParseProfile(cookie.Value)
 
-			if err != nil && profile.Email != "" {
+			if err == nil && profile.Email != "" {
 				ctx := context.WithValue(r.Context(), "user", profile)
 				next.ServeHTTP(w, r.WithContext(ctx))
 			} else {

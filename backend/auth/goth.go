@@ -35,7 +35,7 @@ func ensureGothInit(r *http.Request) {
 
 type GothProvider struct{}
 
-func (p GothProvider) BeginAuthHandler(w http.ResponseWriter, r *http.Request) {
+func (p GothProvider) BeginUserAuthHandler(w http.ResponseWriter, r *http.Request) {
 	ensureGothInit(r)
 
 	gothic.BeginAuthHandler(w, r)
@@ -45,7 +45,7 @@ func init() {
 	gothic.Store = store
 }
 
-func (p GothProvider) CompleteUserAuth(w http.ResponseWriter, r *http.Request) (ExternalUser, error) {
+func (p GothProvider) CompleteUserAuthHandler(w http.ResponseWriter, r *http.Request) (ExternalUser, error) {
 	ensureGothInit(r)
 
 	auth, err := gothic.CompleteUserAuth(w, r)
@@ -58,7 +58,7 @@ func (p GothProvider) CompleteUserAuth(w http.ResponseWriter, r *http.Request) (
 	return user, err
 }
 
-func (p GothProvider) Logout(w http.ResponseWriter, r *http.Request) error {
+func (p GothProvider) LogoutHandler(w http.ResponseWriter, r *http.Request) error {
 	ensureGothInit(r)
 
 	return gothic.Logout(w, r)
