@@ -1,5 +1,5 @@
 # Stage 1: Build the frontend
-FROM node:16 as frontend-builder
+FROM --platform=linux/amd64 node:16 as frontend-builder
 
 WORKDIR /app/frontend
 
