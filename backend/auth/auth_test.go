@@ -6,6 +6,7 @@ import (
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/golang-jwt/jwt"
+	"github.com/gorilla/securecookie"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -149,7 +150,25 @@ func TestGoogleCallbackHandler(t *testing.T) {
 
 	// Test existing user flow
 	t.Run("Existing user login", func(t *testing.T) {
+		hashKey := []byte("very-secret")
+		s := securecookie.New(hashKey, nil)
+
+		// Create a value to store in the cookie
+		value := map[string]string{
+			"email": "test@example.com",
+		}
+
+		// Encode the value
+		encoded, err := s.Encode("auth", value)
+		if err != nil {
+			t.Fatalf("Failed to encode cookie: %v", err)
+		}
 		req := httptest.NewRequest("GET", "/auth/callback?state=somestate", nil)
+		// Add the encoded cookie to the request
+		req.AddCookie(&http.Cookie{
+			Name:  "auth",
+			Value: encoded,
+		})
 		rr := httptest.NewRecorder()
 
 		// Set up session state
@@ -241,31 +260,57 @@ func TestGoogleCallbackHandlerNesUser(t *testing.T) {
 	}
 }
 
-func TestSendNewUserToDiscord(t *testing.T) {
-	user := &models.User{
-		// Initialize user fields
-	}
-
-	req := httptest.NewRequest("POST", "/send", nil)
-	err := sendNewUserToDiscord(req, user)
-	if err != nil {
-		t.Errorf("sendNewUserToDiscord() error = %v", err)
-	}
-}
-
 func TestSendNewUserToDiscord_UserNil(t *testing.T) {
+	hashKey := []byte("very-secret")
+	s := securecookie.New(hashKey, nil)
+
+	// Create a value to store in the cookie
+	value := map[string]string{
+		"email": "test@example.com",
+	}
+
+	// Encode the value
+	encoded, err := s.Encode("auth", value)
+	if err != nil {
+		t.Fatalf("Failed to encode cookie: %v", err)
+	}
+
 	req := httptest.NewRequest("POST", "/send", nil)
-	err := sendNewUserToDiscord(req, nil)
-	assert.NotNil(t, err)
+	// Add the encoded cookie to the request
+	req.AddCookie(&http.Cookie{
+		Name:  "auth",
+		Value: encoded,
+	})
+
+	asserts2.Get(t).NotNil(sendNewUserToDiscord(req, nil))
 }
 
 func TestSendNewUserToDiscord_UserNotNil(t *testing.T) {
+	hashKey := []byte("very-secret")
+	s := securecookie.New(hashKey, nil)
+
+	// Create a value to store in the cookie
+	value := map[string]string{
+		"email": "test@example.com",
+	}
+
+	// Encode the value
+	encoded, err := s.Encode("auth", value)
+	if err != nil {
+		t.Fatalf("Failed to encode cookie: %v", err)
+	}
+
 	user := &models.User{
 		Name:  "Test User",
 		Email: "test@example.com",
 	}
 
 	req := httptest.NewRequest("POST", "/send", nil)
-	err := sendNewUserToDiscord(req, user)
-	assert.Nil(t, err)
+	// Add the encoded cookie to the request
+	req.AddCookie(&http.Cookie{
+		Name:  "auth",
+		Value: encoded,
+	})
+
+	asserts2.Get(t).Nil(sendNewUserToDiscord(req, user))
 }
