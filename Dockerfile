@@ -21,6 +21,10 @@ RUN go mod download
 # Copy backend source code
 COPY backend/ ./
 
+# Run tests
+RUN go test ./...
+
+# copy frontend
 COPY --from=frontend-builder /app/frontend/dist ./frontendfs
 
 # Build the backend
