@@ -9,17 +9,12 @@ import (
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/andriyg76/glog"
-	"github.com/golang-jwt/jwt"
 	"github.com/gorilla/sessions"
-	"github.com/markbates/goth"
-	"github.com/markbates/goth/gothic"
-	"github.com/markbates/goth/providers/google"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"os"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -32,14 +27,8 @@ func init() {
 
 var store = sessions.NewCookieStore(config.SessionSecret)
 
-func init() {
-	gothic.Store = store
-}
-
-func GoogleCallbackHandler(repository repositories.UserRepository) http.HandlerFunc {
+func GoogleCallbackHandler(repository repositories.UserRepository, provider ExternalAuthProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ensureGothInit(r)
-
 		session, _ := store.Get(r, "auth-session")
 		state := r.URL.Query().Get("state")
 		storedState := session.Values["state"]
@@ -51,14 +40,14 @@ func GoogleCallbackHandler(repository repositories.UserRepository) http.HandlerF
 			return
 		}
 
-		googleUser, err := gothic.CompleteUserAuth(w, r)
+		externalUser, err := provider.CompleteUserAuth(w, r)
 		if err != nil {
 			_ = glog.Error("Auth completion failed: %v", err)
 			http.Error(w, "Authentication failed", http.StatusUnauthorized)
 			return
 		}
 
-		token, err := createAuthToken(googleUser)
+		token, err := user_profile.CreateAuthToken(externalUser.Email, externalUser.Name, externalUser.Avatar)
 		if err != nil {
 			_ = glog.Error("Token creation failed: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -68,21 +57,21 @@ func GoogleCallbackHandler(repository repositories.UserRepository) http.HandlerF
 		var user *models.User
 
 		// Check if googleUser exists in the collection
-		if existingUser, err := repository.FindByEmail(r.Context(), googleUser.Email); err != nil {
+		if existingUser, err := repository.FindByEmail(r.Context(), externalUser.Email); err != nil {
 			_ = glog.Error("error fetching user profile: %v", err)
 			http.Error(w, "error fetching user profile", http.StatusInternalServerError)
 			return
 		} else if existingUser == nil {
-			if isSuperAdmin(googleUser.Email) {
-				user = &models.User{
-					ID:        primitive.ObjectID{},
-					Email:     googleUser.Email,
-					Name:      googleUser.Name,
-					Picture:   googleUser.AvatarURL,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-					Alias:     "",
-				}
+			user = &models.User{
+				ID:        primitive.ObjectID{},
+				Email:     externalUser.Email,
+				Name:      externalUser.Name,
+				Avatar:    externalUser.Avatar,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				Alias:     "",
+			}
+			if isSuperAdmin(externalUser.Email) {
 
 				if alias, err := utils.GetUniqueAlias(func(alias string) (bool, error) {
 					return repository.AliasUnique(r.Context(), alias)
@@ -121,8 +110,8 @@ func GoogleCallbackHandler(repository repositories.UserRepository) http.HandlerF
 					user.Alias = alias
 				}
 			}
-			user.Name = googleUser.Name
-			user.Picture = googleUser.AvatarURL
+			user.Name = externalUser.Name
+			user.Avatar = externalUser.Avatar
 			user.UpdatedAt = time.Now()
 			if err := repository.Update(r.Context(), user); err != nil {
 				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
@@ -145,7 +134,7 @@ func GoogleCallbackHandler(repository repositories.UserRepository) http.HandlerF
 		if err := json.NewEncoder(w).Encode(map[string]string{
 			"email":   user.Email,
 			"name":    user.Name,
-			"picture": user.Picture,
+			"picture": user.Avatar,
 			"alias":   user.Alias,
 		}); err != nil {
 			_ = glog.Error("serialising error %v", err)
@@ -154,9 +143,9 @@ func GoogleCallbackHandler(repository repositories.UserRepository) http.HandlerF
 	}
 }
 
-func LogoutHandler(_ repositories.UserRepository) http.HandlerFunc {
+func LogoutHandler(_ repositories.UserRepository, provider ExternalAuthProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ensureGothInit(r)
+		provider.Logout(w, r)
 
 		// Clear the auth cookie
 		clearCookies(w)
@@ -165,33 +154,21 @@ func LogoutHandler(_ repositories.UserRepository) http.HandlerFunc {
 	}
 }
 
-var gothInitOnce sync.Once
-
-func ensureGothInit(r *http.Request) {
-	gothInitOnce.Do(func() {
-		glog.Info("Late goth init...")
-		hostName := utils.GetHostUrl(r)
-
-		callbackUrl := hostName + "/ui/auth-callback" // defined at frontend/src/router/index.ts
-
-		glog.Info("Google auth callback url: %v", callbackUrl)
-
-		goth.UseProviders(
-			google.New(
-				config.GoogleClientID,
-				config.GoogleClientSecret,
-				callbackUrl,
-				"https://www.googleapis.com/auth/userinfo.email",
-				"https://www.googleapis.com/auth/userinfo.profile",
-			),
-		)
-	})
+type ExternalUser struct {
+	Email  string
+	Name   string
+	Avatar string
 }
-func HandleLogin(_ repositories.UserRepository) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ensureGothInit(r)
 
-		_ = gothic.Logout(w, r)
+type ExternalAuthProvider interface {
+	BeginAuthHandler(w http.ResponseWriter, r *http.Request)
+	CompleteUserAuth(w http.ResponseWriter, r *http.Request) (ExternalUser, error)
+	Logout(w http.ResponseWriter, r *http.Request) error
+}
+
+func HandleBeginLoginFlow(provider ExternalAuthProvider) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_ = provider.Logout(w, r)
 
 		query := r.URL.Query()
 		if state := query.Get("state"); state != "" {
@@ -204,7 +181,7 @@ func HandleLogin(_ repositories.UserRepository) http.HandlerFunc {
 			}
 		}
 
-		gothic.BeginAuthHandler(w, r)
+		provider.BeginAuthHandler(w, r)
 	}
 }
 
@@ -224,27 +201,10 @@ var config = struct {
 	GoogleClientID     string
 	GoogleClientSecret string
 	SessionSecret      []byte
-	JwtSecret          []byte
 }{
 	GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 	GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 	SessionSecret:      []byte(os.Getenv("SESSION_SECRET")),
-	JwtSecret:          []byte(os.Getenv("JWT_SECRET")),
-}
-
-func createAuthToken(user goth.User) (string, error) {
-	claims := user_profile.Claims{
-		Email:   user.Email,
-		Name:    user.Name,
-		Picture: user.AvatarURL,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
-			IssuedAt:  time.Now().Unix(),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(config.JwtSecret)
 }
 
 func Middleware(_ repositories.UserRepository) func(http.Handler) http.Handler {
@@ -256,17 +216,10 @@ func Middleware(_ repositories.UserRepository) func(http.Handler) http.Handler {
 				return
 			}
 
-			token, err := jwt.ParseWithClaims(cookie.Value, &user_profile.Claims{}, func(token *jwt.Token) (interface{}, error) {
-				return config.JwtSecret, nil
-			})
+			profile, err := user_profile.ParseProfile(cookie.Value)
 
-			if err != nil || !token.Valid {
-				handleUnauthorized(w, r)
-				return
-			}
-
-			if claims, ok := token.Claims.(*user_profile.Claims); ok {
-				ctx := context.WithValue(r.Context(), "user", claims)
+			if err != nil && profile.Email != "" {
+				ctx := context.WithValue(r.Context(), "user", profile)
 				next.ServeHTTP(w, r.WithContext(ctx))
 			} else {
 				handleUnauthorized(w, r)

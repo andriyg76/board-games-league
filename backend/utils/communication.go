@@ -16,7 +16,19 @@ func init() {
 	glog.Info("Discord webhook address: %s", discordWebhookURL)
 }
 
+var capturers []func(string)
+
+// AddDiscordSendCapturer capture or intercept discord sent notifications/messages for testing purposes
+func AddDiscordSendCapturer(capturer func(string)) {
+	capturers = append(capturers, capturer)
+}
+
 func SendToDiscord(content string) error {
+	if capturers != nil {
+		for _, capturer := range capturers {
+			capturer(content)
+		}
+	}
 	if discordWebhookURL == "" {
 		_ = glog.Error("Discord webhook uls is not configured")
 		return nil

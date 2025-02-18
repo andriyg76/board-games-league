@@ -34,10 +34,12 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
+	var provider auth.ExternalAuthProvider = auth.GothProvider{}
+
 	r.Route("/api", func(r chi.Router) {
-		r.Get("/auth/google", auth.HandleLogin(userRepository))
-		r.Post("/auth/google/callback", auth.GoogleCallbackHandler(userRepository))
-		r.Post("/auth/logout", auth.LogoutHandler(userRepository))
+		r.Get("/auth/google", auth.HandleBeginLoginFlow(provider))
+		r.Post("/auth/google/callback", auth.GoogleCallbackHandler(userRepository, provider))
+		r.Post("/auth/logout", auth.LogoutHandler(userRepository, provider))
 
 		// Protected routes
 		r.Group(func(r chi.Router) {

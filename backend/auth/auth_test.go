@@ -5,15 +5,15 @@ import (
 	"github.com/andriyg76/bgl/asserts2"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/user_profile"
-	"github.com/golang-jwt/jwt"
+	"github.com/andriyg76/bgl/utils"
 	"github.com/gorilla/securecookie"
+	"github.com/gorilla/sessions"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/andriyg76/bgl/models"
-	"github.com/markbates/goth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -23,6 +23,12 @@ import (
 type MockUserRepository struct {
 	mock.Mock
 	repositories.UserRepository
+}
+
+// MockExternalAuthProvider implements ExternalAuthProvider interface
+type MockExternalAuthProvider struct {
+	mock.Mock
+	ExternalAuthProvider
 }
 
 func (m *MockUserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
@@ -75,7 +81,6 @@ func TestIsSuperAdmin(t *testing.T) {
 func TestMiddleware(t *testing.T) {
 	// Set up test JWT secret
 	originalConfig := config
-	config.JwtSecret = []byte("test-secret")
 	defer func() { config = originalConfig }()
 
 	mockRepo := new(MockUserRepository)
@@ -89,11 +94,11 @@ func TestMiddleware(t *testing.T) {
 		{
 			name: "Valid token should pass",
 			setupAuth: func(r *http.Request) {
-				token, _ := createAuthToken(goth.User{
-					Email:     "test@example.com",
-					Name:      "Test User",
-					AvatarURL: "http://example.com/avatar.jpg",
-				})
+				token, _ := user_profile.CreateAuthToken(
+					"test@example.com",
+					"Test User",
+					"http://example.com/avatar.jpg",
+				)
 				r.AddCookie(&http.Cookie{
 					Name:  "auth_token",
 					Value: token,
@@ -126,20 +131,24 @@ func TestMiddleware(t *testing.T) {
 			handler := middleware(nextHandler)
 			handler.ServeHTTP(rr, req)
 
-			assert.Equal(t, tt.expectedStatus, rr.Code)
+			asserts2.Get(t).Equal(tt.expectedStatus, rr.Code)
 		})
 	}
 }
 
 func TestGoogleCallbackHandler(t *testing.T) {
+	store = sessions.NewCookieStore(utils.GenerateRandomKey(32))
 	mockRepo := new(MockUserRepository)
-	handler := GoogleCallbackHandler(mockRepo)
+	mockProvider := new(MockExternalAuthProvider)
+	handler := GoogleCallbackHandler(mockRepo, mockProvider)
+
+	superAdmins = []string{"superadmin@example.com"}
 
 	existingUser := &models.User{
 		ID:        primitive.NewObjectID(),
 		Email:     "existing@example.com",
 		Name:      "Existing User",
-		Picture:   "http://example.com/avatar.jpg",
+		Avatar:    "http://example.com/avatar.jpg",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Alias:     "existing",
@@ -148,8 +157,20 @@ func TestGoogleCallbackHandler(t *testing.T) {
 	mockRepo.On("FindByEmail", mock.Anything, "existing@example.com").Return(existingUser, nil)
 	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
 
+	mockProvider.On("CompleteUserAuth", mock.Anything, mock.Anything).Return(ExternalUser{
+		Email:  "existing@example.com",
+		Name:   "Existing User",
+		Avatar: "http://example.com/avatar.jpg",
+	}, nil)
+
 	// Test existing user flow
 	t.Run("Existing user login", func(t *testing.T) {
+		discord := []string{}
+		utils.AddDiscordSendCapturer(func(s string) {
+			discord = append(discord, s)
+		})
+		asserts := asserts2.Get(t)
+
 		hashKey := []byte("very-secret")
 		s := securecookie.New(hashKey, nil)
 
@@ -163,7 +184,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to encode cookie: %v", err)
 		}
-		req := httptest.NewRequest("GET", "/auth/callback?state=somestate", nil)
+		req := httptest.NewRequest("GET", "/auth/callback?state=somestate&provider=google", nil)
 		// Add the encoded cookie to the request
 		req.AddCookie(&http.Cookie{
 			Name:  "auth",
@@ -174,19 +195,21 @@ func TestGoogleCallbackHandler(t *testing.T) {
 		// Set up session state
 		session, _ := store.Get(req, "auth-session")
 		session.Values["state"] = "somestate"
-		asserts2.Get(t).Nil(session.Save(req, rr))
+		asserts.Nil(session.Save(req, rr))
 
 		handler.ServeHTTP(rr, req)
 
 		// We expect an error here because gothic.CompleteUserAuth won't work in test
 		// In a real scenario, you'd need to mock gothic.CompleteUserAuth
-		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+		asserts.Equal(http.StatusOK, rr.Code)
+		asserts.True(len(discord) == 0, "No new notifications to discord")
 	})
 }
 
 func TestLogoutHandler(t *testing.T) {
 	mockRepo := new(MockUserRepository)
-	handler := LogoutHandler(mockRepo)
+	mockProvider := new(MockExternalAuthProvider)
+	handler := LogoutHandler(mockRepo, mockProvider)
 
 	req := httptest.NewRequest("POST", "/logout", nil)
 	rr := httptest.NewRecorder()
@@ -205,39 +228,6 @@ func TestLogoutHandler(t *testing.T) {
 	}
 }
 
-func TestCreateAuthToken(t *testing.T) {
-	// Set up test JWT secret
-	originalConfig := config
-	config.JwtSecret = []byte("test-secret")
-	defer func() { config = originalConfig }()
-
-	user := goth.User{
-		Email:     "test@example.com",
-		Name:      "Test User",
-		AvatarURL: "http://example.com/avatar.jpg",
-	}
-
-	token, err := createAuthToken(user)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, token)
-
-	// Verify token can be parsed
-	parsedToken, err := jwt.ParseWithClaims(token, &user_profile.Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return config.JwtSecret, nil
-	})
-
-	assert.NoError(t, err)
-	assert.True(t, parsedToken.Valid)
-
-	if claims, ok := parsedToken.Claims.(*user_profile.Claims); ok {
-		assert.Equal(t, user.Email, claims.Email)
-		assert.Equal(t, user.Name, claims.Name)
-		assert.Equal(t, user.AvatarURL, claims.Picture)
-	} else {
-		t.Fatal("Failed to parse token claims")
-	}
-}
-
 func TestGoogleCallbackHandlerNesUser(t *testing.T) {
 	req, err := http.NewRequest("GET", "/callback", nil)
 	if err != nil {
@@ -246,7 +236,7 @@ func TestGoogleCallbackHandlerNesUser(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	mockRepo := new(MockUserRepository)
-	handler := http.HandlerFunc(GoogleCallbackHandler(mockRepo))
+	handler := http.HandlerFunc(GoogleCallbackHandler(mockRepo, new(MockExternalAuthProvider)))
 
 	handler.ServeHTTP(rr, req)
 
