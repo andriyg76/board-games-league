@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func CheckAliasUniquenessHandler(userRepository *repositories.UserRepository) http.HandlerFunc {
+func CheckAliasUniquenessHandler(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		alias := r.URL.Query().Get("alias")
 		if alias == "" {
@@ -33,7 +33,7 @@ func CheckAliasUniquenessHandler(userRepository *repositories.UserRepository) ht
 	}
 }
 
-func UpdateUser(userRepository *repositories.UserRepository) http.HandlerFunc {
+func UpdateUser(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := r.Context().Value("user").(*user_profile.Claims)
 		if !ok || claims == nil {
@@ -66,7 +66,7 @@ func UpdateUser(userRepository *repositories.UserRepository) http.HandlerFunc {
 	}
 }
 
-func GetUserHandler(userRepository *repositories.UserRepository) http.HandlerFunc {
+func GetUserHandler(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if claims, ok := r.Context().Value("user").(*user_profile.Claims); !ok || claims == nil {
 			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, fmt.Errorf("claims are null or bad %v", r.Context().Value("user")),
@@ -92,7 +92,7 @@ func GetUserHandler(userRepository *repositories.UserRepository) http.HandlerFun
 	}
 }
 
-func AdminCreateUserHandler(userRepository *repositories.UserRepository) http.HandlerFunc {
+func AdminCreateUserHandler(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Email string `json:"email"`

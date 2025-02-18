@@ -24,7 +24,10 @@ func main() {
 		log.Fatal("Failed to connect to MongoDB:, connection: %s %v", mongourl, err)
 	}
 
-	userRepository := repositories.NewUserRepository(mongodb.Collection("users"))
+	userRepository, err := repositories.NewUserRepository(mongodb)
+	if err != nil {
+		log.Fatal("Failed to initialise usersRepository")
+	}
 
 	log.Info("Database connector initialised")
 

@@ -17,6 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -35,7 +36,7 @@ func init() {
 	gothic.Store = store
 }
 
-func GoogleCallbackHandler(repository *repositories.UserRepository) http.HandlerFunc {
+func GoogleCallbackHandler(repository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ensureGothInit(r)
 
@@ -153,7 +154,7 @@ func GoogleCallbackHandler(repository *repositories.UserRepository) http.Handler
 	}
 }
 
-func LogoutHandler(_ *repositories.UserRepository) http.HandlerFunc {
+func LogoutHandler(_ repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ensureGothInit(r)
 
@@ -186,7 +187,7 @@ func ensureGothInit(r *http.Request) {
 		)
 	})
 }
-func HandleLogin(_ *repositories.UserRepository) http.HandlerFunc {
+func HandleLogin(_ repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ensureGothInit(r)
 
@@ -246,7 +247,7 @@ func createAuthToken(user goth.User) (string, error) {
 	return token.SignedString(config.JwtSecret)
 }
 
-func Middleware(_ *repositories.UserRepository) func(http.Handler) http.Handler {
+func Middleware(_ repositories.UserRepository) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie("auth_token")
@@ -290,15 +291,20 @@ func isSuperAdmin(email string) bool {
 }
 
 func sendNewUserToDiscord(r *http.Request, user *models.User) error {
+	if user == nil {
+		buf := make([]byte, 4096)
+		length := runtime.Stack(buf, false)
+		stackTrace := string(buf[:length])
+
+		_ = glog.Error("sendNewUserToDiscord: User is not set. Stack trace: %s, request: %V", stackTrace, r)
+
+		_ = utils.SendToDiscord(fmt.Sprintf("User is not set. Stack trace: %s, request: %v", stackTrace, r))
+
+		return glog.Error("User is not set")
+	}
 	domain := utils.GetHostUrl(r)
 	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?email=%s", domain, user.Email) // defined at frontend/src/router/index.ts
-	payload := map[string]string{
-		"content": fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, user.Email, createUserLink),
-	}
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
+	content := fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, user.Email, createUserLink)
 
-	return utils.SendToDiscord(payloadBytes)
+	return utils.SendToDiscord(content)
 }
