@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func CheckAliasUniquenessHandler(userRepository *repositories.UserRepository) http.HandlerFunc {
+func CheckAliasUniquenessHandler(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		alias := r.URL.Query().Get("alias")
 		if alias == "" {
@@ -33,9 +33,9 @@ func CheckAliasUniquenessHandler(userRepository *repositories.UserRepository) ht
 	}
 }
 
-func UpdateUser(userRepository *repositories.UserRepository) http.HandlerFunc {
+func UpdateUser(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, ok := r.Context().Value("user").(*user_profile.Claims)
+		claims, ok := r.Context().Value("user").(*user_profile.UserProfile)
 		if !ok || claims == nil {
 			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, fmt.Errorf("claims are null or bad %v", r.Context().Value("user")), "server error")
 			return
@@ -66,14 +66,13 @@ func UpdateUser(userRepository *repositories.UserRepository) http.HandlerFunc {
 	}
 }
 
-func GetUserHandler(userRepository *repositories.UserRepository) http.HandlerFunc {
+func GetUserHandler(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if claims, ok := r.Context().Value("user").(*user_profile.Claims); !ok || claims == nil {
-			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, fmt.Errorf("claims are null or bad %v", r.Context().Value("user")),
-				"server error")
+		if claims, err := user_profile.GetUserProfile(r); err != nil {
+			utils.LogAndWriteHTTPError(w, http.StatusUnauthorized, err,
+				"unauthorised")
 			return
 		} else {
-
 			user, err := userRepository.FindByEmail(r.Context(), claims.Email)
 			if err != nil {
 				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user profile")
@@ -82,7 +81,7 @@ func GetUserHandler(userRepository *repositories.UserRepository) http.HandlerFun
 			if err := json.NewEncoder(w).Encode(map[string]string{
 				"email":   user.Email,
 				"name":    user.Name,
-				"picture": user.Picture,
+				"picture": user.Avatar,
 				"alias":   user.Alias,
 			}); err != nil {
 				_ = log.Error("serialising error %v", err)
@@ -92,7 +91,7 @@ func GetUserHandler(userRepository *repositories.UserRepository) http.HandlerFun
 	}
 }
 
-func AdminCreateUserHandler(userRepository *repositories.UserRepository) http.HandlerFunc {
+func AdminCreateUserHandler(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Email string `json:"email"`

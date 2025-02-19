@@ -4,27 +4,36 @@ package repositories
 import (
 	"context"
 	"errors"
+	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
 
-type UserRepository struct {
+type UserRepository interface {
+	CreateUser(ctx context.Context, ser *models.User) error
+	FindByEmail(ctx context.Context, email string) (*models.User, error)
+	Update(ctx context.Context, user *models.User) error
+	AliasUnique(ctx context.Context, alias string) (bool, error)
+}
+
+type UserRepositoryInstance struct {
 	collection *mongo.Collection
 }
 
-func NewUserRepository(db *mongo.Collection) *UserRepository {
-	repository := &UserRepository{
-		collection: db,
+func NewUserRepository(mongodb *db.MongoDB) (*UserRepositoryInstance, error) {
+	repository := &UserRepositoryInstance{
+		collection: mongodb.Collection("users"),
 	}
-	repository.ensureIndexes()
-	return repository
+	if err := ensureIndexes(repository); err != nil {
+		return nil, err
+	}
+	return repository, nil
 }
 
-func (r *UserRepository) ensureIndexes() {
+func ensureIndexes(r *UserRepositoryInstance) error {
 	_, err := r.collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
 		{
 			Keys:    bson.M{"alias": 1},
@@ -35,17 +44,15 @@ func (r *UserRepository) ensureIndexes() {
 			Options: options.Index().SetUnique(true),
 		},
 	})
-	if err != nil {
-		panic(err)
-	}
+	return err
 }
 
-func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
+func (r *UserRepositoryInstance) CreateUser(ctx context.Context, user *models.User) error {
 	_, err := r.collection.InsertOne(ctx, user)
 	return err
 }
 
-func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+func (r *UserRepositoryInstance) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
 
 	if err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&user); errors.Is(err, mongo.ErrNoDocuments) {
@@ -55,20 +62,20 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models
 	}
 }
 
-func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
-	user.CreatedAt = time.Now()
-	user.UpdatedAt = time.Now()
+//func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
+//	user.CreatedAt = time.Now()
+//	user.UpdatedAt = time.Now()
+//
+//	result, err := r.collection.InsertOne(ctx, user)
+//	if err != nil {
+//		return err
+//	}
+//
+//	user.ID = result.InsertedID.(primitive.ObjectID)
+//	return nil
+//}
 
-	result, err := r.collection.InsertOne(ctx, user)
-	if err != nil {
-		return err
-	}
-
-	user.ID = result.InsertedID.(primitive.ObjectID)
-	return nil
-}
-
-func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
+func (r *UserRepositoryInstance) Update(ctx context.Context, user *models.User) error {
 	user.UpdatedAt = time.Now()
 
 	filter := bson.M{"_id": user.ID}
@@ -78,7 +85,7 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	return err
 }
 
-func (r *UserRepository) AliasUnique(ctx context.Context, alias string) (bool, error) {
+func (r *UserRepositoryInstance) AliasUnique(ctx context.Context, alias string) (bool, error) {
 	count, err := r.collection.CountDocuments(ctx, bson.M{"alias": alias})
 	if err != nil {
 		return false, err
