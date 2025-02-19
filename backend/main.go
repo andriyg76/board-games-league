@@ -29,6 +29,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to initialise usersRepository")
 	}
+
 	gameRoundRepository, err := repositories.NewGameRoundRepository(mongodb)
 	if err != nil {
 		log.Fatal("Failed to initialise gagameRoundRepository")
