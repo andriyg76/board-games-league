@@ -4,6 +4,7 @@ import (
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/frontendfs"
+	"github.com/andriyg76/bgl/gameapi"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/userapi"
 	log "github.com/andriyg76/glog"
@@ -28,6 +29,10 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to initialise usersRepository")
 	}
+	gameRoundRepository, err := repositories.NewGameRoundRepository(mongodb)
+	if err != nil {
+		log.Fatal("Failed to initialise gagameRoundRepository")
+	}
 
 	log.Info("Database connector initialised")
 
@@ -51,6 +56,8 @@ func main() {
 			r.Put("/user/update", userapi.UpdateUser(userRepository))
 
 			r.Put("/admin/user/create", userapi.AdminCreateUserHandler(userRepository))
+
+			gameapi.NewGameRoundHandler(gameRoundRepository).RegisterRoutes(r)
 		})
 		r.Handle("/*", http.NotFoundHandler())
 	})
