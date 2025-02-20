@@ -23,6 +23,7 @@ type TeamScore struct {
 
 type GameRound struct {
 	ID               primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Version          int64              `bson:"version" json:"version"`
 	Name             string             `bson:"name" json:"name"`
 	GameType         primitive.ObjectID `bson:"game_type_id" json:"game_type_id"`
 	StartTime        time.Time          `bson:"start_time" json:"start_time"`

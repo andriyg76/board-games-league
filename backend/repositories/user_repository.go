@@ -4,6 +4,7 @@ package repositories
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,7 +15,7 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, ser *models.User) error
+	Create(ctx context.Context, ser *models.User) error
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	Update(ctx context.Context, user *models.User) error
 	AliasUnique(ctx context.Context, alias string) (bool, error)
@@ -49,9 +50,18 @@ func ensureIndexes(r *UserRepositoryInstance) error {
 	return err
 }
 
-func (r *UserRepositoryInstance) CreateUser(ctx context.Context, user *models.User) error {
-	_, err := r.collection.InsertOne(ctx, user)
-	return err
+func (r *UserRepositoryInstance) Create(ctx context.Context, user *models.User) error {
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
+	user.Version = 1
+
+	result, err := r.collection.InsertOne(ctx, user)
+	if err != nil {
+		return err
+	}
+
+	user.ID = result.InsertedID.(primitive.ObjectID)
+	return nil
 }
 
 func (r *UserRepositoryInstance) FindByEmail(ctx context.Context, email string) (*models.User, error) {
@@ -74,27 +84,26 @@ func (r *UserRepositoryInstance) FindByID(ctx context.Context, id primitive.Obje
 	}
 }
 
-//func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
-//	user.CreatedAt = time.Now()
-//	user.UpdatedAt = time.Now()
-//
-//	result, err := r.collection.InsertOne(ctx, user)
-//	if err != nil {
-//		return err
-//	}
-//
-//	user.ID = result.InsertedID.(primitive.ObjectID)
-//	return nil
-//}
-
 func (r *UserRepositoryInstance) Update(ctx context.Context, user *models.User) error {
 	user.UpdatedAt = time.Now()
+	currentVersion := user.Version
+	user.Version++
 
-	filter := bson.M{"_id": user.ID}
-	update := bson.M{"$set": user}
-
-	_, err := r.collection.UpdateOne(ctx, filter, update)
-	return err
+	result, err := r.collection.UpdateOne(
+		ctx,
+		bson.M{
+			"_id":     user.ID,
+			"version": currentVersion,
+		},
+		bson.M{"$set": user},
+	)
+	if err != nil {
+		return err
+	}
+	if result.ModifiedCount == 0 {
+		return fmt.Errorf("concurrent modification detected")
+	}
+	return nil
 }
 
 func (r *UserRepositoryInstance) AliasUnique(ctx context.Context, alias string) (bool, error) {

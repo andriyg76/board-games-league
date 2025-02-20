@@ -133,7 +133,7 @@ func AdminCreateUserHandler(userRepository repositories.UserRepository) http.Han
 			newUser.Alias = alias
 		}
 
-		if err := userRepository.CreateUser(r.Context(), newUser); err != nil {
+		if err := userRepository.Create(r.Context(), newUser); err != nil {
 			_ = log.Error("failed to create user %v", err)
 			http.Error(w, "Failed to create user", http.StatusInternalServerError)
 			return

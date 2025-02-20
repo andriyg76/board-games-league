@@ -7,6 +7,7 @@ import (
 
 type User struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Version   int64              `bson:"version" json:"version"`
 	Email     string             `bson:"email" json:"email"`
 	Name      string             `bson:"name" json:"name"`
 	Avatar    string             `bson:"picture,omitempty" json:"picture,omitempty"`

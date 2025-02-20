@@ -93,7 +93,7 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 				}
 
 				// Create googleUser in the collection
-				if err := repository.CreateUser(r.Context(), user); err != nil {
+				if err := repository.Create(r.Context(), user); err != nil {
 					_ = glog.Error("failed to create user", err)
 					http.Error(w, "Failed to create user", http.StatusInternalServerError)
 					return

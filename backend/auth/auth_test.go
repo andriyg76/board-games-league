@@ -35,7 +35,7 @@ func (m *MockUserRepository) FindByEmail(ctx context.Context, email string) (*mo
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
-func (m *MockUserRepository) CreateUser(ctx context.Context, user *models.User) error {
+func (m *MockUserRepository) Create(ctx context.Context, user *models.User) error {
 	args := m.Called(ctx, user)
 	return args.Error(0)
 }
@@ -180,7 +180,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 	mockRepo.On("FindByEmail", mock.Anything, notExistingEmail).Return(nil, nil)
 	mockRepo.On("AliasUnique", mock.Anything, mock.Anything).Return(true, nil)
 	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
-	mockRepo.On("CreateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
+	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
 
 	superadminRequest := httptest.NewRequest("GET", "/auth/callback?state=somestate&provider=google", nil)
 	mockProvider.On("CompleteUserAuthHandler", mock.Anything, superadminRequest).Return(ExternalUser{

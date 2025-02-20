@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -31,6 +32,8 @@ func (r *gameRoundRepositoryInstance) Create(ctx context.Context, round *models.
 	now := time.Now()
 	round.CreatedAt = now
 	round.UpdatedAt = now
+	round.Version = 1
+
 	result, err := r.collection.InsertOne(ctx, round)
 	if err != nil {
 		return err
@@ -50,8 +53,24 @@ func (r *gameRoundRepositoryInstance) FindByID(ctx context.Context, id primitive
 
 func (r *gameRoundRepositoryInstance) Update(ctx context.Context, round *models.GameRound) error {
 	round.UpdatedAt = time.Now()
-	_, err := r.collection.ReplaceOne(ctx, bson.M{"_id": round.ID}, round)
-	return err
+	currentVersion := round.Version
+	round.Version++
+
+	result, err := r.collection.UpdateOne(
+		ctx,
+		bson.M{
+			"_id":     round.ID,
+			"version": currentVersion,
+		},
+		bson.M{"$set": round},
+	)
+	if err != nil {
+		return err
+	}
+	if result.ModifiedCount == 0 {
+		return fmt.Errorf("concurrent modification detected")
+	}
+	return nil
 }
 
 func (r *gameRoundRepositoryInstance) Delete(ctx context.Context, id primitive.ObjectID) error {

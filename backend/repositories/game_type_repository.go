@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/glog"
@@ -37,6 +38,7 @@ func (r *mongoGameTypeRepository) FindByName(ctx context.Context, name string) (
 func (r *mongoGameTypeRepository) Create(ctx context.Context, gameType *models.GameType) error {
 	gameType.CreatedAt = time.Now()
 	gameType.UpdatedAt = time.Now()
+	gameType.Version = 1 // Initialize version
 
 	result, err := r.collection.InsertOne(ctx, gameType)
 	if err != nil {
@@ -75,13 +77,24 @@ func (r *mongoGameTypeRepository) FindAll(ctx context.Context) ([]*models.GameTy
 
 func (r *mongoGameTypeRepository) Update(ctx context.Context, gameType *models.GameType) error {
 	gameType.UpdatedAt = time.Now()
+	currentVersion := gameType.Version
+	gameType.Version++
 
-	_, err := r.collection.ReplaceOne(
+	result, err := r.collection.UpdateOne(
 		ctx,
-		bson.M{"_id": gameType.ID},
-		gameType,
+		bson.M{
+			"_id":     gameType.ID,
+			"version": currentVersion,
+		},
+		bson.M{"$set": gameType},
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if result.ModifiedCount == 0 {
+		return fmt.Errorf("concurrent modification detected")
+	}
+	return nil
 }
 
 func (r *mongoGameTypeRepository) Delete(ctx context.Context, id primitive.ObjectID) error {

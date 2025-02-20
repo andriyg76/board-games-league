@@ -16,6 +16,9 @@ const (
 	ScoringTypeTeamVsTeam        ScoringType = "team_vs_team"
 )
 
+var ScoringTypes = []ScoringType{ScoringTypeClassic, ScoringTypeCooperative, ScoringTypeCustom, ScoringTypeMafia,
+	ScoringTypeCoopWithModerator, ScoringTypeTeamVsTeam}
+
 type Label struct {
 	ID    primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Name  string             `bson:"name" json:"name"`
@@ -25,6 +28,7 @@ type Label struct {
 
 type GameType struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Version    int64              `bson:"version" json:"version"`
 	Name       string             `bson:"name" json:"name"`
 	Icon       string             `bson:"icon" json:"icon"`
 	Labels     []Label            `bson:"labels" json:"labels"`

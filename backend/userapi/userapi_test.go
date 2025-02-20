@@ -49,7 +49,7 @@ func (m *MockUserRepository) Update(ctx context.Context, user *models.User) erro
 	return args.Error(0)
 }
 
-func (m *MockUserRepository) CreateUser(ctx context.Context, user *models.User) error {
+func (m *MockUserRepository) Create(ctx context.Context, user *models.User) error {
 	args := m.Called(ctx, user)
 	return args.Error(0)
 }
@@ -183,7 +183,7 @@ func TestAdminCreateUserHandler(t *testing.T) {
 
 		mockRepo.On("FindByEmail", mock.Anything, "test@example.com").Return(nil, nil)
 		mockRepo.On("AliasUnique", mock.Anything, mock.Anything).Return(true, nil)
-		mockRepo.On("CreateUser", mock.Anything, mock.Anything).Return(nil)
+		mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 
 		handler.ServeHTTP(rr, req)
 
