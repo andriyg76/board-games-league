@@ -1,6 +1,7 @@
 package user_profile
 
 import (
+	"fmt"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/andriyg76/glog"
 	"github.com/golang-jwt/jwt"
@@ -38,6 +39,9 @@ type UserProfile struct {
 }
 
 func CreateAuthToken(IDs []string, ID, name, avatar string) (string, error) {
+	if ID == "" {
+		return "", fmt.Errorf("ID should be specified for usertoken")
+	}
 	claims := UserProfile{
 		ID:      ID,
 		IDs:     IDs,

@@ -27,7 +27,7 @@ type MockUserRepository struct {
 	repositories.UserRepository
 }
 
-func (m *MockUserRepository) FindByExternalId(ctx context.Context, externalIDs string) (*models.User, error) {
+func (m *MockUserRepository) FindByExternalId(ctx context.Context, externalIDs ...string) (*models.User, error) {
 	args := m.Called(ctx, externalIDs)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -79,12 +79,12 @@ func TestIsSuperAdmin(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		email    string
+		email    []string
 		expected bool
 	}{
-		{"Super admin email should return true", "admin@example.com", true},
-		{"Regular email should return false", "user@example.com", false},
-		{"Empty email should return false", "", false},
+		{"Super admin email should return true", []string{"admin@example.com"}, true},
+		{"Regular email should return false", []string{"user@example.com"}, false},
+		{"Empty email should return false", []string{}, false},
 	}
 
 	for _, tt := range tests {
@@ -111,7 +111,7 @@ func TestMiddleware(t *testing.T) {
 		{
 			name: "Valid token should pass",
 			setupAuth: func(r *http.Request) {
-				token, _ := user_profile.CreateAuthToken("test@example.com", "", "Test User", "http://example.com/avatar.jpg")
+				token, _ := user_profile.CreateAuthToken([]string{"test@example.com"}, "00", "Test User", "http://example.com/avatar.jpg")
 				r.AddCookie(&http.Cookie{
 					Name:  "auth_token",
 					Value: token,
@@ -225,9 +225,9 @@ func TestGoogleCallbackHandler(t *testing.T) {
 		rr := httptest.NewRecorder()
 		regularUserRequest := httptest.NewRequest("GET", fmt.Sprintf("/auth/callback?state=%s", somestate), nil)
 		mockProvider.On("CompleteUserAuthHandler", mock.Anything, regularUserRequest).Return(ExternalUser{
-			Email:  regularEmail,
-			Name:   "Existing User",
-			Avatar: "http://example.com/avatar.jpg",
+			ExternalIDs: []string{regularEmail},
+			Name:        "Existing User",
+			Avatar:      "http://example.com/avatar.jpg",
 		}, nil)
 
 		handler.ServeHTTP(rr, regularUserRequest)
@@ -245,7 +245,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 				if err != nil {
 					asserts.NoError(err, "Coud not parse cookie %v", cookie)
 				}
-				asserts.Equal(regularEmail, profile.Email, "Invalid user token set")
+				asserts.Equal([]string{regularEmail}, profile.IDs, "Invalid user token set")
 			}
 		}
 
@@ -288,9 +288,9 @@ func TestGoogleCallbackHandler(t *testing.T) {
 		rr := httptest.NewRecorder()
 		request := httptest.NewRequest("GET", fmt.Sprintf("/auth/callback?state=%s", somestate), nil)
 		mockProvider.On("CompleteUserAuthHandler", mock.Anything, request).Return(ExternalUser{
-			Email:  superAdminEmail,
-			Name:   "superadmin",
-			Avatar: "sinine.jpg",
+			ExternalIDs: []string{superAdminEmail},
+			Name:        "superadmin",
+			Avatar:      "sinine.jpg",
 		}, nil)
 
 		handler.ServeHTTP(rr, request)
@@ -308,7 +308,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 				if err != nil {
 					asserts.NoError(err, "Coud not parse cookie %v", cookie)
 				}
-				asserts.Equal(superAdminEmail, profile.Email, "Invalid user token set")
+				asserts.Equal([]string{superAdminEmail}, profile.IDs, "Invalid user token set")
 			}
 		}
 	})
@@ -379,8 +379,9 @@ func TestSendNewUserToDiscord_UserNotNil(t *testing.T) {
 	}
 
 	user := &models.User{
-		Name:  "Test User",
-		Email: "test@example.com",
+		Name:       "Test User",
+		ID:         primitive.ObjectID([]byte{0}),
+		ExternalID: []string{"test@example.com"},
 	}
 
 	req := httptest.NewRequest("POST", "/send", nil)

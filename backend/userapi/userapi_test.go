@@ -24,7 +24,7 @@ func (m *MockUserRepository) AliasUnique(ctx context.Context, alias string) (boo
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockUserRepository) FindByExternalId(ctx context.Context, externalIDs string) (*models.User, error) {
+func (m *MockUserRepository) FindByExternalId(ctx context.Context, externalIDs ...string) (*models.User, error) {
 	args := m.Called(ctx, externalIDs)
 	user := args.Get(0)
 	if user == nil {
@@ -95,12 +95,12 @@ func TestUpdateUser(t *testing.T) {
 	})
 
 	t.Run("User profile not found", func(t *testing.T) {
-		claims := &user_profile.UserProfile{Email: "test@example.com"}
+		claims := &user_profile.UserProfile{IDs: []string{"test@example.com"}, ID: "00"}
 		ctx := context.WithValue(context.Background(), "user", claims)
 		req := httptest.NewRequest("PUT", "/update-user", nil).WithContext(ctx)
 		rr := httptest.NewRecorder()
 
-		mockRepo.On("FindByExternalId", mock.Anything, "test@example.com").Return(nil, nil)
+		mockRepo.On("FindByExternalId", mock.Anything, []string{"test@example.com"}).Return(nil, nil)
 
 		handler.ServeHTTP(rr, req)
 
@@ -108,9 +108,9 @@ func TestUpdateUser(t *testing.T) {
 	})
 
 	t.Run("Update user successfully", func(t *testing.T) {
-		claims := &user_profile.UserProfile{Email: "test2@example.com"}
+		claims := &user_profile.UserProfile{IDs: []string{"test2@example.com"}, ID: "00"}
 		ctx := context.WithValue(context.Background(), "user", claims)
-		user := &models.User{Email: "test2@example.com"}
+		user := &models.User{ExternalID: []string{"test2@example.com"}, ID: primitive.ObjectID([12]byte{})}
 		reqBody, _ := json.Marshal(user)
 		req := httptest.NewRequest("PUT", "/update-user", bytes.NewBuffer(reqBody)).WithContext(ctx)
 		rr := httptest.NewRecorder()
@@ -138,18 +138,18 @@ func TestGetUserHandler(t *testing.T) {
 	})
 
 	t.Run("Get user successfully", func(t *testing.T) {
-		claims := &user_profile.UserProfile{Email: "test@example.com"}
+		claims := &user_profile.UserProfile{IDs: []string{"test@example.com"}, ID: "00"}
 		ctx := context.WithValue(context.Background(), "user", claims)
-		user := &models.User{Email: "test@example.com", Name: "Test User", Avatar: "http://example.com/avatar.jpg", Alias: "test-alias"}
+		user := &models.User{ExternalID: []string{"test@example.com"}, Name: "Test User", Avatar: "http://example.com/avatar.jpg", Alias: "test-alias"}
 		req := httptest.NewRequest("GET", "/get-user", nil).WithContext(ctx)
 		rr := httptest.NewRecorder()
 
-		mockRepo.On("FindByExternalId", mock.Anything, "test@example.com").Return(user, nil)
+		mockRepo.On("FindByExternalId", mock.Anything, []string{"test@example.com"}).Return(user, nil)
 
 		handler.ServeHTTP(rr, req)
 
 		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.JSONEq(t, `{"email":"test@example.com","name":"Test User","picture":"http://example.com/avatar.jpg","alias":"test-alias"}`, rr.Body.String())
+		assert.JSONEq(t, `{"ids":["test@example.com"],"name":"Test User","picture":"http://example.com/avatar.jpg","alias":"test-alias"}`, rr.Body.String())
 	})
 }
 
