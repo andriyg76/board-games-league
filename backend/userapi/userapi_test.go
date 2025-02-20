@@ -8,6 +8,7 @@ import (
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,6 +26,16 @@ func (m *MockUserRepository) AliasUnique(ctx context.Context, alias string) (boo
 
 func (m *MockUserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	args := m.Called(ctx, email)
+	user := args.Get(0)
+	if user == nil {
+		return nil, args.Error(1)
+	} else {
+		return user.(*models.User), args.Error(1)
+	}
+}
+
+func (m *MockUserRepository) FindByID(ctx context.Context, ID primitive.ObjectID) (*models.User, error) {
+	args := m.Called(ctx, ID)
 	user := args.Get(0)
 	if user == nil {
 		return nil, args.Error(1)

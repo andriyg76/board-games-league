@@ -7,6 +7,7 @@ import (
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
@@ -17,6 +18,7 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	Update(ctx context.Context, user *models.User) error
 	AliasUnique(ctx context.Context, alias string) (bool, error)
+	FindByID(ctx context.Context, ID primitive.ObjectID) (*models.User, error)
 }
 
 type UserRepositoryInstance struct {
@@ -56,6 +58,16 @@ func (r *UserRepositoryInstance) FindByEmail(ctx context.Context, email string) 
 	var user models.User
 
 	if err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&user); errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	} else {
+		return &user, err
+	}
+}
+
+func (r *UserRepositoryInstance) FindByID(ctx context.Context, id primitive.ObjectID) (*models.User, error) {
+	var user models.User
+
+	if err := r.collection.FindOne(ctx, bson.M{"ID": id}).Decode(&user); errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	} else {
 		return &user, err

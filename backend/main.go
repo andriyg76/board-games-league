@@ -6,6 +6,7 @@ import (
 	"github.com/andriyg76/bgl/frontendfs"
 	"github.com/andriyg76/bgl/gameapi"
 	"github.com/andriyg76/bgl/repositories"
+	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/userapi"
 	log "github.com/andriyg76/glog"
 	"github.com/go-chi/chi/v5"
@@ -32,10 +33,22 @@ func main() {
 
 	gameRoundRepository, err := repositories.NewGameRoundRepository(mongodb)
 	if err != nil {
-		log.Fatal("Failed to initialise gagameRoundRepository")
+		log.Fatal("Failed to initialise gameRoundRepository")
 	}
 
+	gameTypeRepository, err := repositories.NewGameTypeRepository(mongodb)
+	if err != nil {
+		log.Fatal("Failed to initialise gameRoundRepository")
+	}
 	log.Info("Database connector initialised")
+
+	userService := services.NewUserService(userRepository)
+
+	log.Info("Services initialised...")
+
+	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository)
+
+	log.Info("Handlers instances connector initialised")
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -58,7 +71,7 @@ func main() {
 
 			r.Put("/admin/user/create", userapi.AdminCreateUserHandler(userRepository))
 
-			gameapi.NewGameRoundHandler(gameRoundRepository).RegisterRoutes(r)
+			gameApiHandler.RegisterRoutes(r)
 		})
 		r.Handle("/*", http.NotFoundHandler())
 	})
