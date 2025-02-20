@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
 
@@ -23,9 +24,42 @@ type gameRoundRepositoryInstance struct {
 }
 
 func NewGameRoundRepository(mongodb *db.MongoDB) (*gameRoundRepositoryInstance, error) {
-	return &gameRoundRepositoryInstance{
+	repo := &gameRoundRepositoryInstance{
 		collection: mongodb.Collection("game_rounds"),
-	}, nil
+	}
+
+	if err := repo.ensureIndexes(); err != nil {
+		return nil, fmt.Errorf("failed to create indexes: %w", err)
+	}
+
+	return repo, nil
+}
+
+func (r *gameRoundRepositoryInstance) ensureIndexes() error {
+	_, err := r.collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{"_id", 1},
+				{"players.user_id", 1},
+			},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys: bson.D{
+				{"_id", 1},
+				{"players.order", 1},
+			},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys: bson.D{
+				{"_id", 1},
+				{"team_scores.name", 1},
+			},
+			Options: options.Index().SetUnique(true),
+		},
+	})
+	return err
 }
 
 func (r *gameRoundRepositoryInstance) Create(ctx context.Context, round *models.GameRound) error {

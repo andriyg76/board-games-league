@@ -27,8 +27,8 @@ type MockUserRepository struct {
 	repositories.UserRepository
 }
 
-func (m *MockUserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
-	args := m.Called(ctx, email)
+func (m *MockUserRepository) FindByExternalId(ctx context.Context, externalIDs string) (*models.User, error) {
+	args := m.Called(ctx, externalIDs)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -111,11 +111,7 @@ func TestMiddleware(t *testing.T) {
 		{
 			name: "Valid token should pass",
 			setupAuth: func(r *http.Request) {
-				token, _ := user_profile.CreateAuthToken(
-					"test@example.com",
-					"Test User",
-					"http://example.com/avatar.jpg",
-				)
+				token, _ := user_profile.CreateAuthToken("test@example.com", "", "Test User", "http://example.com/avatar.jpg")
 				r.AddCookie(&http.Cookie{
 					Name:  "auth_token",
 					Value: token,
@@ -166,27 +162,27 @@ func TestGoogleCallbackHandler(t *testing.T) {
 
 	regularEmail := "existing@example.com"
 	existingUser := &models.User{
-		ID:        primitive.NewObjectID(),
-		Email:     regularEmail,
-		Name:      "Existing User",
-		Avatar:    "http://example.com/avatar.jpg",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		Alias:     "existing",
+		ID:         primitive.NewObjectID(),
+		ExternalID: []string{superAdminEmail},
+		Name:       "Existing User",
+		Avatar:     "http://example.com/avatar.jpg",
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+		Alias:      "existing",
 	}
 
-	mockRepo.On("FindByEmail", mock.Anything, regularEmail).Return(existingUser, nil)
-	mockRepo.On("FindByEmail", mock.Anything, superAdminEmail).Return(nil, nil)
-	mockRepo.On("FindByEmail", mock.Anything, notExistingEmail).Return(nil, nil)
+	mockRepo.On("FindByExternalId", mock.Anything, regularEmail).Return(existingUser, nil)
+	mockRepo.On("FindByExternalId", mock.Anything, superAdminEmail).Return(nil, nil)
+	mockRepo.On("FindByExternalId", mock.Anything, notExistingEmail).Return(nil, nil)
 	mockRepo.On("AliasUnique", mock.Anything, mock.Anything).Return(true, nil)
 	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
 	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
 
 	superadminRequest := httptest.NewRequest("GET", "/auth/callback?state=somestate&provider=google", nil)
 	mockProvider.On("CompleteUserAuthHandler", mock.Anything, superadminRequest).Return(ExternalUser{
-		Email:  superAdminEmail,
-		Name:   "Superadmin",
-		Avatar: "http://example.com/avatar.jpg",
+		ExternalIDs: []string{superAdminEmail},
+		Name:        "Superadmin",
+		Avatar:      "http://example.com/avatar.jpg",
 	}, nil)
 
 	mockProvider.On("LogoutHandler", mock.Anything, mock.Anything).Return(nil)

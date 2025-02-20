@@ -52,7 +52,7 @@ func (p GothProvider) CompleteUserAuthHandler(w http.ResponseWriter, r *http.Req
 	var user ExternalUser
 	if err == nil {
 		user.Name = auth.Name
-		user.Email = auth.Email
+		user.ExternalIDs = []string{auth.Email}
 		user.Avatar = auth.AvatarURL
 	}
 	return user, err

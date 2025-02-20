@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
 
@@ -26,9 +27,31 @@ type mongoGameTypeRepository struct {
 }
 
 func NewGameTypeRepository(db *db.MongoDB) (GameTypeRepository, error) {
-	return &mongoGameTypeRepository{
+	repo := &mongoGameTypeRepository{
 		collection: db.Collection("game_types"),
-	}, nil
+	}
+	if err := repo.ensureIndexes(); err != nil {
+		return nil, err
+	}
+	return repo, nil
+}
+
+func (r *mongoGameTypeRepository) ensureIndexes() error {
+	_, err := r.collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{"labels.name", 1},
+			},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys: bson.D{
+				{"teams.name", 1},
+			},
+			Options: options.Index().SetUnique(true),
+		},
+	})
+	return err
 }
 
 func (r *mongoGameTypeRepository) FindByName(ctx context.Context, name string) (*models.GameType, error) {

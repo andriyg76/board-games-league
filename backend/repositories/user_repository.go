@@ -16,7 +16,7 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, ser *models.User) error
-	FindByEmail(ctx context.Context, email string) (*models.User, error)
+	FindByExternalId(ctx context.Context, externalIDs ...string) (*models.User, error)
 	Update(ctx context.Context, user *models.User) error
 	AliasUnique(ctx context.Context, alias string) (bool, error)
 	FindByID(ctx context.Context, ID primitive.ObjectID) (*models.User, error)
@@ -43,7 +43,7 @@ func ensureIndexes(r *UserRepositoryInstance) error {
 			Options: options.Index().SetUnique(true),
 		},
 		{
-			Keys:    bson.M{"email": 1},
+			Keys:    bson.M{"externalIds": 1},
 			Options: options.Index().SetUnique(true),
 		},
 	})
@@ -64,10 +64,12 @@ func (r *UserRepositoryInstance) Create(ctx context.Context, user *models.User) 
 	return nil
 }
 
-func (r *UserRepositoryInstance) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+func (r *UserRepositoryInstance) FindByExternalId(ctx context.Context, externalIDs ...string) (*models.User, error) {
 	var user models.User
 
-	if err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&user); errors.Is(err, mongo.ErrNoDocuments) {
+	filter := bson.M{"externalIDs.id": bson.M{"$in": externalIDs}}
+
+	if err := r.collection.FindOne(ctx, filter).Decode(&user); errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	} else {
 		return &user, err

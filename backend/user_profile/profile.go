@@ -29,15 +29,18 @@ func Test() {
 }
 
 type UserProfile struct {
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Picture string `json:"picture"`
+	//ID is a player unique in database
+	ID      string   `json:"id"`
+	IDs     []string `json:"ids"`
+	Name    string   `json:"name"`
+	Picture string   `json:"picture"`
 	jwt.StandardClaims
 }
 
-func CreateAuthToken(email, name, avatar string) (string, error) {
+func CreateAuthToken(IDs []string, ID, name, avatar string) (string, error) {
 	claims := UserProfile{
-		Email:   email,
+		ID:      ID,
+		IDs:     IDs,
 		Name:    name,
 		Picture: avatar,
 		StandardClaims: jwt.StandardClaims{

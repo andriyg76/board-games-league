@@ -24,8 +24,8 @@ func (m *MockUserRepository) AliasUnique(ctx context.Context, alias string) (boo
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockUserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
-	args := m.Called(ctx, email)
+func (m *MockUserRepository) FindByExternalId(ctx context.Context, externalIDs string) (*models.User, error) {
+	args := m.Called(ctx, externalIDs)
 	user := args.Get(0)
 	if user == nil {
 		return nil, args.Error(1)
@@ -100,7 +100,7 @@ func TestUpdateUser(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/update-user", nil).WithContext(ctx)
 		rr := httptest.NewRecorder()
 
-		mockRepo.On("FindByEmail", mock.Anything, "test@example.com").Return(nil, nil)
+		mockRepo.On("FindByExternalId", mock.Anything, "test@example.com").Return(nil, nil)
 
 		handler.ServeHTTP(rr, req)
 
@@ -115,7 +115,7 @@ func TestUpdateUser(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/update-user", bytes.NewBuffer(reqBody)).WithContext(ctx)
 		rr := httptest.NewRecorder()
 
-		mockRepo.On("FindByEmail", mock.Anything, "test2@example.com").Return(user, nil)
+		mockRepo.On("FindByExternalId", mock.Anything, "test2@example.com").Return(user, nil)
 		mockRepo.On("Update", mock.Anything, user).Return(nil)
 
 		handler.ServeHTTP(rr, req)
@@ -144,7 +144,7 @@ func TestGetUserHandler(t *testing.T) {
 		req := httptest.NewRequest("GET", "/get-user", nil).WithContext(ctx)
 		rr := httptest.NewRecorder()
 
-		mockRepo.On("FindByEmail", mock.Anything, "test@example.com").Return(user, nil)
+		mockRepo.On("FindByExternalId", mock.Anything, "test@example.com").Return(user, nil)
 
 		handler.ServeHTTP(rr, req)
 
@@ -181,7 +181,7 @@ func TestAdminCreateUserHandler(t *testing.T) {
 		req := httptest.NewRequest("POST", "/admin-create-user", bytes.NewBuffer(reqBody))
 		rr := httptest.NewRecorder()
 
-		mockRepo.On("FindByEmail", mock.Anything, "test@example.com").Return(nil, nil)
+		mockRepo.On("FindByExternalId", mock.Anything, "test@example.com").Return(nil, nil)
 		mockRepo.On("AliasUnique", mock.Anything, mock.Anything).Return(true, nil)
 		mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 

@@ -13,7 +13,7 @@ func TestCreateAuthToken(t *testing.T) {
 		AvatarURL: "http://example.com/avatar.jpg",
 	}
 
-	token, err := CreateAuthToken(user.Email, user.Name, user.AvatarURL)
+	token, err := CreateAuthToken(user.Email, "", user.Name, user.AvatarURL)
 	asserts := asserts2.Get(t)
 	asserts.
 		NoError(err).

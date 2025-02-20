@@ -41,7 +41,7 @@ func UpdateUser(userRepository repositories.UserRepository) http.HandlerFunc {
 			return
 		}
 
-		user, err := userRepository.FindByEmail(r.Context(), claims.Email)
+		user, err := userRepository.FindByExternalId(r.Context(), claims.IDs...)
 		if err != nil {
 			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user profile")
 			return
@@ -66,6 +66,13 @@ func UpdateUser(userRepository repositories.UserRepository) http.HandlerFunc {
 	}
 }
 
+type userResponse struct {
+	IDs     []string
+	Name    string
+	Picture string
+	Alias   string
+}
+
 func GetUserHandler(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if claims, err := user_profile.GetUserProfile(r); err != nil {
@@ -73,16 +80,16 @@ func GetUserHandler(userRepository repositories.UserRepository) http.HandlerFunc
 				"unauthorised")
 			return
 		} else {
-			user, err := userRepository.FindByEmail(r.Context(), claims.Email)
+			user, err := userRepository.FindByExternalId(r.Context(), claims.IDs...)
 			if err != nil {
 				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user profile")
 			}
 
-			if err := json.NewEncoder(w).Encode(map[string]string{
-				"email":   user.Email,
-				"name":    user.Name,
-				"picture": user.Avatar,
-				"alias":   user.Alias,
+			if err := json.NewEncoder(w).Encode(userResponse{
+				IDs:     user.ExternalID,
+				Name:    user.Name,
+				Picture: user.Avatar,
+				Alias:   user.Alias,
 			}); err != nil {
 				_ = log.Error("serialising error %v", err)
 				http.Error(w, "serialising error", http.StatusInternalServerError)
@@ -94,33 +101,33 @@ func GetUserHandler(userRepository repositories.UserRepository) http.HandlerFunc
 func AdminCreateUserHandler(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Email string `json:"email"`
+			ExternalIDs []string `json:"external_ids"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request payload", http.StatusBadRequest)
 			return
 		}
 
-		email := req.Email
-		if email == "" {
-			http.Error(w, "Email is required", http.StatusBadRequest)
+		if len(req.ExternalIDs) == 0 {
+			http.Error(w, "At leas one external IDs is required", http.StatusBadRequest)
 			return
 		}
 
 		// Check if user already exists
-		if existingUser, err := userRepository.FindByEmail(r.Context(), email); err != nil {
+		if existingUser, err := userRepository.FindByExternalId(r.Context(), req.ExternalIDs...); err != nil {
 			_ = log.Error("error checking user %v", err)
 			http.Error(w, "Error checking user", http.StatusConflict)
 			return
 		} else if existingUser != nil {
+			log.Info("User %v already have one of external ids: %v assinged", existingUser, req.ExternalIDs)
 			return
 		}
 
 		// Create new user
 		newUser := &models.User{
-			Email:     email,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			ExternalID: req.ExternalIDs,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
 		}
 
 		if alias, err := utils.GetUniqueAlias(func(alias string) (bool, error) {

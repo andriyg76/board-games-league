@@ -56,31 +56,24 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 			return
 		}
 
-		token, err := user_profile.CreateAuthToken(externalUser.Email, externalUser.Name, externalUser.Avatar)
-		if err != nil {
-			_ = glog.Error("Token creation failed: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
 		var user *models.User
 
 		// Check if googleUser exists in the collection
-		if existingUser, err := repository.FindByEmail(r.Context(), externalUser.Email); err != nil {
+		if existingUser, err := repository.FindByExternalId(r.Context(), externalUser.ExternalIDs...); err != nil {
 			_ = glog.Error("error fetching user profile: %v", err)
 			http.Error(w, "error fetching user profile", http.StatusInternalServerError)
 			return
 		} else if existingUser == nil {
 			user = &models.User{
-				ID:        primitive.ObjectID{},
-				Email:     externalUser.Email,
-				Name:      externalUser.Name,
-				Avatar:    externalUser.Avatar,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-				Alias:     "",
+				ID:         primitive.ObjectID{},
+				ExternalID: externalUser.ExternalIDs,
+				Name:       externalUser.Name,
+				Avatar:     externalUser.Avatar,
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+				Alias:      "",
 			}
-			if isSuperAdmin(externalUser.Email) {
+			if isSuperAdmin(externalUser.ExternalIDs) {
 
 				if alias, err := utils.GetUniqueAlias(func(alias string) (bool, error) {
 					return repository.AliasUnique(r.Context(), alias)
@@ -101,7 +94,7 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 			} else {
 				// Send googleUser info to Discord webhook
 				_ = sendNewUserToDiscord(r, user)
-				glog.Info("User %s is not known", user.Email)
+				glog.Info("User with externalID %v is not known", user.ExternalID)
 				http.Error(w, "Unauthorised", http.StatusUnauthorized)
 				return
 			}
@@ -129,6 +122,13 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 			}
 		}
 
+		token, err := user_profile.CreateAuthToken(externalUser.ExternalIDs, user.ID.Hex(), externalUser.Name, externalUser.Avatar)
+		if err != nil {
+			_ = glog.Error("Token creation failed: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
 		// Set secure cookie
 		http.SetCookie(w, &http.Cookie{
 			Name:     "auth_token",
@@ -140,16 +140,23 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 			MaxAge:   24 * 60 * 60, // 24 hours
 		})
 
-		if err := json.NewEncoder(w).Encode(map[string]string{
-			"email":   user.Email,
-			"name":    user.Name,
-			"picture": user.Avatar,
-			"alias":   user.Alias,
+		if err := json.NewEncoder(w).Encode(userResponse{
+			IDs:     user.ExternalID,
+			Name:    user.Name,
+			Picture: user.Avatar,
+			Alias:   user.Alias,
 		}); err != nil {
 			_ = glog.Error("serialising error %v", err)
 			http.Error(w, "serialising error", http.StatusInternalServerError)
 		}
 	}
+}
+
+type userResponse struct {
+	IDs     []string `json:"emails"`
+	Name    string   `json:"name"`
+	Picture string   `json:"picture"`
+	Alias   string   `json:"alias"`
 }
 
 func LogoutHandler(_ repositories.UserRepository, provider ExternalAuthProvider) http.HandlerFunc {
@@ -164,9 +171,9 @@ func LogoutHandler(_ repositories.UserRepository, provider ExternalAuthProvider)
 }
 
 type ExternalUser struct {
-	Email  string
-	Name   string
-	Avatar string
+	ExternalIDs []string
+	Name        string
+	Avatar      string
 }
 
 type ExternalAuthProvider interface {
@@ -228,7 +235,7 @@ func Middleware(_ repositories.UserRepository) func(http.Handler) http.Handler {
 
 			profile, err := user_profile.ParseProfile(cookie.Value)
 
-			if err == nil && profile.Email != "" {
+			if err == nil && len(profile.IDs) == 0 {
 				ctx := context.WithValue(r.Context(), "user", profile)
 				next.ServeHTTP(w, r.WithContext(ctx))
 			} else {
@@ -244,10 +251,12 @@ func handleUnauthorized(w http.ResponseWriter, _ *http.Request) {
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
 }
 
-func isSuperAdmin(email string) bool {
+func isSuperAdmin(ids []string) bool {
 	for _, admin := range superAdmins {
-		if admin == email {
-			return true
+		for _, id := range ids {
+			if admin == id {
+				return true
+			}
 		}
 	}
 	return false
@@ -266,8 +275,8 @@ func sendNewUserToDiscord(r *http.Request, user *models.User) error {
 		return glog.Error("User is not set")
 	}
 	domain := utils.GetHostUrl(r)
-	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?email=%s", domain, user.Email) // defined at frontend/src/router/index.ts
-	content := fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, user.Email, createUserLink)
+	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?email=%s", domain, strings.Join(user.ExternalID, ",")) // domain defined at frontend/src/router/index.ts
+	content := fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, strings.Join(user.ExternalID, ","), createUserLink)
 
 	return utils.SendToDiscord(content)
 }
