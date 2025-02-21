@@ -59,7 +59,7 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 		var user *models.User
 
 		// Check if googleUser exists in the collection
-		if existingUser, err := repository.FindByExternalId(r.Context(), externalUser.ExternalIDs...); err != nil {
+		if existingUser, err := repository.FindByExternalId(r.Context(), externalUser.ExternalIDs); err != nil {
 			_ = glog.Error("error fetching user profile: %v", err)
 			http.Error(w, "error fetching user profile", http.StatusInternalServerError)
 			return
@@ -235,7 +235,7 @@ func Middleware(_ repositories.UserRepository) func(http.Handler) http.Handler {
 
 			profile, err := user_profile.ParseProfile(cookie.Value)
 
-			if err == nil && len(profile.IDs) == 0 {
+			if err == nil && len(profile.IDs) != 0 {
 				ctx := context.WithValue(r.Context(), "user", profile)
 				next.ServeHTTP(w, r.WithContext(ctx))
 			} else {
@@ -275,7 +275,7 @@ func sendNewUserToDiscord(r *http.Request, user *models.User) error {
 		return glog.Error("User is not set")
 	}
 	domain := utils.GetHostUrl(r)
-	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?email=%s", domain, strings.Join(user.ExternalID, ",")) // domain defined at frontend/src/router/index.ts
+	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?external_ids=%s", domain, strings.Join(user.ExternalID, ",")) // domain defined at frontend/src/router/index.ts
 	content := fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, strings.Join(user.ExternalID, ","), createUserLink)
 
 	return utils.SendToDiscord(content)

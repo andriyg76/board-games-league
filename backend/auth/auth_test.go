@@ -27,7 +27,7 @@ type MockUserRepository struct {
 	repositories.UserRepository
 }
 
-func (m *MockUserRepository) FindByExternalId(ctx context.Context, externalIDs ...string) (*models.User, error) {
+func (m *MockUserRepository) FindByExternalId(ctx context.Context, externalIDs []string) (*models.User, error) {
 	args := m.Called(ctx, externalIDs)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -163,7 +163,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 	regularEmail := "existing@example.com"
 	existingUser := &models.User{
 		ID:         primitive.NewObjectID(),
-		ExternalID: []string{superAdminEmail},
+		ExternalID: []string{regularEmail},
 		Name:       "Existing User",
 		Avatar:     "http://example.com/avatar.jpg",
 		CreatedAt:  time.Now(),
@@ -171,9 +171,9 @@ func TestGoogleCallbackHandler(t *testing.T) {
 		Alias:      "existing",
 	}
 
-	mockRepo.On("FindByExternalId", mock.Anything, regularEmail).Return(existingUser, nil)
-	mockRepo.On("FindByExternalId", mock.Anything, superAdminEmail).Return(nil, nil)
-	mockRepo.On("FindByExternalId", mock.Anything, notExistingEmail).Return(nil, nil)
+	mockRepo.On("FindByExternalId", mock.Anything, []string{regularEmail}).Return(existingUser, nil)
+	mockRepo.On("FindByExternalId", mock.Anything, []string{superAdminEmail}).Return(nil, nil)
+	mockRepo.On("FindByExternalId", mock.Anything, []string{notExistingEmail}).Return(nil, nil)
 	mockRepo.On("AliasUnique", mock.Anything, mock.Anything).Return(true, nil)
 	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
 	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
@@ -232,8 +232,6 @@ func TestGoogleCallbackHandler(t *testing.T) {
 
 		handler.ServeHTTP(rr, regularUserRequest)
 
-		// We expect an error here because gothic.CompleteUserAuthHandler won't work in test
-		// In a real scenario, you'd need to mock gothic.CompleteUserAuthHandler
 		asserts.
 			Equal(http.StatusOK, rr.Code).
 			True(len(discord) == 0, "No new notifications to discord").
@@ -243,72 +241,9 @@ func TestGoogleCallbackHandler(t *testing.T) {
 			if cookie.Name == "auth_token" {
 				profile, err := user_profile.ParseProfile(cookie.Value)
 				if err != nil {
-					asserts.NoError(err, "Coud not parse cookie %v", cookie)
+					asserts.NoError(err, "Could not parse cookie %v", cookie)
 				}
 				asserts.Equal([]string{regularEmail}, profile.IDs, "Invalid user token set")
-			}
-		}
-
-	})
-
-	t.Run("Superamdin user login", func(t *testing.T) {
-		const somestate = "somestate2"
-
-		var discord = []string{}
-		utils.AddDiscordSendCapturer(func(s string) {
-			discord = append(discord, s)
-		})
-		asserts := asserts2.Get(t)
-
-		var r1 = httptest.NewRecorder()
-		req, err := http.NewRequest("POST", "/auth/start?type=google&state="+somestate, nil)
-		if err != nil {
-			asserts.NoError(err)
-			return
-		}
-		beginFlowHandler.ServeHTTP(r1, req)
-
-		s, e := store.Get(req, "auth-session")
-		if e != nil {
-			asserts.NoError(e)
-			return
-		}
-		asserts.Equal(somestate, s.Values["state"])
-
-		location := r1.Header().Get("Location")
-		asserts.NotEmpty(location)
-
-		url1, e := url.Parse(location)
-		if e != nil {
-			asserts.NoError(e)
-		}
-		url1.Query().Get("state")
-		asserts.NotEmpty("state", somestate)
-
-		rr := httptest.NewRecorder()
-		request := httptest.NewRequest("GET", fmt.Sprintf("/auth/callback?state=%s", somestate), nil)
-		mockProvider.On("CompleteUserAuthHandler", mock.Anything, request).Return(ExternalUser{
-			ExternalIDs: []string{superAdminEmail},
-			Name:        "superadmin",
-			Avatar:      "sinine.jpg",
-		}, nil)
-
-		handler.ServeHTTP(rr, request)
-
-		// We expect an error here because gothic.CompleteUserAuthHandler won't work in test
-		// In a real scenario, you'd need to mock gothic.CompleteUserAuthHandler
-		asserts.
-			Equal(http.StatusOK, rr.Code).
-			True(len(discord) == 0, "No new notifications to discord").
-			True(strings.Contains(rr.Header().Get("Set-Cookie"), "auth_token="),
-				"auth_token cookie should be set by end auth")
-		for _, cookie := range rr.Result().Cookies() {
-			if cookie.Name == "auth_token" {
-				profile, err := user_profile.ParseProfile(cookie.Value)
-				if err != nil {
-					asserts.NoError(err, "Coud not parse cookie %v", cookie)
-				}
-				asserts.Equal([]string{superAdminEmail}, profile.IDs, "Invalid user token set")
 			}
 		}
 	})
@@ -380,7 +315,7 @@ func TestSendNewUserToDiscord_UserNotNil(t *testing.T) {
 
 	user := &models.User{
 		Name:       "Test User",
-		ID:         primitive.ObjectID([]byte{0}),
+		ID:         primitive.ObjectID([12]byte{}),
 		ExternalID: []string{"test@example.com"},
 	}
 

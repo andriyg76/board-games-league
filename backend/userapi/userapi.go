@@ -41,7 +41,7 @@ func UpdateUser(userRepository repositories.UserRepository) http.HandlerFunc {
 			return
 		}
 
-		user, err := userRepository.FindByExternalId(r.Context(), claims.IDs...)
+		user, err := userRepository.FindByExternalId(r.Context(), claims.IDs)
 		if err != nil {
 			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user profile")
 			return
@@ -80,7 +80,7 @@ func GetUserHandler(userRepository repositories.UserRepository) http.HandlerFunc
 				"unauthorised")
 			return
 		} else {
-			user, err := userRepository.FindByExternalId(r.Context(), claims.IDs...)
+			user, err := userRepository.FindByExternalId(r.Context(), claims.IDs)
 			if err != nil {
 				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user profile")
 			}
@@ -114,7 +114,7 @@ func AdminCreateUserHandler(userRepository repositories.UserRepository) http.Han
 		}
 
 		// Check if user already exists
-		if existingUser, err := userRepository.FindByExternalId(r.Context(), req.ExternalIDs...); err != nil {
+		if existingUser, err := userRepository.FindByExternalId(r.Context(), req.ExternalIDs); err != nil {
 			_ = log.Error("error checking user %v", err)
 			http.Error(w, "Error checking user", http.StatusConflict)
 			return

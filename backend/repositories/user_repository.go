@@ -16,7 +16,7 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, ser *models.User) error
-	FindByExternalId(ctx context.Context, externalIDs ...string) (*models.User, error)
+	FindByExternalId(ctx context.Context, externalIDs []string) (*models.User, error)
 	Update(ctx context.Context, user *models.User) error
 	AliasUnique(ctx context.Context, alias string) (bool, error)
 	FindByID(ctx context.Context, ID primitive.ObjectID) (*models.User, error)
@@ -64,7 +64,7 @@ func (r *UserRepositoryInstance) Create(ctx context.Context, user *models.User) 
 	return nil
 }
 
-func (r *UserRepositoryInstance) FindByExternalId(ctx context.Context, externalIDs ...string) (*models.User, error) {
+func (r *UserRepositoryInstance) FindByExternalId(ctx context.Context, externalIDs []string) (*models.User, error) {
 	var user models.User
 
 	filter := bson.M{"externalIDs.id": bson.M{"$in": externalIDs}}
