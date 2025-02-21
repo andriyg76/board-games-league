@@ -1,8 +1,8 @@
 <template>
   <div>
+    {{ userStore.state.loggedIn }}
     <template v-if="userStore.state.loggedIn">
-      <h3>I am a {{ userStore.state.user.name }}</h3>
-      <h4>Email: {{ userStore.state.user.email }}</h4>
+      <h3>I am a {{ userStore.state.user.name }} - {{ userStore.state.user.externalIDs }}</h3>
       <h4>Alias:
         <v-text-field v-model="userStore.state.user.alias" @input="checkAliasUniqueness" placeholder="Enter alias" append-icon="edit"/>
         <span v-if="isAliasUnique">✔️</span>
@@ -10,7 +10,7 @@
       </h4>
       <v-btn color="primary" @click="updateAlias" :disabled="!isAliasUnique">Update Alias</v-btn>
       <p>
-        <v-img v-if="userStore.state.user.picture" :src="userStore.state.user.picture" :alt="`${userStore.state.user.name} - ${userStore.state.user.email}`" height="64" width="64"/>
+        <v-img v-if="userStore.state.user.avatar" :src="userStore.state.user.avatar" :alt="`${userStore.state.user.name} - ${userStore.state.user.alias}`" height="64" width="64"/>
       </p>
     </template>
   </div>

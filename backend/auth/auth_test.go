@@ -162,13 +162,13 @@ func TestGoogleCallbackHandler(t *testing.T) {
 
 	regularEmail := "existing@example.com"
 	existingUser := &models.User{
-		ID:         primitive.NewObjectID(),
-		ExternalID: []string{regularEmail},
-		Name:       "Existing User",
-		Avatar:     "http://example.com/avatar.jpg",
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-		Alias:      "existing",
+		ID:          primitive.NewObjectID(),
+		ExternalIDs: []string{regularEmail},
+		Name:        "Existing User",
+		Avatar:      "http://example.com/avatar.jpg",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		Alias:       "existing",
 	}
 
 	mockRepo.On("FindByExternalId", mock.Anything, []string{regularEmail}).Return(existingUser, nil)
@@ -314,9 +314,9 @@ func TestSendNewUserToDiscord_UserNotNil(t *testing.T) {
 	}
 
 	user := &models.User{
-		Name:       "Test User",
-		ID:         primitive.ObjectID([12]byte{}),
-		ExternalID: []string{"test@example.com"},
+		Name:        "Test User",
+		ID:          primitive.ObjectID([12]byte{}),
+		ExternalIDs: []string{"test@example.com"},
 	}
 
 	req := httptest.NewRequest("POST", "/send", nil)

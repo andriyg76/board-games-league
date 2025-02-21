@@ -65,13 +65,13 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 			return
 		} else if existingUser == nil {
 			user = &models.User{
-				ID:         primitive.ObjectID{},
-				ExternalID: externalUser.ExternalIDs,
-				Name:       externalUser.Name,
-				Avatar:     externalUser.Avatar,
-				CreatedAt:  time.Now(),
-				UpdatedAt:  time.Now(),
-				Alias:      "",
+				ID:          primitive.ObjectID{},
+				ExternalIDs: externalUser.ExternalIDs,
+				Name:        externalUser.Name,
+				Avatar:      externalUser.Avatar,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+				Alias:       "",
 			}
 			if isSuperAdmin(externalUser.ExternalIDs) {
 
@@ -94,7 +94,7 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 			} else {
 				// Send googleUser info to Discord webhook
 				_ = sendNewUserToDiscord(r, user)
-				glog.Info("User with externalID %v is not known", user.ExternalID)
+				glog.Info("User with externalID %v is not known", user.ExternalIDs)
 				http.Error(w, "Unauthorised", http.StatusUnauthorized)
 				return
 			}
@@ -141,7 +141,7 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 		})
 
 		if err := json.NewEncoder(w).Encode(userResponse{
-			IDs:     user.ExternalID,
+			IDs:     user.ExternalIDs,
 			Name:    user.Name,
 			Picture: user.Avatar,
 			Alias:   user.Alias,
@@ -275,8 +275,8 @@ func sendNewUserToDiscord(r *http.Request, user *models.User) error {
 		return glog.Error("User is not set")
 	}
 	domain := utils.GetHostUrl(r)
-	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?external_ids=%s", domain, strings.Join(user.ExternalID, ",")) // domain defined at frontend/src/router/index.ts
-	content := fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, strings.Join(user.ExternalID, ","), createUserLink)
+	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?external_ids=%s", domain, strings.Join(user.ExternalIDs, ",")) // domain defined at frontend/src/router/index.ts
+	content := fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, strings.Join(user.ExternalIDs, ","), createUserLink)
 
 	return utils.SendToDiscord(content)
 }

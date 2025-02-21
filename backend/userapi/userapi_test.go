@@ -83,7 +83,7 @@ func TestUpdateUser(t *testing.T) {
 	t.Run("Update user successfully", func(t *testing.T) {
 		claims := &user_profile.UserProfile{IDs: []string{"test2@example.com"}, ID: "000000000000000000000000"}
 		ctx := context.WithValue(context.Background(), "user", claims)
-		user := &models.User{ExternalID: []string{"test2@example.com"}}
+		user := &models.User{ExternalIDs: []string{"test2@example.com"}}
 		reqBody, _ := json.Marshal(user)
 		req := httptest.NewRequest("PUT", "/update-user", bytes.NewBuffer(reqBody)).WithContext(ctx)
 		rr := httptest.NewRecorder()

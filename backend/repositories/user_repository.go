@@ -43,7 +43,7 @@ func ensureIndexes(r *UserRepositoryInstance) error {
 			Options: options.Index().SetUnique(true),
 		},
 		{
-			Keys:    bson.M{"externalIds": 1},
+			Keys:    bson.M{"external_ids": 1},
 			Options: options.Index().SetUnique(true),
 		},
 	})
@@ -67,13 +67,17 @@ func (r *UserRepositoryInstance) Create(ctx context.Context, user *models.User) 
 func (r *UserRepositoryInstance) FindByExternalId(ctx context.Context, externalIDs []string) (*models.User, error) {
 	var user models.User
 
-	filter := bson.M{"externalIDs.id": bson.M{"$in": externalIDs}}
-
-	if err := r.collection.FindOne(ctx, filter).Decode(&user); errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, nil
-	} else {
-		return &user, err
+	for _, iD := range externalIDs {
+		filter := bson.M{"external_ids": iD}
+		if err := r.collection.FindOne(ctx, filter).Decode(&user); errors.Is(err, mongo.ErrNoDocuments) {
+			continue
+		} else if err != nil {
+			return nil, err
+		} else {
+			return &user, nil
+		}
 	}
+	return nil, nil
 }
 
 func (r *UserRepositoryInstance) FindByID(ctx context.Context, id primitive.ObjectID) (*models.User, error) {

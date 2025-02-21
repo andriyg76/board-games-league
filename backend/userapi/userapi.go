@@ -83,10 +83,16 @@ func GetUserHandler(userRepository repositories.UserRepository) http.HandlerFunc
 			user, err := userRepository.FindByExternalId(r.Context(), claims.IDs)
 			if err != nil {
 				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user profile")
+				return
+			}
+
+			if user == nil {
+				utils.LogAndWriteHTTPError(w, http.StatusUnauthorized, nil, "user profile not found")
+				return
 			}
 
 			if err := json.NewEncoder(w).Encode(userResponse{
-				IDs:     user.ExternalID,
+				IDs:     user.ExternalIDs,
 				Name:    user.Name,
 				Picture: user.Avatar,
 				Alias:   user.Alias,
@@ -125,9 +131,9 @@ func AdminCreateUserHandler(userRepository repositories.UserRepository) http.Han
 
 		// Create new user
 		newUser := &models.User{
-			ExternalID: req.ExternalIDs,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			ExternalIDs: req.ExternalIDs,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
 		}
 
 		if alias, err := utils.GetUniqueAlias(func(alias string) (bool, error) {
