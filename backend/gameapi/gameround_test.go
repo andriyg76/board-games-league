@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -73,7 +74,9 @@ func TestStartGame(t *testing.T) {
 		player2ID := primitive.NewObjectID()
 
 		gameType := &models.GameType{
-			ID:   gameTypeID,
+			IdCode: utils.IdCode{
+				ID: gameTypeID,
+			},
 			Name: "Test Game",
 			Teams: []models.Label{
 				{Name: "Team A"},
@@ -110,7 +113,9 @@ func TestStartGame(t *testing.T) {
 		player1ID := primitive.NewObjectID()
 
 		gameType := &models.GameType{
-			ID:   gameTypeID,
+			IdCode: utils.IdCode{
+				ID: gameTypeID,
+			},
 			Name: "Test Game",
 			Teams: []models.Label{
 				{Name: "Team A"},

@@ -54,7 +54,7 @@ func (r *mongoGameTypeRepository) ensureIndexes() error {
 	return err
 }
 
-func (r *mongoGameTypeRepository) FindByName(ctx context.Context, name string) (*models.GameType, error) {
+func (r *mongoGameTypeRepository) FindByName(_ context.Context, _ string) (*models.GameType, error) {
 	return nil, glog.Error("not implemented")
 }
 
@@ -81,6 +81,7 @@ func (r *mongoGameTypeRepository) FindByID(ctx context.Context, id primitive.Obj
 	if err != nil {
 		return nil, err
 	}
+	gameType.ConvertIDToCode()
 	return &gameType, nil
 }
 
@@ -89,11 +90,15 @@ func (r *mongoGameTypeRepository) FindAll(ctx context.Context) ([]*models.GameTy
 	if err != nil {
 		return nil, err
 	}
+	//goland:noinspection GoUnhandledErrorResult
 	defer cursor.Close(ctx)
 
 	var gameTypes []*models.GameType
 	if err = cursor.All(ctx, &gameTypes); err != nil {
 		return nil, err
+	}
+	for _, gameType := range gameTypes {
+		gameType.ConvertIDToCode()
 	}
 	return gameTypes, nil
 }

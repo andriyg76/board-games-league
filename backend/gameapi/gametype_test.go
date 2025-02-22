@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
+	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -73,7 +74,9 @@ func TestListGameTypes(t *testing.T) {
 	t.Run("Successfully list game types", func(t *testing.T) {
 		gameTypes := []*models.GameType{
 			{
-				ID:   primitive.NewObjectID(),
+				IdCode: utils.IdCode{
+					ID: primitive.NewObjectID(),
+				},
 				Name: "Test Game Type",
 			},
 		}
@@ -134,7 +137,9 @@ func TestGetGameType(t *testing.T) {
 	t.Run("Successfully get game type", func(t *testing.T) {
 		id := primitive.NewObjectID()
 		gameType := &models.GameType{
-			ID:   id,
+			IdCode: utils.IdCode{
+				ID: primitive.NewObjectID(),
+			},
 			Name: "Test Game Type",
 		}
 
@@ -173,7 +178,9 @@ func TestUpdateGameType(t *testing.T) {
 	t.Run("Successfully update game type", func(t *testing.T) {
 		id := primitive.NewObjectID()
 		gameType := &models.GameType{
-			ID:   id,
+			IdCode: utils.IdCode{
+				ID: primitive.NewObjectID(),
+			},
 			Name: "Updated Game Type",
 		}
 

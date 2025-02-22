@@ -42,9 +42,9 @@ func (h *Handler) createGameType(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getGameType(w http.ResponseWriter, r *http.Request) {
-	id, err := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
+	id, err := utils.ConvertCodeToID(chi.URLParam(r, "code"))
 	if err != nil {
-		http.Error(w, "Invalid game type ID", http.StatusBadRequest)
+		http.Error(w, "Invalid game type Code", http.StatusBadRequest)
 		return
 	}
 

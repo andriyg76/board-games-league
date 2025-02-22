@@ -4,7 +4,7 @@
       <v-toolbar-title>My App</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn to="/">Home</v-btn>
-      <v-btn to="/about">About</v-btn>
+      <v-btn to="/ui/admin/game-types">Game Types</v-btn>
       <v-btn to="/ui/user">User</v-btn>
       <v-spacer></v-spacer>
       <logout-button/>

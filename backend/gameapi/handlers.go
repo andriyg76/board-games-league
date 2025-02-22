@@ -13,19 +13,19 @@ type Handler struct {
 }
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
-	r.Route("/games/rounds", func(r chi.Router) {
+	r.Route("/game_rounds", func(r chi.Router) {
 		r.Post("/", h.startGame)
-		r.Get("/{id}", h.getGameRound)
-		r.Put("/{id}/finalize", h.finalizeGame)
-		r.Put("/{id}/players/{userId}/score", h.updatePlayerScore)
+		r.Get("/{code}", h.getGameRound)
+		r.Put("/{code}/finalize", h.finalizeGame)
+		r.Put("/{code}/players/{userId}/score", h.updatePlayerScore)
 	})
 
-	r.Route("/games/types", func(r chi.Router) {
+	r.Route("/game_types", func(r chi.Router) {
 		r.Get("/", h.listGameTypes)
 		r.Post("/", h.createGameType)
-		r.Get("/{id}", h.getGameType)
-		r.Put("/{id}", h.updateGameType)
-		r.Delete("/{id}", h.deleteGameType)
+		r.Get("/{code}", h.getGameType)
+		r.Put("/{code}", h.updateGameType)
+		r.Delete("/{code}", h.deleteGameType)
 	})
 }
 
