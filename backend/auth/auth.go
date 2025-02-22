@@ -140,23 +140,16 @@ func GoogleCallbackHandler(repository repositories.UserRepository, provider Exte
 			MaxAge:   24 * 60 * 60, // 24 hours
 		})
 
-		if err := json.NewEncoder(w).Encode(userResponse{
-			IDs:     user.ExternalIDs,
-			Name:    user.Name,
-			Picture: user.Avatar,
-			Alias:   user.Alias,
+		if err := json.NewEncoder(w).Encode(user_profile.UserResponse{
+			ExternalIDs: user.ExternalIDs,
+			Name:        user.Name,
+			Avatar:      user.Avatar,
+			Alias:       user.Alias,
 		}); err != nil {
 			_ = glog.Error("serialising error %v", err)
 			http.Error(w, "serialising error", http.StatusInternalServerError)
 		}
 	}
-}
-
-type userResponse struct {
-	IDs     []string `json:"emails"`
-	Name    string   `json:"name"`
-	Picture string   `json:"picture"`
-	Alias   string   `json:"alias"`
 }
 
 func LogoutHandler(_ repositories.UserRepository, provider ExternalAuthProvider) http.HandlerFunc {
@@ -235,7 +228,7 @@ func Middleware(_ repositories.UserRepository) func(http.Handler) http.Handler {
 
 			profile, err := user_profile.ParseProfile(cookie.Value)
 
-			if err == nil && len(profile.IDs) != 0 {
+			if err == nil && len(profile.ExternalIDs) != 0 {
 				ctx := context.WithValue(r.Context(), "user", profile)
 				next.ServeHTTP(w, r.WithContext(ctx))
 			} else {

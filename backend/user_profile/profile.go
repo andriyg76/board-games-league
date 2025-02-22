@@ -31,10 +31,10 @@ func Test() {
 
 type UserProfile struct {
 	//ID is a player unique in database
-	ID      string   `json:"id"`
-	IDs     []string `json:"ids"`
-	Name    string   `json:"name"`
-	Picture string   `json:"picture"`
+	ID          string   `json:"id"`
+	ExternalIDs []string `json:"ids"`
+	Name        string   `json:"name"`
+	Picture     string   `json:"picture"`
 	jwt.StandardClaims
 }
 
@@ -43,10 +43,10 @@ func CreateAuthToken(IDs []string, ID, name, avatar string) (string, error) {
 		return "", fmt.Errorf("ID should be specified for usertoken")
 	}
 	claims := UserProfile{
-		ID:      ID,
-		IDs:     IDs,
-		Name:    name,
-		Picture: avatar,
+		ID:          ID,
+		ExternalIDs: IDs,
+		Name:        name,
+		Picture:     avatar,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 			IssuedAt:  time.Now().Unix(),
@@ -59,13 +59,13 @@ func CreateAuthToken(IDs []string, ID, name, avatar string) (string, error) {
 
 func ParseProfile(cookie string) (*UserProfile, error) {
 	profile := &UserProfile{}
-	_, error := jwt.ParseWithClaims(cookie, profile, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(cookie, profile, func(token *jwt.Token) (interface{}, error) {
 		return config.JwtSecret, nil
 	})
-	if error != nil {
-		return nil, error
+	if err != nil {
+		return nil, err
 	}
-	return profile, error
+	return profile, err
 }
 
 func GetUserProfile(r *http.Request) (*UserProfile, error) {
@@ -74,4 +74,11 @@ func GetUserProfile(r *http.Request) (*UserProfile, error) {
 		return nil, glog.Error("user profile is not found in profile")
 	}
 	return profile, nil
+}
+
+type UserResponse struct {
+	ExternalIDs []string `json:"external_ids"`
+	Name        string   `json:"name"`
+	Avatar      string   `json:"avatar"`
+	Alias       string   `json:"alias"`
 }

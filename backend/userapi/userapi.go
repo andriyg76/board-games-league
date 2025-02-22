@@ -41,7 +41,7 @@ func UpdateUser(userRepository repositories.UserRepository) http.HandlerFunc {
 			return
 		}
 
-		user, err := userRepository.FindByExternalId(r.Context(), claims.IDs)
+		user, err := userRepository.FindByExternalId(r.Context(), claims.ExternalIDs)
 		if err != nil {
 			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user profile")
 			return
@@ -66,13 +66,6 @@ func UpdateUser(userRepository repositories.UserRepository) http.HandlerFunc {
 	}
 }
 
-type userResponse struct {
-	IDs     []string
-	Name    string
-	Picture string
-	Alias   string
-}
-
 func GetUserHandler(userRepository repositories.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if claims, err := user_profile.GetUserProfile(r); err != nil {
@@ -80,7 +73,7 @@ func GetUserHandler(userRepository repositories.UserRepository) http.HandlerFunc
 				"unauthorised")
 			return
 		} else {
-			user, err := userRepository.FindByExternalId(r.Context(), claims.IDs)
+			user, err := userRepository.FindByExternalId(r.Context(), claims.ExternalIDs)
 			if err != nil {
 				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user profile")
 				return
@@ -91,11 +84,11 @@ func GetUserHandler(userRepository repositories.UserRepository) http.HandlerFunc
 				return
 			}
 
-			if err := json.NewEncoder(w).Encode(userResponse{
-				IDs:     user.ExternalIDs,
-				Name:    user.Name,
-				Picture: user.Avatar,
-				Alias:   user.Alias,
+			if err := json.NewEncoder(w).Encode(user_profile.UserResponse{
+				ExternalIDs: user.ExternalIDs,
+				Name:        user.Name,
+				Avatar:      user.Avatar,
+				Alias:       user.Alias,
 			}); err != nil {
 				_ = log.Error("serialising error %v", err)
 				http.Error(w, "serialising error", http.StatusInternalServerError)
@@ -115,7 +108,7 @@ func AdminCreateUserHandler(userRepository repositories.UserRepository) http.Han
 		}
 
 		if len(req.ExternalIDs) == 0 {
-			http.Error(w, "At leas one external IDs is required", http.StatusBadRequest)
+			http.Error(w, "At leas one external ExternalIDs is required", http.StatusBadRequest)
 			return
 		}
 

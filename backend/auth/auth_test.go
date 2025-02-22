@@ -243,7 +243,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 				if err != nil {
 					asserts.NoError(err, "Could not parse cookie %v", cookie)
 				}
-				asserts.Equal([]string{regularEmail}, profile.IDs, "Invalid user token set")
+				asserts.Equal([]string{regularEmail}, profile.ExternalIDs, "Invalid user token set")
 			}
 		}
 	})

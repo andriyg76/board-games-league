@@ -1,8 +1,9 @@
 <template>
   <div>
+    {{ userStore.state.user }}
     {{ userStore.state.loggedIn }}
     <template v-if="userStore.state.loggedIn">
-      <h3>I am a {{ userStore.state.user.name }} - {{ userStore.state.user.externalIDs }}</h3>
+      <h3>I am a {{ userStore.state.user.name }} - {{ userStore.state.user.external_ids }}</h3>
       <h4>Alias:
         <v-text-field v-model="userStore.state.user.alias" @input="checkAliasUniqueness" placeholder="Enter alias" append-icon="edit"/>
         <span v-if="isAliasUnique">✔️</span>
