@@ -50,27 +50,6 @@ func (m *MockUserRepository) AliasUnique(ctx context.Context, alias string) (boo
 	return args.Bool(0), args.Error(1)
 }
 
-// MockExternalAuthProvider implements ExternalAuthProvider interface
-type MockExternalAuthProvider struct {
-	mock.Mock
-	ExternalAuthProvider
-}
-
-func (m *MockExternalAuthProvider) BeginUserAuthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusPermanentRedirect)
-	w.Header().Add("Location", fmt.Sprintf("http://google.com/auth?state=%s", r.URL.Query().Get("state")))
-}
-
-func (m *MockExternalAuthProvider) CompleteUserAuthHandler(_ http.ResponseWriter, r *http.Request) (ExternalUser, error) {
-	args := m.Called(r.Context(), r)
-	return args.Get(0).(ExternalUser), args.Error(1)
-}
-
-func (m *MockExternalAuthProvider) LogoutHandler(_ http.ResponseWriter, r *http.Request) error {
-	args := m.Called(r.Context(), r)
-	return args.Error(0)
-}
-
 func TestIsSuperAdmin(t *testing.T) {
 	// Temporarily set superAdmins for testing
 	originalSuperAdmins := superAdmins
@@ -101,7 +80,10 @@ func TestMiddleware(t *testing.T) {
 	defer func() { config = originalConfig }()
 
 	mockRepo := new(MockUserRepository)
-	middleware := Middleware(mockRepo)
+	middleware := (&Handler{
+		userRepository: mockRepo,
+		provider:       new(MockExternalAuthProvider),
+	}).Middleware
 
 	tests := []struct {
 		name           string
@@ -150,10 +132,15 @@ func TestMiddleware(t *testing.T) {
 }
 
 func TestGoogleCallbackHandler(t *testing.T) {
+
 	mockRepo := new(MockUserRepository)
 	mockProvider := new(MockExternalAuthProvider)
-	beginFlowHandler := HandleBeginLoginFlow(mockProvider)
-	handler := GoogleCallbackHandler(mockRepo, mockProvider)
+	handler := Handler{
+		userRepository: mockRepo,
+		provider:       mockProvider,
+	}
+	beginFlowHandler := handler.HandleBeginLoginFlow
+	finalHandler := handler.GoogleCallbackHandler
 
 	superAdminEmail := "superadmin@example.com"
 	superAdmins = []string{superAdminEmail}
@@ -203,7 +190,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 			asserts.NoError(err)
 			return
 		}
-		beginFlowHandler.ServeHTTP(r1, req)
+		beginFlowHandler(r1, req)
 
 		s, e := store.Get(req, "auth-session")
 		if e != nil {
@@ -230,7 +217,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 			Avatar:      "http://example.com/avatar.jpg",
 		}, nil)
 
-		handler.ServeHTTP(rr, regularUserRequest)
+		finalHandler(rr, regularUserRequest)
 
 		asserts.
 			Equal(http.StatusOK, rr.Code).
@@ -251,15 +238,18 @@ func TestGoogleCallbackHandler(t *testing.T) {
 
 func TestLogoutHandler(t *testing.T) {
 	mockRepo := new(MockUserRepository)
-	mockProvider := new(MockExternalAuthProvider)
-	handler := LogoutHandler(mockRepo, mockProvider)
+	provider := new(MockExternalAuthProvider)
+	handler := Handler{
+		userRepository: mockRepo,
+		provider:       provider,
+	}
 
-	mockProvider.On("LogoutHandler", mock.Anything, mock.Anything).Return(nil)
+	provider.On("LogoutHandler", mock.Anything, mock.Anything).Return(nil)
 
 	req := httptest.NewRequest("POST", "/logout", nil)
 	rr := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.LogoutHandler(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 

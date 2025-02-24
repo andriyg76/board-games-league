@@ -2,10 +2,9 @@ package gameapi
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"github.com/andriyg76/bgl/models"
-	"github.com/andriyg76/bgl/utils"
+	"github.com/andriyg76/bgl/repositories/mocks"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,49 +15,10 @@ import (
 	"time"
 )
 
-type MockGameRoundRepository struct {
-	mock.Mock
-}
-
-func (m *MockGameRoundRepository) Create(ctx context.Context, round *models.GameRound) error {
-	args := m.Called(ctx, round)
-	return args.Error(0)
-}
-
-func (m *MockGameRoundRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*models.GameRound, error) {
-	args := m.Called(ctx, id)
-	if round := args.Get(0); round != nil {
-		return round.(*models.GameRound), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockGameRoundRepository) Update(ctx context.Context, round *models.GameRound) error {
-	args := m.Called(ctx, round)
-	return args.Error(0)
-}
-
-func (m *MockGameRoundRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-type MockUserService struct {
-	mock.Mock
-}
-
-func (m *MockUserService) FindByID(ctx context.Context, ID primitive.ObjectID) (*models.User, error) {
-	args := m.Called(ctx, ID)
-	if user := args.Get(0); user != nil {
-		return user.(*models.User), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
 func TestStartGame(t *testing.T) {
-	mockGameRoundRepo := new(MockGameRoundRepository)
-	mockGameTypeRepo := new(MockGameTypeRepository)
-	mockUserService := new(MockUserService)
+	mockGameRoundRepo := new(mocks.MockGameRoundRepository)
+	mockGameTypeRepo := new(mocks.MockGameTypeRepository)
+	mockUserService := new(mocks.MockUserService)
 	handler := &Handler{
 		gameRoundRepository: mockGameRoundRepo,
 		gameTypeRepository:  mockGameTypeRepo,
@@ -74,9 +34,7 @@ func TestStartGame(t *testing.T) {
 		player2ID := primitive.NewObjectID()
 
 		gameType := &models.GameType{
-			IdCode: utils.IdCode{
-				ID: gameTypeID,
-			},
+			ID:   gameTypeID,
 			Name: "Test Game",
 			Teams: []models.Label{
 				{Name: "Team A"},
@@ -89,8 +47,8 @@ func TestStartGame(t *testing.T) {
 			Type:      "Test Game",
 			StartTime: time.Now(),
 			Players: []playerSetup{
-				{UserID: player1ID, Order: 1, TeamName: "Team A"},
-				{UserID: player2ID, Order: 2, TeamName: "Team B"},
+				{UserID: player1ID, Position: 1, TeamName: "Team A"},
+				{UserID: player2ID, Position: 2, TeamName: "Team B"},
 			},
 		}
 
@@ -113,9 +71,7 @@ func TestStartGame(t *testing.T) {
 		player1ID := primitive.NewObjectID()
 
 		gameType := &models.GameType{
-			IdCode: utils.IdCode{
-				ID: gameTypeID,
-			},
+			ID:   gameTypeID,
 			Name: "Test Game",
 			Teams: []models.Label{
 				{Name: "Team A"},
@@ -128,7 +84,7 @@ func TestStartGame(t *testing.T) {
 			Type:      "Test Game",
 			StartTime: time.Now(),
 			Players: []playerSetup{
-				{UserID: player1ID, Order: 1, TeamName: "Team A"},
+				{UserID: player1ID, Position: 1, TeamName: "Team A"},
 			},
 		}
 
@@ -147,7 +103,7 @@ func TestStartGame(t *testing.T) {
 }
 
 func TestUpdatePlayerScore(t *testing.T) {
-	mockRepo := new(MockGameRoundRepository)
+	mockRepo := new(mocks.MockGameRoundRepository)
 	handler := &Handler{gameRoundRepository: mockRepo}
 
 	router := chi.NewRouter()
@@ -160,7 +116,7 @@ func TestUpdatePlayerScore(t *testing.T) {
 		gameRound := &models.GameRound{
 			ID: gameID,
 			Players: []models.GameRoundPlayer{
-				{UserID: userID, Score: 0},
+				{PlayerID: userID, Score: 0},
 			},
 		}
 
@@ -200,7 +156,7 @@ func TestUpdatePlayerScore(t *testing.T) {
 }
 
 func TestFinalizeGame(t *testing.T) {
-	mockRepo := new(MockGameRoundRepository)
+	mockRepo := new(mocks.MockGameRoundRepository)
 	handler := &Handler{gameRoundRepository: mockRepo}
 
 	router := chi.NewRouter()
@@ -214,8 +170,8 @@ func TestFinalizeGame(t *testing.T) {
 		gameRound := &models.GameRound{
 			ID: gameID,
 			Players: []models.GameRoundPlayer{
-				{UserID: player1ID, TeamName: "Team A"},
-				{UserID: player2ID, TeamName: "Team B"},
+				{PlayerID: player1ID, TeamName: "Team A"},
+				{PlayerID: player2ID, TeamName: "Team B"},
 			},
 			TeamScores: []models.TeamScore{
 				{Name: "Team A"},

@@ -29,8 +29,8 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 		}
 
 		players = append(players, models.GameRoundPlayer{
-			UserID:      user.ID,
-			Order:       p.Order,
+			PlayerID:    user.ID,
+			Position:    p.Position,
 			IsModerator: p.IsModerator,
 			TeamName:    p.TeamName,
 		})
@@ -41,7 +41,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error fetching game type")
 	}
 
-	var teamScores []models.TeamScore
+	var teamScores []models.TeamScore = new([]models.TeamScore)
 	for i, team := range gameType.Teams {
 		teamScores = append(teamScores, models.TeamScore{
 			Name:     team.Name,
@@ -76,7 +76,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 
 	round := &models.GameRound{
 		Name:       req.Name,
-		GameType:   gameType.ID,
+		GameTypeID: gameType.ID,
 		StartTime:  req.StartTime,
 		Players:    players,
 		TeamScores: teamScores,
@@ -149,7 +149,7 @@ func (h *Handler) updatePlayerScore(w http.ResponseWriter, r *http.Request) {
 
 	playerFound := false
 	for i := range round.Players {
-		if round.Players[i].UserID == userID {
+		if round.Players[i].PlayerID == userID {
 			round.Players[i].Score = req.Score
 			playerFound = true
 			break
@@ -194,7 +194,7 @@ func (h *Handler) finalizeGame(w http.ResponseWriter, r *http.Request) {
 
 	// Update player scores and calculate positions
 	for i := range round.Players {
-		if score, ok := req.PlayerScores[round.Players[i].UserID.Hex()]; ok {
+		if score, ok := req.PlayerScores[utils.IdToCode(round.Players[i].PlayerID)]; ok {
 			round.Players[i].Score = score
 		}
 	}
@@ -253,7 +253,7 @@ type updateScoreRequest struct {
 type finalizeGameRequest struct {
 	PlayerScores     map[string]int64 `json:"player_scores"`
 	TeamScores       map[string]int64 `json:"team_scores,omitempty"`
-	CooperativeScore int64            `json:"team_scores,omitempty"`
+	CooperativeScore int64            `json:"cooperative_score,omitempty"`
 }
 
 type startGameRequest struct {
@@ -265,7 +265,7 @@ type startGameRequest struct {
 
 type playerSetup struct {
 	UserID      primitive.ObjectID `json:"user_id" validate:"required"`
-	Order       int                `json:"order" validate:"required"`
+	Position    int                `json:"position" validate:"required"`
 	IsModerator bool               `json:"is_moderator"`
 	TeamName    string             `json:"team_name,omitempty"`
 	TeamColor   string             `json:"team_color,omitempty"`

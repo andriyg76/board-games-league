@@ -81,7 +81,6 @@ func (r *mongoGameTypeRepository) FindByID(ctx context.Context, id primitive.Obj
 	if err != nil {
 		return nil, err
 	}
-	gameType.ConvertIDToCode()
 	return &gameType, nil
 }
 
@@ -96,9 +95,6 @@ func (r *mongoGameTypeRepository) FindAll(ctx context.Context) ([]*models.GameTy
 	var gameTypes []*models.GameType
 	if err = cursor.All(ctx, &gameTypes); err != nil {
 		return nil, err
-	}
-	for _, gameType := range gameTypes {
-		gameType.ConvertIDToCode()
 	}
 	return gameTypes, nil
 }

@@ -11,7 +11,7 @@ func TestConvertIDToCode(t *testing.T) {
 	id := primitive.NewObjectID()
 	expectedCode := base64.StdEncoding.EncodeToString(id[:])
 
-	code := ConvertIDToCode(id)
+	code := IdToCode(id)
 	if code != expectedCode {
 		t.Fatalf("expected %v, got %v", expectedCode, code)
 	}
@@ -22,7 +22,7 @@ func TestConvertCodeToID(t *testing.T) {
 	code := base64.StdEncoding.EncodeToString(id[:])
 	expectedID := id
 
-	decodedID, err := ConvertCodeToID(code)
+	decodedID, err := CodeToID(code)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -34,7 +34,7 @@ func TestConvertCodeToID(t *testing.T) {
 
 func TestConvertCodeToID_InvalidCode(t *testing.T) {
 	code := "invalid_code"
-	_, err := ConvertCodeToID(code)
+	_, err := CodeToID(code)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -42,7 +42,7 @@ func TestConvertCodeToID_InvalidCode(t *testing.T) {
 
 func TestConvertCodeToID_IncompleteCode(t *testing.T) {
 	code := "short"
-	_, err := ConvertCodeToID(code)
+	_, err := CodeToID(code)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}

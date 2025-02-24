@@ -77,6 +77,7 @@ func GetUserProfile(r *http.Request) (*UserProfile, error) {
 }
 
 type UserResponse struct {
+	Code        string   `json:"code"`
 	ExternalIDs []string `json:"external_ids"`
 	Name        string   `json:"name"`
 	Avatar      string   `json:"avatar"`

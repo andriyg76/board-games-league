@@ -26,7 +26,7 @@ type UserRepositoryInstance struct {
 	collection *mongo.Collection
 }
 
-func NewUserRepository(mongodb *db.MongoDB) (*UserRepositoryInstance, error) {
+func NewUserRepository(mongodb *db.MongoDB) (UserRepository, error) {
 	repository := &UserRepositoryInstance{
 		collection: mongodb.Collection("users"),
 	}

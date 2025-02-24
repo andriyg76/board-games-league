@@ -2,10 +2,9 @@ package gameapi
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"github.com/andriyg76/bgl/models"
-	"github.com/andriyg76/bgl/repositories"
+	"github.com/andriyg76/bgl/repositories/mocks"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -16,51 +15,7 @@ import (
 	"testing"
 )
 
-type MockGameTypeRepository struct {
-	repositories.GameTypeRepository
-	mock.Mock
-}
-
-func (m *MockGameTypeRepository) FindByName(ctx context.Context, name string) (*models.GameType, error) {
-	args := m.Called(ctx, name)
-	if gameType := args.Get(0); gameType != nil {
-		return gameType.(*models.GameType), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockGameTypeRepository) Create(ctx context.Context, gameType *models.GameType) error {
-	args := m.Called(ctx, gameType)
-	return args.Error(0)
-}
-
-func (m *MockGameTypeRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*models.GameType, error) {
-	args := m.Called(ctx, id)
-	if gameType := args.Get(0); gameType != nil {
-		return gameType.(*models.GameType), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockGameTypeRepository) FindAll(ctx context.Context) ([]*models.GameType, error) {
-	args := m.Called(ctx)
-	if gameTypes := args.Get(0); gameTypes != nil {
-		return gameTypes.([]*models.GameType), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockGameTypeRepository) Update(ctx context.Context, gameType *models.GameType) error {
-	args := m.Called(ctx, gameType)
-	return args.Error(0)
-}
-
-func (m *MockGameTypeRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func setupTestRouter(repo *MockGameTypeRepository) *chi.Mux {
+func setupTestRouter(repo *mocks.MockGameTypeRepository) *chi.Mux {
 	r := chi.NewRouter()
 	handler := &Handler{gameTypeRepository: repo}
 	handler.RegisterRoutes(r)
@@ -68,22 +23,21 @@ func setupTestRouter(repo *MockGameTypeRepository) *chi.Mux {
 }
 
 func TestListGameTypes(t *testing.T) {
-	mockRepo := new(MockGameTypeRepository)
+	mockRepo := new(mocks.MockGameTypeRepository)
 	router := setupTestRouter(mockRepo)
 
 	t.Run("Successfully list game types", func(t *testing.T) {
 		gameTypes := []*models.GameType{
 			{
-				IdCode: utils.IdCode{
-					ID: primitive.NewObjectID(),
-				},
-				Name: "Test Game Type",
+				ID:          primitive.NewObjectID(),
+				Name:        "Test Game Type",
+				ScoringType: string(models.ScoringTypeClassic),
 			},
 		}
 
 		mockRepo.On("FindAll", mock.Anything).Return(gameTypes, nil)
 
-		req := httptest.NewRequest("GET", "/games/types", nil)
+		req := httptest.NewRequest("GET", "/game_types", nil)
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)
@@ -99,7 +53,7 @@ func TestListGameTypes(t *testing.T) {
 }
 
 func TestCreateGameType(t *testing.T) {
-	mockRepo := new(MockGameTypeRepository)
+	mockRepo := new(mocks.MockGameTypeRepository)
 	router := setupTestRouter(mockRepo)
 
 	t.Run("Successfully create game type", func(t *testing.T) {
@@ -112,7 +66,7 @@ func TestCreateGameType(t *testing.T) {
 		mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.GameType")).Return(nil)
 
 		reqBody, _ := json.Marshal(gameType)
-		req := httptest.NewRequest("POST", "/games/types", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest("POST", "/game_types", bytes.NewBuffer(reqBody))
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)
@@ -121,7 +75,7 @@ func TestCreateGameType(t *testing.T) {
 	})
 
 	t.Run("Invalid request payload", func(t *testing.T) {
-		req := httptest.NewRequest("POST", "/games/types", bytes.NewBuffer([]byte("invalid json")))
+		req := httptest.NewRequest("POST", "/game_types", bytes.NewBuffer([]byte("invalid json")))
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)
@@ -131,21 +85,19 @@ func TestCreateGameType(t *testing.T) {
 }
 
 func TestGetGameType(t *testing.T) {
-	mockRepo := new(MockGameTypeRepository)
+	mockRepo := new(mocks.MockGameTypeRepository)
 	router := setupTestRouter(mockRepo)
 
 	t.Run("Successfully get game type", func(t *testing.T) {
 		id := primitive.NewObjectID()
 		gameType := &models.GameType{
-			IdCode: utils.IdCode{
-				ID: primitive.NewObjectID(),
-			},
+			ID:   id,
 			Name: "Test Game Type",
 		}
 
 		mockRepo.On("FindByID", mock.Anything, id).Return(gameType, nil)
 
-		req := httptest.NewRequest("GET", "/games/types/"+id.Hex(), nil)
+		req := httptest.NewRequest("GET", "/game_types/"+utils.IdToCode(id), nil)
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)
@@ -162,7 +114,7 @@ func TestGetGameType(t *testing.T) {
 		id := primitive.NewObjectID()
 		mockRepo.On("FindByID", mock.Anything, id).Return(nil, nil)
 
-		req := httptest.NewRequest("GET", "/games/types/"+id.Hex(), nil)
+		req := httptest.NewRequest("GET", "/game_types/"+utils.IdToCode(id), nil)
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)
@@ -172,22 +124,20 @@ func TestGetGameType(t *testing.T) {
 }
 
 func TestUpdateGameType(t *testing.T) {
-	mockRepo := new(MockGameTypeRepository)
+	mockRepo := new(mocks.MockGameTypeRepository)
 	router := setupTestRouter(mockRepo)
 
 	t.Run("Successfully update game type", func(t *testing.T) {
 		id := primitive.NewObjectID()
 		gameType := &models.GameType{
-			IdCode: utils.IdCode{
-				ID: primitive.NewObjectID(),
-			},
+			ID:   id,
 			Name: "Updated Game Type",
 		}
 
 		mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.GameType")).Return(nil)
 
 		reqBody, _ := json.Marshal(gameType)
-		req := httptest.NewRequest("PUT", "/games/types/"+id.Hex(), bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest("PUT", "/game_types/"+utils.IdToCode(id), bytes.NewBuffer(reqBody))
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)
@@ -196,7 +146,7 @@ func TestUpdateGameType(t *testing.T) {
 	})
 
 	t.Run("Invalid game type ID", func(t *testing.T) {
-		req := httptest.NewRequest("PUT", "/games/types/invalid-id", nil)
+		req := httptest.NewRequest("PUT", "/game_types/invalid-id", nil)
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)
@@ -206,14 +156,15 @@ func TestUpdateGameType(t *testing.T) {
 }
 
 func TestDeleteGameType(t *testing.T) {
-	mockRepo := new(MockGameTypeRepository)
+	mockRepo := new(mocks.MockGameTypeRepository)
 	router := setupTestRouter(mockRepo)
 
 	t.Run("Successfully delete game type", func(t *testing.T) {
 		id := primitive.NewObjectID()
+		code := utils.IdToCode(id)
 		mockRepo.On("Delete", mock.Anything, id).Return(nil)
 
-		req := httptest.NewRequest("DELETE", "/games/types/"+id.Hex(), nil)
+		req := httptest.NewRequest("DELETE", "/game_types/"+code, nil)
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)
@@ -222,7 +173,7 @@ func TestDeleteGameType(t *testing.T) {
 	})
 
 	t.Run("Invalid game type ID", func(t *testing.T) {
-		req := httptest.NewRequest("DELETE", "/games/types/invalid-id", nil)
+		req := httptest.NewRequest("DELETE", "/game_types/invalid-id", nil)
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)

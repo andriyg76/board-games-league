@@ -47,29 +47,29 @@ func main() {
 	log.Info("Services initialised...")
 
 	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository)
+	authHandler := auth.NewDefaultHandler(userRepository)
+	userProfileHandler := userapi.NewHandler(userRepository)
 
 	log.Info("Handlers instances connector initialised")
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
-	var provider auth.ExternalAuthProvider = auth.GothProvider{}
-
 	r.Route("/api", func(r chi.Router) {
-		r.Get("/auth/google", auth.HandleBeginLoginFlow(provider))
-		r.Post("/auth/google/callback", auth.GoogleCallbackHandler(userRepository, provider))
-		r.Post("/auth/logout", auth.LogoutHandler(userRepository, provider))
+		r.Get("/auth/google", authHandler.HandleBeginLoginFlow)
+		r.Post("/auth/google/callback", authHandler.GoogleCallbackHandler)
+		r.Post("/auth/logout", authHandler.LogoutHandler)
 
 		// Protected routes
 		r.Group(func(r chi.Router) {
-			r.Use(auth.Middleware(userRepository))
+			r.Use(authHandler.Middleware)
 			// Add your protected endpoints here
-			r.Get("/user", userapi.GetUserHandler(userRepository))
+			r.Get("/user", userProfileHandler.GetUserHandler)
 
-			r.Post("/user/alias/exist", userapi.CheckAliasUniquenessHandler(userRepository))
-			r.Put("/user/update", userapi.UpdateUser(userRepository))
+			r.Post("/user/alias/exist", userProfileHandler.CheckAliasUniquenessHandler)
+			r.Put("/user/update", userProfileHandler.GetUserHandler)
 
-			r.Put("/admin/user/create", userapi.AdminCreateUserHandler(userRepository))
+			r.Put("/admin/user/create", userProfileHandler.AdminCreateUserHandler)
 
 			gameApiHandler.RegisterRoutes(r)
 		})

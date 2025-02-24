@@ -6,13 +6,13 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// ConvertIDToCode converts a MongoDB ObjectID to a string code.
-func ConvertIDToCode(id primitive.ObjectID) string {
+// IdToCode converts a MongoDB ObjectID to a string code.
+func IdToCode(id primitive.ObjectID) string {
 	return base64.StdEncoding.EncodeToString(id[:])
 }
 
-// ConvertCodeToID converts a UUEncoded string code to a MongoDB ObjectID.
-func ConvertCodeToID(code string) (primitive.ObjectID, error) {
+// CodeToID converts a UUEncoded string code to a MongoDB ObjectID.
+func CodeToID(code string) (primitive.ObjectID, error) {
 	data, err := base64.StdEncoding.DecodeString(code)
 	if err != nil {
 		return primitive.NilObjectID, err
@@ -23,22 +23,4 @@ func ConvertCodeToID(code string) (primitive.ObjectID, error) {
 	var id primitive.ObjectID
 	copy(id[:], data)
 	return id, nil
-}
-
-type IdCode struct {
-	ID   primitive.ObjectID `bson:"_id,omitempty" json:"-"`
-	Code string             `bson:"-" json:"code"`
-}
-
-func (r IdCode) ConvertIDToCode() {
-	r.Code = ConvertIDToCode(r.ID)
-}
-
-func (r IdCode) ConvertCodeToID() error {
-	if id, err := ConvertCodeToID(r.Code); err != nil {
-		return err
-	} else {
-		r.ID = id
-		return err
-	}
 }

@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/andriyg76/bgl/utils"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
 
@@ -20,20 +20,21 @@ var ScoringTypes = []ScoringType{ScoringTypeClassic, ScoringTypeCooperative, Sco
 	ScoringTypeCoopWithModerator, ScoringTypeTeamVsTeam}
 
 type Label struct {
-	Name  string `bson:"name" json:"name"`
-	Color string `bson:"color" json:"color"`
-	Icon  string `bson:"icon" json:"icon"`
+	Name  string `bson:"name"`
+	Color string `bson:"color"`
+	Icon  string `bson:"icon"`
 }
 
 type GameType struct {
-	utils.IdCode
-	Version    int64     `bson:"version" json:"version"`
-	Name       string    `bson:"name" json:"name"`
-	Icon       string    `bson:"icon" json:"icon"`
-	Labels     []Label   `bson:"labels" json:"labels"`
-	Teams      []Label   `bson:"teams" json:"teams"`
-	MinPlayers int       `bson:"min_players" json:"min_players"`
-	MaxPlayers int       `bson:"max_players" json:"max_players"`
-	CreatedAt  time.Time `bson:"created_at" json:"created_at"`
-	UpdatedAt  time.Time `bson:"updated_at" json:"updated_at"`
+	ID          primitive.ObjectID `bson:"_id,omitempty"`
+	Version     int64              `bson:"version"`
+	ScoringType string             `bson:"version"`
+	Name        string             `bson:"name"`
+	Icon        string             `bson:"icon"`
+	Labels      []Label            `bson:"labels"`
+	Teams       []Label            `bson:"teams"`
+	MinPlayers  int                `bson:"min_players"`
+	MaxPlayers  int                `bson:"max_players"`
+	CreatedAt   time.Time          `bson:"created_at"`
+	UpdatedAt   time.Time          `bson:"updated_at"`
 }

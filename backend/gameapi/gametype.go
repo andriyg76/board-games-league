@@ -5,7 +5,6 @@ import (
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 )
 
@@ -42,9 +41,9 @@ func (h *Handler) createGameType(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getGameType(w http.ResponseWriter, r *http.Request) {
-	id, err := utils.ConvertCodeToID(chi.URLParam(r, "code"))
+	id, err := utils.CodeToID(chi.URLParam(r, "code"))
 	if err != nil {
-		http.Error(w, "Invalid game type Code", http.StatusBadRequest)
+		http.Error(w, "Invalid game type ID/code", http.StatusBadRequest)
 		return
 	}
 
@@ -65,9 +64,9 @@ func (h *Handler) getGameType(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) updateGameType(w http.ResponseWriter, r *http.Request) {
-	id, err := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
+	id, err := utils.CodeToID(chi.URLParam(r, "code"))
 	if err != nil {
-		http.Error(w, "Invalid game type ID", http.StatusBadRequest)
+		http.Error(w, "Invalid game type ID/code", http.StatusBadRequest)
 		return
 	}
 
@@ -87,9 +86,9 @@ func (h *Handler) updateGameType(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) deleteGameType(w http.ResponseWriter, r *http.Request) {
-	id, err := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
+	id, err := utils.CodeToID(chi.URLParam(r, "code"))
 	if err != nil {
-		http.Error(w, "Invalid game type ID", http.StatusBadRequest)
+		http.Error(w, "Invalid game type ID/code", http.StatusBadRequest)
 		return
 	}
 
@@ -100,4 +99,10 @@ func (h *Handler) deleteGameType(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type gameType struct {
+	Code        string
+	Name        string
+	ScoringType string
 }
