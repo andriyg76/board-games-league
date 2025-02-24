@@ -6,6 +6,15 @@ export type ScoringType =
     | 'cooperative_with_moderator'
     | 'team_vs_team';
 
+export const ScoringTypes: Record<ScoringType, string> = {
+    classic: "Classic board game scoring",
+    mafia: "Team vs Team, separate moderator (Mafia)",
+    custom: "No scheme - raw scoring enter",
+    cooperative: "All players win or loose",
+    cooperative_with_moderator: "All players win or loose, separate moderator",
+    team_vs_team: "Team vs Team"
+}
+
 export interface Label {
     name: string;
     color: string;
@@ -19,8 +28,9 @@ export interface GameType {
     icon: string;
     labels: Label[];
     teams: Label[];
-    minPlayers: number;
-    maxPlayers: number;
+    min_players: number;
+    max_players: number;
+    scoring_type: ScoringType;
 }
 
 export default {

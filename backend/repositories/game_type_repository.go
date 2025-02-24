@@ -40,12 +40,14 @@ func (r *mongoGameTypeRepository) ensureIndexes() error {
 	_, err := r.collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
 		{
 			Keys: bson.D{
+				{"_id", 1},
 				{"labels.name", 1},
 			},
 			Options: options.Index().SetUnique(true),
 		},
 		{
 			Keys: bson.D{
+				{"_id", 1},
 				{"teams.name", 1},
 			},
 			Options: options.Index().SetUnique(true),

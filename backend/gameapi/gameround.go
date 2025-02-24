@@ -41,7 +41,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error fetching game type")
 	}
 
-	var teamScores []models.TeamScore = new([]models.TeamScore)
+	var teamScores []models.TeamScore
 	for i, team := range gameType.Teams {
 		teamScores = append(teamScores, models.TeamScore{
 			Name:     team.Name,

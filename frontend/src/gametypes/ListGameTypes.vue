@@ -6,7 +6,7 @@
         <v-list>
           <v-list-item v-for="gameType in gameTypes" :key="gameType.code">
             <v-list-item-content>
-              <v-list-item-title>{{ gameType.name }}</v-list-item-title>
+              <v-list-item-title>{{ gameType.name }} -- {{ ScoringTypes[gameType.scoring_type] }}</v-list-item-title>
             </v-list-item-content>
             <v-list-item-action>
               <v-btn @click="editGameType(gameType)" color="primary">Edit</v-btn>
@@ -20,6 +20,14 @@
       <v-col>
         <h3>{{ isEditing ? 'Edit' : 'Create' }} Game Type</h3>
         <v-text-field v-model="currentGameType.name" label="Game Type Name" />
+        <v-select
+            v-model="currentGameType.scoring_type"
+            :items="Object.keys(ScoringTypes)"
+            :item-title="(item) => ScoringTypes[item as ScoringType]"
+            :item-value="(item) => item"
+            label="Scoring Type"
+            required
+        />
         <v-btn @click="saveGameType" color="success">{{ isEditing ? 'Update' : 'Create' }}</v-btn>
       </v-col>
     </v-row>
@@ -28,9 +36,9 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
-import GameTypeApi, {GameType} from '@/api/GameApi';
+import GameTypeApi, {GameType, ScoringType, ScoringTypes } from '@/api/GameApi';
 
-const defaultGameType = {icon: "", labels: [], maxPlayers: 6, minPlayers: 1, teams: [], version: 0, code: '', name: '' };
+const defaultGameType = {icon: "", labels: [], maxPlayers: 6, minPlayers: 1, teams: [], version: 0, code: '', name: '', scoring_type: 'classic' };
 
 const gameTypes = ref(Array<GameType>());
 const currentGameType = ref({...defaultGameType} as GameType);

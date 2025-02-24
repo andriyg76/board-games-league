@@ -28,7 +28,7 @@ type Label struct {
 type GameType struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty"`
 	Version     int64              `bson:"version"`
-	ScoringType string             `bson:"version"`
+	ScoringType string             `bson:"scoring_type"`
 	Name        string             `bson:"name"`
 	Icon        string             `bson:"icon"`
 	Labels      []Label            `bson:"labels"`

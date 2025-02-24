@@ -6,6 +6,7 @@ import (
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
 	"net/http"
+	"time"
 )
 
 func (h *Handler) listGameTypes(w http.ResponseWriter, r *http.Request) {
@@ -14,29 +15,56 @@ func (h *Handler) listGameTypes(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error reading games types")
 	}
 
+	response := utils.Map(gameTypes, func(gt *models.GameType) gameType {
+		return dbToUi(gt)
+	})
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(gameTypes); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, "Error encoding response", http.StatusInternalServerError)
 		return
 	}
 }
 
+func dbToUi(gt *models.GameType) gameType {
+	return gameType{
+		Code:        utils.IdToCode(gt.ID),
+		Name:        gt.Name,
+		ScoringType: gt.ScoringType,
+		Version:     gt.Version,
+	}
+}
+
 func (h *Handler) createGameType(w http.ResponseWriter, r *http.Request) {
-	var gameType models.GameType
+	var gameType gameType
 	if err := json.NewDecoder(r.Body).Decode(&gameType); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error parsing incoming request")
 		return
 	}
 
-	if err := h.gameTypeRepository.Create(r.Context(), &gameType); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	gameTypeDb := models.GameType{
+		Version:     1,
+		ScoringType: gameType.ScoringType,
+		Name:        gameType.Name,
+		Labels:      nil,
+		Teams:       nil,
+		MinPlayers:  1,
+		MaxPlayers:  6,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	if err := h.gameTypeRepository.Create(r.Context(), &gameTypeDb); err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error storing gametype %v", gameTypeDb)
 		return
 	}
+
+	gameType.Code = utils.IdToCode(gameTypeDb.ID)
+	gameType.Version = gameTypeDb.Version
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(gameType); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response %v", gameType)
 	}
 }
 
@@ -53,13 +81,15 @@ func (h *Handler) getGameType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if gameType == nil {
-		http.Error(w, "Game type not found", http.StatusNotFound)
+		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "error navigating gametype id %s", id)
 		return
 	}
 
+	res := dbToUi(gameType)
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(gameType); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response %v", res)
 	}
 }
 
@@ -102,7 +132,8 @@ func (h *Handler) deleteGameType(w http.ResponseWriter, r *http.Request) {
 }
 
 type gameType struct {
-	Code        string
-	Name        string
-	ScoringType string
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	ScoringType string `json:"scoring_type"`
+	Version     int64  `json:"version"`
 }

@@ -21,3 +21,11 @@ func GenerateRandomKey(length int) []byte {
 	}
 	return key
 }
+
+func Map[U, V any](ts []U, f func(U) V) []V {
+	us := make([]V, len(ts))
+	for i, t := range ts {
+		us[i] = f(t)
+	}
+	return us
+}
