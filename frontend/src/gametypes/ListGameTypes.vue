@@ -31,12 +31,34 @@
           />
 
           <!-- Labels Section -->
-          <v-card class="mb-4">
+          <v-card class="mb-4" v-if="showLabels" >
             <v-card-title>Labels</v-card-title>
             <v-card-text>
               <div v-for="(label, index) in currentGameType.labels" :key="index" class="d-flex align-center mb-2">
                 <v-text-field v-model="label.name" label="Label Name" class="mr-2" />
-                <v-color-picker v-model="label.color" hide-inputs />
+                <div class="color-box-wrapper mr-2">
+                  <div
+                      class="color-box"
+                      :style="{ backgroundColor: label.color }"
+                      @click="() => label.showPicker = !label.showPicker"
+                  />
+                  <v-menu
+                      v-model="label.showPicker"
+                      :close-on-content-click="false"
+                      location="bottom"
+                  >
+                    <template v-slot:activator="{ props }">
+                      <div v-bind="props"></div>
+                    </template>
+                    <v-card>
+                      <v-color-picker
+                          v-model="label.color"
+                          hide-inputs
+                          @update:model-value="() => label.showPicker = false"
+                      />
+                    </v-card>
+                  </v-menu>
+                </div>
                 <v-text-field v-model="label.icon" label="Icon" class="mx-2" />
                 <v-btn icon color="error" @click="removeLabel(index)">
                   <v-icon>mdi-delete</v-icon>
@@ -47,12 +69,34 @@
           </v-card>
 
           <!-- Teams Section -->
-          <v-card class="mb-4">
+          <v-card class="mb-4" v-if="showTeams">
             <v-card-title>Teams</v-card-title>
             <v-card-text>
               <div v-for="(team, index) in currentGameType.teams" :key="index" class="d-flex align-center mb-2">
                 <v-text-field v-model="team.name" label="Team Name" class="mr-2" />
-                <v-color-picker v-model="team.color" hide-inputs class="v-color-picker" />
+                <div class="color-box-wrapper mr-2">
+                  <div
+                      class="color-box"
+                      :style="{ backgroundColor: team.color }"
+                      @click="() => team.showPicker = !team.showPicker"
+                  />
+                  <v-menu
+                      v-model="team.showPicker"
+                      :close-on-content-click="false"
+                      location="bottom"
+                  >
+                    <template v-slot:activator="{ props }">
+                      <div v-bind="props"></div>
+                    </template>
+                    <v-card>
+                      <v-color-picker
+                          v-model="team.color"
+                          hide-inputs
+                          @update:model-value="() => team.showPicker = false"
+                      />
+                    </v-card>
+                  </v-menu>
+                </div>
                 <v-text-field v-model="team.icon" label="Icon" class="mx-2" />
                 <v-btn icon color="error" @click="removeTeam(index)">
                   <v-icon>mdi-delete</v-icon>
@@ -74,15 +118,24 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import {ref, onMounted, computed} from 'vue';
 import GameApi, {GameType, Label, ScoringType, ScoringTypes} from '@/api/GameApi';
 
-const defaultGameType = {} as GameType;
-const defaultLabel = { name: '', color: '#000000', icon: '' };
-const defaultTeam = { name: '', color: '#000000', icon: '' };
+interface LabelUI extends Label {
+  showPicker: boolean
+}
+
+interface GameTypeUI extends GameType {
+  labels: Array<LabelUI>
+  teams: Array<LabelUI>
+}
+
+const defaultGameType = {} as GameTypeUI;
+const defaultLabel = { name: '', color: '#000000', icon: '', showPicker: false };
+const defaultTeam = { name: '', color: '#000000', icon: '', showPicker: false };
 
 const gameTypes = ref(Array<GameType>());
-const currentGameType = ref({...defaultGameType});
+const currentGameType = ref( {...defaultGameType} as GameTypeUI);
 const isEditing = ref(false);
 
 const cancelEdit = () => {
@@ -114,7 +167,7 @@ const saveGameType = async () => {
 };
 
 const editGameType = (gameType: GameType) => {
-  currentGameType.value = { ...gameType };
+  currentGameType.value = {...gameType} as GameTypeUI;
   isEditing.value = true;
 };
 
@@ -149,12 +202,31 @@ const removeTeam = (index: number) => {
   currentGameType.value.teams.splice(index, 1);
 };
 
+const showLabels = computed(() => {
+  const labelScoringTypes: ScoringType[] = ['classic', 'custom'];
+  return labelScoringTypes.includes(currentGameType.value.scoring_type);
+});
+
+const showTeams = computed(() => {
+  const teamScoringTypes: ScoringType[] = ['mafia', 'custom', 'team_vs_team'];
+  return teamScoringTypes.includes(currentGameType.value.scoring_type);
+});
+
 onMounted(fetchGameTypes);
 </script>
 
 <style scoped>
-.v-color-picker {
-  max-width: 100px;
+.color-box-wrapper {
+  position: relative;
+  width: 40px;
+}
+
+.color-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  cursor: pointer;
 }
 
 .gap-2 {
