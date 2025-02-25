@@ -1,12 +1,11 @@
 <template>
   <v-app>
     <v-app-bar app>
-      <v-toolbar-title>My App</v-toolbar-title>
-      <v-spacer></v-spacer>
       <v-btn to="/">Home</v-btn>
-      <v-btn to="/ui/admin/game-types">Game Types</v-btn>
-      <v-btn to="/ui/user">User</v-btn>
+      <v-btn to="/ui/admin/game-types" v-if="loggedIn">Game Types</v-btn>
+      <v-btn to="/ui/user" v-if="loggedIn">User</v-btn>
       <v-spacer></v-spacer>
+      <language-switcher />
       <logout-button/>
     </v-app-bar>
     <v-main>
@@ -20,11 +19,16 @@
 
 <script setup lang="ts">
 import LogoutButton from "@/components/LogoutButton.vue";
-import {defineComponent} from "vue";
+import {defineComponent, ref} from "vue";
+import userStore from "@/store/user"
+import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
+
+const loggedIn = ref(userStore.state)
 
 defineComponent({
   components: {
-    LogoutButton
+    LogoutButton,
+    LanguageSwitcher,
   },
 })
 

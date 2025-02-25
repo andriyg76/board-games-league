@@ -2,15 +2,15 @@
   <v-container>
     <v-row>
       <v-col>
-        <h2>Game Types</h2>
+        <h2>{{ t('gameTypes.title') }}</h2>
         <v-list>
           <v-list-item v-for="gameType in gameTypes" :key="gameType.code">
             <v-list-item-content>
-              <v-list-item-title>{{ gameType.name }} -- {{ ScoringTypes[gameType.scoring_type] }}</v-list-item-title>
+              <v-list-item-title>{{ gameType.name }} -- {{ t(`scoring.${gameType.scoring_type}`) }}</v-list-item-title>
             </v-list-item-content>
             <v-list-item-action>
-              <v-btn @click="editGameType(gameType)" color="primary">Edit</v-btn>
-              <v-btn @click="deleteGameType(gameType.code)" color="error">Delete</v-btn>
+              <v-btn @click="editGameType(gameType)" color="primary">{{ t('gameTypes.edit') }}</v-btn>
+              <v-btn @click="deleteGameType(gameType.code)" color="error">{{ t('gameTypes.delete') }}</v-btn>
             </v-list-item-action>
           </v-list-item>
         </v-list>
@@ -18,7 +18,7 @@
     </v-row>
     <v-row>
       <v-col>
-        <h3>{{ isEditing ? 'Edit' : 'Create' }} Game Type</h3>
+        <h3>{{ isEditing ? t('gameTypes.edit') : t('gameTypes.create') }} Game Type</h3>
         <v-form>
           <v-text-field v-model="currentGameType.name" label="Game Type Name" />
           <v-select
@@ -121,6 +121,9 @@
 import {ref, onMounted, computed} from 'vue';
 import GameApi, {GameType, Label, ScoringType, ScoringTypes} from '@/api/GameApi';
 
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 interface LabelUI extends Label {
   showPicker: boolean
 }
@@ -214,22 +217,3 @@ const showTeams = computed(() => {
 
 onMounted(fetchGameTypes);
 </script>
-
-<style scoped>
-.color-box-wrapper {
-  position: relative;
-  width: 40px;
-}
-
-.color-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  cursor: pointer;
-}
-
-.gap-2 {
-  gap: 8px;
-}
-</style>
