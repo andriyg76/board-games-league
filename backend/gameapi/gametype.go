@@ -188,9 +188,9 @@ func dbToUi(gt *models.GameType) gameType {
 func dbToUiLabels(ls []models.Label) []label {
 	return utils.Map(ls, func(l models.Label) label {
 		return label{
-			name:  l.Name,
-			color: l.Color,
-			icon:  l.Icon,
+			Name:  l.Name,
+			Color: l.Color,
+			Icon:  l.Icon,
 		}
 	})
 }
@@ -198,17 +198,17 @@ func dbToUiLabels(ls []models.Label) []label {
 func uiToDbLabels(labels []label) []models.Label {
 	return utils.Map(labels, func(label label) models.Label {
 		return models.Label{
-			Name:  label.name,
-			Color: label.color,
-			Icon:  label.icon,
+			Name:  label.Name,
+			Color: label.Color,
+			Icon:  label.Icon,
 		}
 	})
 }
 
 type label struct {
-	name  string `json:"name"`
-	color string `json:"color"`
-	icon  string `json:"icon"`
+	Name  string `json:"name"`
+	Color string `json:"color"`
+	Icon  string `json:"icon"`
 }
 
 type gameType struct {
