@@ -129,20 +129,31 @@ func TestUpdateGameType(t *testing.T) {
 
 	t.Run("Successfully update game type", func(t *testing.T) {
 		id := primitive.NewObjectID()
-		gameType := &models.GameType{
-			ID:   id,
-			Name: "Updated Game Type",
+		existingGameType := &models.GameType{
+			ID:          id,
+			Name:        "Original Name",
+			Version:     1,
+			ScoringType: string(models.ScoringTypeClassic),
 		}
 
+		updatedGameType := &gameType{
+			Name:        "Updated Game Type",
+			ScoringType: string(models.ScoringTypeClassic),
+		}
+
+		// Mock FindByID call
+		mockRepo.On("FindByID", mock.Anything, id).Return(existingGameType, nil)
+		// Mock Update call
 		mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.GameType")).Return(nil)
 
-		reqBody, _ := json.Marshal(gameType)
+		reqBody, _ := json.Marshal(updatedGameType)
 		req := httptest.NewRequest("PUT", "/game_types/"+utils.IdToCode(id), bytes.NewBuffer(reqBody))
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)
 
 		assert.Equal(t, http.StatusOK, rr.Code)
+		mockRepo.AssertExpectations(t)
 	})
 
 	t.Run("Invalid game type ID", func(t *testing.T) {

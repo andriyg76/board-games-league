@@ -68,6 +68,7 @@ export default {
 
     async updateGameType(code: string, gameType: GameType) {
         try {
+            console.debug("Storing gametype", gameType)
             const response = await fetch(`/api/game_types/${code}`, {
                 method: 'PUT',
                 headers: {

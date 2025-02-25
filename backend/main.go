@@ -67,7 +67,7 @@ func main() {
 			r.Get("/user", userProfileHandler.GetUserHandler)
 
 			r.Post("/user/alias/exist", userProfileHandler.CheckAliasUniquenessHandler)
-			r.Put("/user/update", userProfileHandler.GetUserHandler)
+			r.Put("/user/update", userProfileHandler.UpdateUser)
 
 			r.Put("/admin/user/create", userProfileHandler.AdminCreateUserHandler)
 
