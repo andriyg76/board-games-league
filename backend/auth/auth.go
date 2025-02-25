@@ -56,6 +56,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var user *models.User
+	var updateProfile bool
 
 	// Check if googleUser exists in the collection
 	if existingUser, err := h.userRepository.FindByExternalId(r.Context(), externalUser.ExternalIDs); err != nil {
@@ -78,7 +79,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 				return h.userRepository.AliasUnique(r.Context(), alias)
 			}); err != nil {
 				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
-					"error fetching user profile")
+					"error checking alias uniqueness")
 				return
 			} else {
 				user.Alias = alias
@@ -109,10 +110,32 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 				return
 			} else {
 				user.Alias = alias
+				updateProfile = true
 			}
 		}
-		user.Name = externalUser.Name
-		user.Avatar = externalUser.Avatar
+
+		if user.Name != externalUser.Name || user.Avatar != externalUser.Avatar {
+			user.Name = externalUser.Name
+			user.Avatar = externalUser.Avatar
+			updateProfile = true
+		}
+
+		for _, id := range externalUser.ExternalIDs {
+			found := false
+			for _, currentId := range user.ExternalIDs {
+				if currentId == id {
+					found = true
+					break
+				}
+			}
+			if !found {
+				user.ExternalIDs = append(user.ExternalIDs, id)
+				updateProfile = true
+			}
+		}
+	}
+
+	if updateProfile {
 		user.UpdatedAt = time.Now()
 		if err := h.userRepository.Update(r.Context(), user); err != nil {
 			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
@@ -121,7 +144,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	token, err := user_profile.CreateAuthToken(externalUser.ExternalIDs, user.ID.Hex(), externalUser.Name, externalUser.Avatar)
+	token, err := user_profile.CreateAuthToken(externalUser.ExternalIDs, utils.IdToCode(user.ID), externalUser.Name, externalUser.Avatar)
 	if err != nil {
 		_ = glog.Error("Token creation failed: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

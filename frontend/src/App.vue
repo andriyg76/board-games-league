@@ -1,16 +1,56 @@
 <template>
   <v-app>
     <v-app-bar app>
-      <v-btn to="/">Home</v-btn>
-      <v-btn to="/ui/admin/game-types" v-if="loggedIn">Game Types</v-btn>
-      <v-btn to="/ui/user" v-if="loggedIn">User</v-btn>
+      <!-- Mobile menu icon -->
+      <v-app-bar-nav-icon
+          @click="drawer = !drawer"
+          class="d-flex d-md-none"
+      ></v-app-bar-nav-icon>
+
+      <!-- Desktop menu -->
+      <div class="d-none d-md-flex">
+        <v-btn to="/" variant="text">Home</v-btn>
+        <v-btn
+            to="/ui/admin/game-types"
+            v-if="loggedIn"
+            variant="text"
+        >Game Types</v-btn>
+        <v-btn
+            to="/ui/user"
+            v-if="loggedIn"
+            variant="text"
+        >User</v-btn>
+      </div>
+
       <v-spacer></v-spacer>
+      <v-divider vertical class="mx-2"></v-divider>
       <language-switcher />
       <logout-button/>
     </v-app-bar>
+
+    <!-- Mobile side menu -->
+    <v-navigation-drawer
+        v-model="drawer"
+        temporary
+        class="d-md-none"
+    >
+      <v-list>
+        <v-list-item to="/" :title="'Home'" />
+        <v-list-item
+            v-if="loggedIn"
+            to="/ui/admin/game-types"
+            :title="'Game Types'"
+        />
+        <v-list-item
+            v-if="loggedIn"
+            to="/ui/user"
+            :title="'User'"
+        />
+      </v-list>
+    </v-navigation-drawer>
+
     <v-main>
       <v-container>
-
         <router-view/>
       </v-container>
     </v-main>
@@ -19,20 +59,17 @@
 
 <script setup lang="ts">
 import LogoutButton from "@/components/LogoutButton.vue";
-import {defineComponent, ref} from "vue";
+import {defineComponent, computed, ref} from "vue";
 import userStore from "@/store/user"
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
 
-const loggedIn = ref(userStore.state)
+const drawer = ref(false);
+const loggedIn = computed(() => userStore.state.loggedIn);
 
 defineComponent({
   components: {
     LogoutButton,
     LanguageSwitcher,
   },
-})
-
+});
 </script>
-
-<style>
-</style>
