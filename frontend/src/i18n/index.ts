@@ -19,6 +19,11 @@ const messages = {
             update: 'Update',
             cancel: 'Cancel'
         },
+        gameRounds: {
+            menu: 'Game Rounds',
+            start: 'Start Game Round',
+            list: 'List Game Rounds'
+        },
         scoring: {
             classic: 'Classic board game scoring',
             mafia: 'Team vs Team, separate moderator (Mafia)',

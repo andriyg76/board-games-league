@@ -100,3 +100,19 @@ export default {
         }
     }
 };
+
+export interface GameRoundPlayer {
+    user_id: string;
+    score: number;
+    is_moderator: boolean;
+    team_name?: string;
+}
+
+export interface GameRound {
+    code?: string;
+    name: string;
+    game_type: string;
+    start_time: string;
+    players: GameRoundPlayer[];
+    version: number;
+}

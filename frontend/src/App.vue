@@ -15,6 +15,7 @@
             v-if="loggedIn"
             variant="text"
         >Game Types</v-btn>
+        <gameround-menu-item v-if="loggedIn" />
         <v-btn
             to="/ui/user"
             v-if="loggedIn"
@@ -41,6 +42,10 @@
             to="/ui/admin/game-types"
             :title="'Game Types'"
         />
+        <v-list-group v-if="loggedIn" value="Game Rounds">
+          <v-list-item to="/ui/game-rounds/new" :title="t('gameRounds.start')" />
+          <v-list-item to="/ui/game-rounds" :title="t('gameRounds.list')" />
+        </v-list-group>
         <v-list-item
             v-if="loggedIn"
             to="/ui/user"
@@ -61,8 +66,11 @@
 import LogoutButton from "@/components/LogoutButton.vue";
 import {defineComponent, computed, ref} from "vue";
 import userStore from "@/store/user"
+import GameroundMenuItem from "@/components/GameroundMenuItem.vue";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const drawer = ref(false);
 const loggedIn = computed(() => userStore.state.loggedIn);
 
@@ -70,6 +78,7 @@ defineComponent({
   components: {
     LogoutButton,
     LanguageSwitcher,
+    GameroundMenuItem,
   },
 });
 </script>

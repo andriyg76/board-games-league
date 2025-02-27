@@ -28,6 +28,22 @@ const routes: Array<RouteRecordRaw> = [
     name: 'CreateUser',
     component: GameTypesListGameTypes,
   },
+  {
+    path: '/ui/game-rounds',
+    name: 'GameRounds',
+    component: () => import('@/gametypes/GameroundsList.vue')
+  },
+  {
+    path: '/ui/game-rounds/new',
+    name: 'NewGameRound',
+    component: () => import('@/gametypes/GameroundEdit.vue')
+  },
+  {
+    path: '/ui/game-rounds/:id',
+    name: 'EditGameRound',
+    component: () => import('@/gametypes/GameroundEdit.vue'),
+    props: true
+  },
 ]
 
 const router = createRouter({
