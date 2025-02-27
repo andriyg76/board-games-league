@@ -36,165 +36,171 @@ var store = sessions.NewCookieStore(func() []byte {
 	return secret
 }())
 
-func GoogleCallbackHandler(repository repositories.UserRepository, provider ExternalAuthProvider) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := store.Get(r, "auth-session")
-		state := r.URL.Query().Get("state")
-		storedState := session.Values["state"]
-		delete(session.Values, "state")
+func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "auth-session")
+	state := r.URL.Query().Get("state")
+	storedState := session.Values["state"]
+	delete(session.Values, "state")
 
-		if storedState != nil && state != storedState.(string) {
-			_ = glog.Error("Auth completion failed: State token mismatch")
-			http.Error(w, "Authentication failed", http.StatusUnauthorized)
-			return
+	if storedState != nil && state != storedState.(string) {
+		_ = glog.Error("Auth completion failed: State token mismatch")
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
+		return
+	}
+
+	externalUser, err := h.provider.CompleteUserAuthHandler(w, r)
+	if err != nil {
+		_ = glog.Error("Auth completion failed: %v", err)
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
+		return
+	}
+
+	var user *models.User
+	var updateProfile bool
+
+	// Check if googleUser exists in the collection
+	if existingUser, err := h.userRepository.FindByExternalId(r.Context(), externalUser.ExternalIDs); err != nil {
+		_ = glog.Error("error fetching user profile: %v", err)
+		http.Error(w, "error fetching user profile", http.StatusInternalServerError)
+		return
+	} else if existingUser == nil {
+		user = &models.User{
+			ID:          primitive.ObjectID{},
+			ExternalIDs: externalUser.ExternalIDs,
+			Name:        externalUser.Name,
+			Avatar:      externalUser.Avatar,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Alias:       "",
 		}
+		if isSuperAdmin(externalUser.ExternalIDs) {
 
-		externalUser, err := provider.CompleteUserAuthHandler(w, r)
-		if err != nil {
-			_ = glog.Error("Auth completion failed: %v", err)
-			http.Error(w, "Authentication failed", http.StatusUnauthorized)
-			return
-		}
-
-		token, err := user_profile.CreateAuthToken(externalUser.Email, externalUser.Name, externalUser.Avatar)
-		if err != nil {
-			_ = glog.Error("Token creation failed: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		var user *models.User
-
-		// Check if googleUser exists in the collection
-		if existingUser, err := repository.FindByEmail(r.Context(), externalUser.Email); err != nil {
-			_ = glog.Error("error fetching user profile: %v", err)
-			http.Error(w, "error fetching user profile", http.StatusInternalServerError)
-			return
-		} else if existingUser == nil {
-			user = &models.User{
-				ID:        primitive.ObjectID{},
-				Email:     externalUser.Email,
-				Name:      externalUser.Name,
-				Avatar:    externalUser.Avatar,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-				Alias:     "",
-			}
-			if isSuperAdmin(externalUser.Email) {
-
-				if alias, err := utils.GetUniqueAlias(func(alias string) (bool, error) {
-					return repository.AliasUnique(r.Context(), alias)
-				}); err != nil {
-					utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
-						"error fetching user profile")
-					return
-				} else {
-					user.Alias = alias
-				}
-
-				// Create googleUser in the collection
-				if err := repository.CreateUser(r.Context(), user); err != nil {
-					_ = glog.Error("failed to create user", err)
-					http.Error(w, "Failed to create user", http.StatusInternalServerError)
-					return
-				}
+			if alias, err := utils.GetUniqueAlias(func(alias string) (bool, error) {
+				return h.userRepository.AliasUnique(r.Context(), alias)
+			}); err != nil {
+				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
+					"error checking alias uniqueness")
+				return
 			} else {
-				// Send googleUser info to Discord webhook
-				_ = sendNewUserToDiscord(r, user)
-				glog.Info("User %s is not known", user.Email)
-				http.Error(w, "Unauthorised", http.StatusUnauthorized)
+				user.Alias = alias
+			}
+
+			// Create googleUser in the collection
+			if err := h.userRepository.Create(r.Context(), user); err != nil {
+				_ = glog.Error("failed to create user", err)
+				http.Error(w, "Failed to create user", http.StatusInternalServerError)
 				return
 			}
 		} else {
-			user = existingUser
+			// Send googleUser info to Discord webhook
+			_ = sendNewUserToDiscord(r, user)
+			glog.Info("User with externalID %v is not known", user.ExternalIDs)
+			http.Error(w, "Unauthorised", http.StatusUnauthorized)
+			return
+		}
+	} else {
+		user = existingUser
 
-			if user.Alias == "" {
-				if alias, err := utils.GetUniqueAlias(func(alias string) (bool, error) {
-					return repository.AliasUnique(r.Context(), alias)
-				}); err != nil {
-					utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
-						"error fetching user profile")
-					return
-				} else {
-					user.Alias = alias
-				}
+		if user.Alias == "" {
+			if alias, err := utils.GetUniqueAlias(func(alias string) (bool, error) {
+				return h.userRepository.AliasUnique(r.Context(), alias)
+			}); err != nil {
+				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
+					"error fetching user profile")
+				return
+			} else {
+				user.Alias = alias
+				updateProfile = true
 			}
+		}
+
+		if user.Name != externalUser.Name || user.Avatar != externalUser.Avatar {
 			user.Name = externalUser.Name
 			user.Avatar = externalUser.Avatar
-			user.UpdatedAt = time.Now()
-			if err := repository.Update(r.Context(), user); err != nil {
-				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
-					"error updating user profile")
-				return
+			updateProfile = true
+		}
+
+		for _, id := range externalUser.ExternalIDs {
+			found := false
+			for _, currentId := range user.ExternalIDs {
+				if currentId == id {
+					found = true
+					break
+				}
+			}
+			if !found {
+				user.ExternalIDs = append(user.ExternalIDs, id)
+				updateProfile = true
 			}
 		}
+	}
 
-		// Set secure cookie
-		http.SetCookie(w, &http.Cookie{
-			Name:     "auth_token",
-			Value:    token,
-			Path:     "/",
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			MaxAge:   24 * 60 * 60, // 24 hours
-		})
-
-		if err := json.NewEncoder(w).Encode(map[string]string{
-			"email":   user.Email,
-			"name":    user.Name,
-			"picture": user.Avatar,
-			"alias":   user.Alias,
-		}); err != nil {
-			_ = glog.Error("serialising error %v", err)
-			http.Error(w, "serialising error", http.StatusInternalServerError)
+	if updateProfile {
+		user.UpdatedAt = time.Now()
+		if err := h.userRepository.Update(r.Context(), user); err != nil {
+			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
+				"error updating user profile")
+			return
 		}
+	}
+
+	token, err := user_profile.CreateAuthToken(externalUser.ExternalIDs, utils.IdToCode(user.ID), externalUser.Name, externalUser.Avatar)
+	if err != nil {
+		_ = glog.Error("Token creation failed: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Set secure cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth_token",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   24 * 60 * 60, // 24 hours
+	})
+
+	if err := json.NewEncoder(w).Encode(user_profile.UserResponse{
+		Code:        utils.IdToCode(user.ID),
+		ExternalIDs: user.ExternalIDs,
+		Name:        user.Name,
+		Avatar:      user.Avatar,
+		Alias:       user.Alias,
+	}); err != nil {
+		_ = glog.Error("serialising error %v", err)
+		http.Error(w, "serialising error", http.StatusInternalServerError)
 	}
 }
 
-func LogoutHandler(_ repositories.UserRepository, provider ExternalAuthProvider) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		_ = provider.LogoutHandler(w, r)
+func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	_ = h.provider.LogoutHandler(w, r)
 
-		// Clear the auth cookie
-		clearCookies(w)
+	// Clear the auth cookie
+	clearCookies(w)
 
-		w.WriteHeader(http.StatusOK)
-	}
+	w.WriteHeader(http.StatusOK)
 }
 
-type ExternalUser struct {
-	Email  string
-	Name   string
-	Avatar string
-}
+func (h *Handler) HandleBeginLoginFlow(w http.ResponseWriter, r *http.Request) {
+	_ = h.provider.LogoutHandler(w, r)
 
-type ExternalAuthProvider interface {
-	BeginUserAuthHandler(w http.ResponseWriter, r *http.Request)
-	CompleteUserAuthHandler(w http.ResponseWriter, r *http.Request) (ExternalUser, error)
-	LogoutHandler(w http.ResponseWriter, r *http.Request) error
-}
-
-func HandleBeginLoginFlow(provider ExternalAuthProvider) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		_ = provider.LogoutHandler(w, r)
-
-		query := r.URL.Query()
-		if state := query.Get("state"); state != "" {
-			session, err := store.Get(r, "auth-session")
-			if err != nil {
-				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error handling session context")
-				return
-			}
-			session.Values["state"] = state
-			if err := session.Save(r, w); err != nil {
-				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "serialising session error")
-				return
-			}
+	query := r.URL.Query()
+	if state := query.Get("state"); state != "" {
+		session, err := store.Get(r, "auth-session")
+		if err != nil {
+			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error handling session context")
+			return
 		}
-
-		provider.BeginUserAuthHandler(w, r)
+		session.Values["state"] = state
+		if err := session.Save(r, w); err != nil {
+			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "serialising session error")
+			return
+		}
 	}
+
+	h.provider.BeginUserAuthHandler(w, r)
 }
 
 func clearCookies(w http.ResponseWriter) {
@@ -217,25 +223,23 @@ var config = struct {
 	GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 }
 
-func Middleware(_ repositories.UserRepository) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			cookie, err := r.Cookie("auth_token")
-			if err != nil {
-				handleUnauthorized(w, r)
-				return
-			}
+func (_ *Handler) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("auth_token")
+		if err != nil {
+			handleUnauthorized(w, r)
+			return
+		}
 
-			profile, err := user_profile.ParseProfile(cookie.Value)
+		profile, err := user_profile.ParseProfile(cookie.Value)
 
-			if err == nil && profile.Email != "" {
-				ctx := context.WithValue(r.Context(), "user", profile)
-				next.ServeHTTP(w, r.WithContext(ctx))
-			} else {
-				handleUnauthorized(w, r)
-			}
-		})
-	}
+		if err == nil && len(profile.ExternalIDs) != 0 {
+			ctx := context.WithValue(r.Context(), "user", profile)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		} else {
+			handleUnauthorized(w, r)
+		}
+	})
 }
 
 func handleUnauthorized(w http.ResponseWriter, _ *http.Request) {
@@ -244,10 +248,12 @@ func handleUnauthorized(w http.ResponseWriter, _ *http.Request) {
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
 }
 
-func isSuperAdmin(email string) bool {
+func isSuperAdmin(ids []string) bool {
 	for _, admin := range superAdmins {
-		if admin == email {
-			return true
+		for _, id := range ids {
+			if admin == id {
+				return true
+			}
 		}
 	}
 	return false
@@ -266,8 +272,27 @@ func sendNewUserToDiscord(r *http.Request, user *models.User) error {
 		return glog.Error("User is not set")
 	}
 	domain := utils.GetHostUrl(r)
-	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?email=%s", domain, user.Email) // defined at frontend/src/router/index.ts
-	content := fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, user.Email, createUserLink)
+	createUserLink := fmt.Sprintf("%s/ui/admin/create-user?external_ids=%s", domain, strings.Join(user.ExternalIDs, ",")) // domain defined at frontend/src/router/index.ts
+	content := fmt.Sprintf("New user login: %s (%s). Click [%s] to create the user.", user.Name, strings.Join(user.ExternalIDs, ","), createUserLink)
 
 	return utils.SendToDiscord(content)
+}
+
+type Handler struct {
+	userRepository repositories.UserRepository
+	provider       ExternalAuthProvider
+}
+
+func NewHandler(repository repositories.UserRepository, provider ExternalAuthProvider) Handler {
+	return Handler{
+		provider:       provider,
+		userRepository: repository,
+	}
+}
+
+func NewDefaultHandler(repository repositories.UserRepository) Handler {
+	return Handler{
+		provider:       &authProviderInstance{},
+		userRepository: repository,
+	}
 }

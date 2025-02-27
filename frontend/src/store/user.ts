@@ -1,9 +1,9 @@
 import { reactive } from 'vue';
 
 interface User {
+    external_ids: string[];
     name: string;
-    email: string;
-    picture?: string;
+    avatar?: string;
     alias: string;
 }
 
@@ -14,7 +14,7 @@ const state = reactive({
 
 const setUser = (user: User) => {
     state.user = user;
-    state.loggedIn = !!user.email;
+    state.loggedIn = (user.external_ids || []).length > 0;
 };
 
 const clearUser = () => {

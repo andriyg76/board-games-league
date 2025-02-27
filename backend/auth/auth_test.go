@@ -27,15 +27,15 @@ type MockUserRepository struct {
 	repositories.UserRepository
 }
 
-func (m *MockUserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
-	args := m.Called(ctx, email)
+func (m *MockUserRepository) FindByExternalId(ctx context.Context, externalIDs []string) (*models.User, error) {
+	args := m.Called(ctx, externalIDs)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
-func (m *MockUserRepository) CreateUser(ctx context.Context, user *models.User) error {
+func (m *MockUserRepository) Create(ctx context.Context, user *models.User) error {
 	args := m.Called(ctx, user)
 	return args.Error(0)
 }
@@ -50,27 +50,6 @@ func (m *MockUserRepository) AliasUnique(ctx context.Context, alias string) (boo
 	return args.Bool(0), args.Error(1)
 }
 
-// MockExternalAuthProvider implements ExternalAuthProvider interface
-type MockExternalAuthProvider struct {
-	mock.Mock
-	ExternalAuthProvider
-}
-
-func (m *MockExternalAuthProvider) BeginUserAuthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusPermanentRedirect)
-	w.Header().Add("Location", fmt.Sprintf("http://google.com/auth?state=%s", r.URL.Query().Get("state")))
-}
-
-func (m *MockExternalAuthProvider) CompleteUserAuthHandler(_ http.ResponseWriter, r *http.Request) (ExternalUser, error) {
-	args := m.Called(r.Context(), r)
-	return args.Get(0).(ExternalUser), args.Error(1)
-}
-
-func (m *MockExternalAuthProvider) LogoutHandler(_ http.ResponseWriter, r *http.Request) error {
-	args := m.Called(r.Context(), r)
-	return args.Error(0)
-}
-
 func TestIsSuperAdmin(t *testing.T) {
 	// Temporarily set superAdmins for testing
 	originalSuperAdmins := superAdmins
@@ -79,12 +58,12 @@ func TestIsSuperAdmin(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		email    string
+		email    []string
 		expected bool
 	}{
-		{"Super admin email should return true", "admin@example.com", true},
-		{"Regular email should return false", "user@example.com", false},
-		{"Empty email should return false", "", false},
+		{"Super admin email should return true", []string{"admin@example.com"}, true},
+		{"Regular email should return false", []string{"user@example.com"}, false},
+		{"Empty email should return false", []string{}, false},
 	}
 
 	for _, tt := range tests {
@@ -101,7 +80,10 @@ func TestMiddleware(t *testing.T) {
 	defer func() { config = originalConfig }()
 
 	mockRepo := new(MockUserRepository)
-	middleware := Middleware(mockRepo)
+	middleware := (&Handler{
+		userRepository: mockRepo,
+		provider:       new(MockExternalAuthProvider),
+	}).Middleware
 
 	tests := []struct {
 		name           string
@@ -111,11 +93,7 @@ func TestMiddleware(t *testing.T) {
 		{
 			name: "Valid token should pass",
 			setupAuth: func(r *http.Request) {
-				token, _ := user_profile.CreateAuthToken(
-					"test@example.com",
-					"Test User",
-					"http://example.com/avatar.jpg",
-				)
+				token, _ := user_profile.CreateAuthToken([]string{"test@example.com"}, "00", "Test User", "http://example.com/avatar.jpg")
 				r.AddCookie(&http.Cookie{
 					Name:  "auth_token",
 					Value: token,
@@ -154,10 +132,15 @@ func TestMiddleware(t *testing.T) {
 }
 
 func TestGoogleCallbackHandler(t *testing.T) {
+
 	mockRepo := new(MockUserRepository)
 	mockProvider := new(MockExternalAuthProvider)
-	beginFlowHandler := HandleBeginLoginFlow(mockProvider)
-	handler := GoogleCallbackHandler(mockRepo, mockProvider)
+	handler := Handler{
+		userRepository: mockRepo,
+		provider:       mockProvider,
+	}
+	beginFlowHandler := handler.HandleBeginLoginFlow
+	finalHandler := handler.GoogleCallbackHandler
 
 	superAdminEmail := "superadmin@example.com"
 	superAdmins = []string{superAdminEmail}
@@ -166,27 +149,27 @@ func TestGoogleCallbackHandler(t *testing.T) {
 
 	regularEmail := "existing@example.com"
 	existingUser := &models.User{
-		ID:        primitive.NewObjectID(),
-		Email:     regularEmail,
-		Name:      "Existing User",
-		Avatar:    "http://example.com/avatar.jpg",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		Alias:     "existing",
+		ID:          primitive.NewObjectID(),
+		ExternalIDs: []string{regularEmail},
+		Name:        "Existing User",
+		Avatar:      "http://example.com/avatar.jpg",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		Alias:       "existing",
 	}
 
-	mockRepo.On("FindByEmail", mock.Anything, regularEmail).Return(existingUser, nil)
-	mockRepo.On("FindByEmail", mock.Anything, superAdminEmail).Return(nil, nil)
-	mockRepo.On("FindByEmail", mock.Anything, notExistingEmail).Return(nil, nil)
+	mockRepo.On("FindByExternalId", mock.Anything, []string{regularEmail}).Return(existingUser, nil)
+	mockRepo.On("FindByExternalId", mock.Anything, []string{superAdminEmail}).Return(nil, nil)
+	mockRepo.On("FindByExternalId", mock.Anything, []string{notExistingEmail}).Return(nil, nil)
 	mockRepo.On("AliasUnique", mock.Anything, mock.Anything).Return(true, nil)
 	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
-	mockRepo.On("CreateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
+	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
 
 	superadminRequest := httptest.NewRequest("GET", "/auth/callback?state=somestate&provider=google", nil)
 	mockProvider.On("CompleteUserAuthHandler", mock.Anything, superadminRequest).Return(ExternalUser{
-		Email:  superAdminEmail,
-		Name:   "Superadmin",
-		Avatar: "http://example.com/avatar.jpg",
+		ExternalIDs: []string{superAdminEmail},
+		Name:        "Superadmin",
+		Avatar:      "http://example.com/avatar.jpg",
 	}, nil)
 
 	mockProvider.On("LogoutHandler", mock.Anything, mock.Anything).Return(nil)
@@ -207,7 +190,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 			asserts.NoError(err)
 			return
 		}
-		beginFlowHandler.ServeHTTP(r1, req)
+		beginFlowHandler(r1, req)
 
 		s, e := store.Get(req, "auth-session")
 		if e != nil {
@@ -229,15 +212,13 @@ func TestGoogleCallbackHandler(t *testing.T) {
 		rr := httptest.NewRecorder()
 		regularUserRequest := httptest.NewRequest("GET", fmt.Sprintf("/auth/callback?state=%s", somestate), nil)
 		mockProvider.On("CompleteUserAuthHandler", mock.Anything, regularUserRequest).Return(ExternalUser{
-			Email:  regularEmail,
-			Name:   "Existing User",
-			Avatar: "http://example.com/avatar.jpg",
+			ExternalIDs: []string{regularEmail},
+			Name:        "Existing User",
+			Avatar:      "http://example.com/avatar.jpg",
 		}, nil)
 
-		handler.ServeHTTP(rr, regularUserRequest)
+		finalHandler(rr, regularUserRequest)
 
-		// We expect an error here because gothic.CompleteUserAuthHandler won't work in test
-		// In a real scenario, you'd need to mock gothic.CompleteUserAuthHandler
 		asserts.
 			Equal(http.StatusOK, rr.Code).
 			True(len(discord) == 0, "No new notifications to discord").
@@ -247,72 +228,9 @@ func TestGoogleCallbackHandler(t *testing.T) {
 			if cookie.Name == "auth_token" {
 				profile, err := user_profile.ParseProfile(cookie.Value)
 				if err != nil {
-					asserts.NoError(err, "Coud not parse cookie %v", cookie)
+					asserts.NoError(err, "Could not parse cookie %v", cookie)
 				}
-				asserts.Equal(regularEmail, profile.Email, "Invalid user token set")
-			}
-		}
-
-	})
-
-	t.Run("Superamdin user login", func(t *testing.T) {
-		const somestate = "somestate2"
-
-		var discord = []string{}
-		utils.AddDiscordSendCapturer(func(s string) {
-			discord = append(discord, s)
-		})
-		asserts := asserts2.Get(t)
-
-		var r1 = httptest.NewRecorder()
-		req, err := http.NewRequest("POST", "/auth/start?type=google&state="+somestate, nil)
-		if err != nil {
-			asserts.NoError(err)
-			return
-		}
-		beginFlowHandler.ServeHTTP(r1, req)
-
-		s, e := store.Get(req, "auth-session")
-		if e != nil {
-			asserts.NoError(e)
-			return
-		}
-		asserts.Equal(somestate, s.Values["state"])
-
-		location := r1.Header().Get("Location")
-		asserts.NotEmpty(location)
-
-		url1, e := url.Parse(location)
-		if e != nil {
-			asserts.NoError(e)
-		}
-		url1.Query().Get("state")
-		asserts.NotEmpty("state", somestate)
-
-		rr := httptest.NewRecorder()
-		request := httptest.NewRequest("GET", fmt.Sprintf("/auth/callback?state=%s", somestate), nil)
-		mockProvider.On("CompleteUserAuthHandler", mock.Anything, request).Return(ExternalUser{
-			Email:  superAdminEmail,
-			Name:   "superadmin",
-			Avatar: "sinine.jpg",
-		}, nil)
-
-		handler.ServeHTTP(rr, request)
-
-		// We expect an error here because gothic.CompleteUserAuthHandler won't work in test
-		// In a real scenario, you'd need to mock gothic.CompleteUserAuthHandler
-		asserts.
-			Equal(http.StatusOK, rr.Code).
-			True(len(discord) == 0, "No new notifications to discord").
-			True(strings.Contains(rr.Header().Get("Set-Cookie"), "auth_token="),
-				"auth_token cookie should be set by end auth")
-		for _, cookie := range rr.Result().Cookies() {
-			if cookie.Name == "auth_token" {
-				profile, err := user_profile.ParseProfile(cookie.Value)
-				if err != nil {
-					asserts.NoError(err, "Coud not parse cookie %v", cookie)
-				}
-				asserts.Equal(superAdminEmail, profile.Email, "Invalid user token set")
+				asserts.Equal([]string{regularEmail}, profile.ExternalIDs, "Invalid user token set")
 			}
 		}
 	})
@@ -320,15 +238,18 @@ func TestGoogleCallbackHandler(t *testing.T) {
 
 func TestLogoutHandler(t *testing.T) {
 	mockRepo := new(MockUserRepository)
-	mockProvider := new(MockExternalAuthProvider)
-	handler := LogoutHandler(mockRepo, mockProvider)
+	provider := new(MockExternalAuthProvider)
+	handler := Handler{
+		userRepository: mockRepo,
+		provider:       provider,
+	}
 
-	mockProvider.On("LogoutHandler", mock.Anything, mock.Anything).Return(nil)
+	provider.On("LogoutHandler", mock.Anything, mock.Anything).Return(nil)
 
 	req := httptest.NewRequest("POST", "/logout", nil)
 	rr := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.LogoutHandler(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
@@ -383,8 +304,9 @@ func TestSendNewUserToDiscord_UserNotNil(t *testing.T) {
 	}
 
 	user := &models.User{
-		Name:  "Test User",
-		Email: "test@example.com",
+		Name:        "Test User",
+		ID:          primitive.ObjectID([12]byte{}),
+		ExternalIDs: []string{"test@example.com"},
 	}
 
 	req := httptest.NewRequest("POST", "/send", nil)

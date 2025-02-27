@@ -5,7 +5,7 @@
            :disabled="loading"
            class="logout-button"
     >
-      <v-img  :src="userStore.state.user.picture" v-if="userStore.state.user.picture" height="32" width="32" :alt="`${userStore.state.user.name} - ${userStore.state.user.email}`"/>
+      <v-img  :src="userStore.state.user.avatar" v-if="userStore.state.user.avatar" height="32" width="32" :alt="`${userStore.state.user.name} - ${userStore.state.user.alias}`"/>
       {{ loading ? 'Logging out...' : 'Logout' }}
     </v-btn>
   </template>

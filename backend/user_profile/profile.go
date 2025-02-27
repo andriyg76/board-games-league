@@ -1,6 +1,7 @@
 package user_profile
 
 import (
+	"fmt"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/andriyg76/glog"
 	"github.com/golang-jwt/jwt"
@@ -29,17 +30,23 @@ func Test() {
 }
 
 type UserProfile struct {
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Picture string `json:"picture"`
+	//ID is a player unique in database
+	ID          string   `json:"id"`
+	ExternalIDs []string `json:"ids"`
+	Name        string   `json:"name"`
+	Picture     string   `json:"picture"`
 	jwt.StandardClaims
 }
 
-func CreateAuthToken(email, name, avatar string) (string, error) {
+func CreateAuthToken(IDs []string, ID, name, avatar string) (string, error) {
+	if ID == "" {
+		return "", fmt.Errorf("ID should be specified for usertoken")
+	}
 	claims := UserProfile{
-		Email:   email,
-		Name:    name,
-		Picture: avatar,
+		ID:          ID,
+		ExternalIDs: IDs,
+		Name:        name,
+		Picture:     avatar,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 			IssuedAt:  time.Now().Unix(),
@@ -52,13 +59,13 @@ func CreateAuthToken(email, name, avatar string) (string, error) {
 
 func ParseProfile(cookie string) (*UserProfile, error) {
 	profile := &UserProfile{}
-	_, error := jwt.ParseWithClaims(cookie, profile, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(cookie, profile, func(token *jwt.Token) (interface{}, error) {
 		return config.JwtSecret, nil
 	})
-	if error != nil {
-		return nil, error
+	if err != nil {
+		return nil, err
 	}
-	return profile, error
+	return profile, err
 }
 
 func GetUserProfile(r *http.Request) (*UserProfile, error) {
@@ -67,4 +74,12 @@ func GetUserProfile(r *http.Request) (*UserProfile, error) {
 		return nil, glog.Error("user profile is not found in profile")
 	}
 	return profile, nil
+}
+
+type UserResponse struct {
+	Code        string   `json:"code"`
+	ExternalIDs []string `json:"external_ids"`
+	Name        string   `json:"name"`
+	Avatar      string   `json:"avatar"`
+	Alias       string   `json:"alias"`
 }
