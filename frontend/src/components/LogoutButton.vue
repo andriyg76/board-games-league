@@ -1,22 +1,37 @@
 <template>
-  <template v-if="userStore.state.loggedIn">
+  <template v-if="userStore.loggedIn">
     <v-btn color="primary"
            @click="handleLogout"
            :disabled="loading"
            class="logout-button"
     >
-      <v-img  :src="userStore.state.user.picture" v-if="userStore.state.user.picture" height="32" width="32" :alt="`${userStore.state.user.name} - ${userStore.state.user.email}`"/>
+      <v-img  :src="userStore.user.avatar" v-if="userStore.user.avatar" height="32" width="32" :alt="`${userStore.user.name} - ${userStore.user.alias}`"/>
       {{ loading ? 'Logging out...' : 'Logout' }}
     </v-btn>
   </template>
-  <v-btn color="primary" v-else @click="startLogin">Login</v-btn>
+  <v-menu v-else>
+    <template v-slot:activator="{ props }">
+      <v-btn color="primary" v-bind="props">
+        Login
+      </v-btn>
+    </template>
+    <v-list>
+      <v-list-item @click="startLogin('google')">
+        <v-list-item-title>Login with Google</v-list-item-title>
+      </v-list-item>
+      <v-list-item @click="startLogin('discord')">
+        <v-list-item-title>Login with Discord</v-list-item-title>
+      </v-list-item>
+    </v-list>
+  </v-menu>
 </template>
 
 <script setup lang="ts">
 import {onMounted, ref} from 'vue';
 import { useRouter } from 'vue-router';
 import Auth from '@/api/Auth';
-import userStore from '@/store/user';
+import { useUserStore } from '@/store/user';
+const userStore = useUserStore();
 import UserApi from "@/api/UserApi";
 
 const loading = ref(false);
@@ -35,9 +50,9 @@ const handleLogout = async () => {
   }
 };
 
-const startLogin = async () => {
+const startLogin = async (provider: string) => {
   try {
-    let url = Auth.googleLoginEntrypoint;
+    let url = Auth.startLoginEntrypoint(provider);
     console.info("Redirecting to: ", url)
     loading.value = true;
     // Store the current route to redirect back after auth

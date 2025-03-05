@@ -1,14 +1,14 @@
 import {User} from "@/api/UserApi";
 
 export default {
-    get googleLoginEntrypoint() {
+    startLoginEntrypoint(provider: string) {
         const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         let stateToken = "";
         for (let i = 0; i < 64; i++) {
             stateToken += letters.charAt(Math.floor(Math.random() * letters.length));
         }
 
-        return `/api/auth/google?provider=google&state=${stateToken}`;
+        return `/api/auth/google?provider=${provider}&state=${stateToken}`;
     },
 
     async logout(): Promise<void> {
@@ -21,7 +21,7 @@ export default {
             throw new Error('Logout failed');
         }
     },
-    async handleGoogleCallback(params: string): Promise<User | null> {
+    async handleAuthCallback(params: string): Promise<User | null> {
         const response = await fetch(`/api/auth/google/callback?${params}`, {
             credentials: 'include',
             method: 'POST'
