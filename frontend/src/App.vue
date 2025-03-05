@@ -65,14 +65,15 @@
 <script setup lang="ts">
 import LogoutButton from "@/components/LogoutButton.vue";
 import {defineComponent, computed, ref} from "vue";
-import userStore from "@/store/user"
+import { useUserStore } from '@/store/user';
+const userStore = useUserStore();
 import GameroundMenuItem from "@/components/GameroundMenuItem.vue";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 const drawer = ref(false);
-const loggedIn = computed(() => userStore.state.loggedIn);
+const loggedIn = computed(() => userStore.$state.loggedIn);
 
 defineComponent({
   components: {

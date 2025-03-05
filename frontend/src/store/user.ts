@@ -1,29 +1,50 @@
-import { reactive } from 'vue';
+import { defineStore } from 'pinia';
 
 interface User {
-    external_ids: string[];
+    external_ids?: string[];
     name: string;
     avatar?: string;
     alias: string;
 }
 
-const state = reactive({
-    user: {} as User,
-    loggedIn: false,
+interface UserState {
+    user: User;
+    loggedIn: boolean;
+}
+
+export const useUserStore = defineStore('user', {
+    state: (): UserState => ({
+        user: {
+            external_ids: [],
+            name: '',
+            alias: '',
+        },
+        loggedIn: false
+    }),
+
+    actions: {
+        setUser(user: User) {
+            this.user = user;
+            this.loggedIn = (user.external_ids || []).length > 0;
+        },
+
+        clearUser() {
+            this.user = {
+                external_ids: [],
+                name: '',
+                alias: ''
+            };
+            this.loggedIn = false;
+        }
+    },
+
+    getters: {
+        isAuthenticated(): boolean {
+            return this.loggedIn;
+        },
+
+        currentUser(): User {
+            return this.user;
+        }
+    }
 });
-
-const setUser = (user: User) => {
-    state.user = user;
-    state.loggedIn = (user.external_ids || []).length > 0;
-};
-
-const clearUser = () => {
-    state.user = {} as User;
-    state.loggedIn = false;
-};
-
-export default {
-    state,
-    setUser,
-    clearUser,
-};

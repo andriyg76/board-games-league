@@ -5,6 +5,7 @@ import (
 	"github.com/andriyg76/glog"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
+	"github.com/markbates/goth/providers/discord"
 	"github.com/markbates/goth/providers/google"
 	"net/http"
 	"sync"
@@ -22,6 +23,13 @@ func ensureGothInit(r *http.Request) {
 		glog.Info("Google auth callback url: %v", callbackUrl)
 
 		goth.UseProviders(
+			discord.New(
+				config.DiscordClientID,
+				config.DiscordClientSecret,
+				callbackUrl,
+				discord.ScopeEmail,
+				discord.ScopeIdentify,
+			),
 			google.New(
 				config.GoogleClientID,
 				config.GoogleClientSecret,
@@ -51,6 +59,9 @@ func (_ *authProviderInstance) CompleteUserAuthHandler(w http.ResponseWriter, r 
 	if err == nil {
 		user.Name = auth.Name
 		user.ExternalIDs = []string{auth.Email}
+		if auth.UserID != "" {
+			user.ExternalIDs = append(user.ExternalIDs, auth.Provider+":"+auth.UserID)
+		}
 		user.Avatar = auth.AvatarURL
 	}
 	return user, err

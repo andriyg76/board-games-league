@@ -7,9 +7,11 @@ import { i18n } from './i18n'
 // Ensure Vuetify styles are imported
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
+import {createPinia} from "pinia";
 
 createApp(App)
     .use(vuetify)
     .use(router)
     .use(i18n)
+    .use(createPinia())
     .mount('#app')

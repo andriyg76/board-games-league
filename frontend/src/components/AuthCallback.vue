@@ -5,7 +5,8 @@
 <script lang="ts" setup>
 import { useRouter } from 'vue-router';
 import Auth from '@/api/Auth';
-import userStore from '@/store/user';
+import { useUserStore } from '@/store/user';
+const userStore = useUserStore();
 
 const router = useRouter();
 
@@ -13,7 +14,7 @@ try {
   // Get all query parameters from current URL
   const queryParams = new URLSearchParams(window.location.search);
 
-  Auth.handleGoogleCallback(queryParams.toString())
+  Auth.handleAuthCallback(queryParams.toString())
       .then((user) => {
         if (user) {
           userStore.setUser(user);

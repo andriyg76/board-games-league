@@ -216,11 +216,15 @@ func clearCookies(w http.ResponseWriter) {
 }
 
 var config = struct {
-	GoogleClientID     string
-	GoogleClientSecret string
+	GoogleClientID      string
+	GoogleClientSecret  string
+	DiscordClientID     string
+	DiscordClientSecret string
 }{
-	GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-	GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+	GoogleClientID:      os.Getenv("GOOGLE_CLIENT_ID"),
+	GoogleClientSecret:  os.Getenv("GOOGLE_CLIENT_SECRET"),
+	DiscordClientID:     os.Getenv("DISCORD_CLIENT_ID"),
+	DiscordClientSecret: os.Getenv("DISCORD_CLIENT_SECRET"),
 }
 
 func (_ *Handler) Middleware(next http.Handler) http.Handler {

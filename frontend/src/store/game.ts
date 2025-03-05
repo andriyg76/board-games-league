@@ -1,55 +1,48 @@
-import {defineStore} from 'pinia';
-import {GameRound, GameType} from '@/api/GameApi';
+// store/game.ts
+import { defineStore } from 'pinia';
+import { GameRound, GameType } from '@/api/GameApi';
+import GameApi from '@/api/GameApi';
 
 interface GameState {
     gameTypes: GameType[];
     activeRounds: GameRound[];
+    loading: boolean;
 }
 
 export const useGameStore = defineStore('game', {
     state: (): GameState => ({
         gameTypes: [],
-        activeRounds: []
+        activeRounds: [],
+        loading: false
     }),
 
     actions: {
-        setGameTypes(types: GameType[]) {
-            this.gameTypes = types;
+        async loadGameTypes() {
+            this.loading = true;
+            try {
+                const types = await GameApi.getGameTypes();
+                this.gameTypes = types;
+            } catch (error) {
+                console.error('Error loading game types:', error);
+                throw error;
+            } finally {
+                this.loading = false;
+            }
         },
 
-        async addActiveRound(round: GameRound) {
-            this.activeRounds.push(round);
+        async addActiveRound(round: GameRound): Promise<GameRound> {
+            const savedRound = await GameApi.createGameRound(round);
+            this.activeRounds.push(savedRound);
+            return savedRound;
         },
 
-        async updateRound(round: GameRound) {
-            if (!round.code) {
-                throw new Error("round code is not set")
-            }
-
-            for (let i = 0; i < this.activeRounds.length; i++) {
-                if (this.activeRounds[i].code === round.code) {
-                    this.activeRounds[i] = round
-                    return
-                }
-            }
-
-            throw new Error("round not found in active rounds")
-        },
-
-        removeActiveRound(code: string) {
-            const index = this.activeRounds.findIndex(r => r.code === code);
-            if (index > -1) {
-                this.activeRounds.splice(index, 1);
-            }
-        }
+        // ... other existing actions
     },
 
     getters: {
         getGameTypeByCode: (state) => (code: string) => {
             return state.gameTypes.find(gt => gt.code === code);
         },
-        getActiveRoundByCode: (state) => (code: string) => {
-            return state.activeRounds.find(r => r.code === code);
-        }
+        isLoading: (state) => state.loading
     }
 });

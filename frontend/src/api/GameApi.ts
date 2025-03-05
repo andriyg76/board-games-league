@@ -98,6 +98,9 @@ export default {
             console.error('Error deleting game type:', error);
             throw error;
         }
+    },
+    async createGameRound(round: GameRound): Promise<GameRound> {
+        return Promise.resolve(null!!)
     }
 };
 
@@ -115,4 +118,10 @@ export interface GameRound {
     start_time: string;
     players: GameRoundPlayer[];
     version: number;
+}
+
+export interface Player {
+    code: string,
+    alias: string,
+    avatar: string,
 }

@@ -4,11 +4,6 @@
       <v-col>
         <h2>{{ isEditing ? 'Edit Game Round' : 'New Game Round' }}</h2>
         <v-form @submit.prevent="saveRound">
-          <v-text-field
-              v-model="round.name"
-              label="Round Name"
-              required
-          />
           <v-select
               v-model="round.game_type"
               :items="gameTypes"
@@ -16,6 +11,11 @@
               item-value="code"
               label="Game Type"
               required
+              :disabled="isEditing"
+          />
+          <v-text-field
+              v-model="round.name"
+              label="Round Name"
           />
           <v-list>
             <v-subheader>Players</v-subheader>
@@ -54,30 +54,48 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import {ref, computed, onMounted} from 'vue';
 import { GameRoundView } from './types';
-
-const isEditing = computed(() => !!round.value.code);
 
 const round = ref<GameRound>({
   code: '',
   name: '',
   game_type: '',
   start_time: new Date().toISOString(),
-  players: []
+  players: [],
+  version: 0
 });
 
+
+const isEditing = computed(() => !!round.value.code);
+const gameTypes = computed(() => gameStore.gameTypes);
+
 import { useGameStore } from '@/store/game';
-import GameApi, {GameRound} from "@/api/GameApi";
+import {GameRound} from "@/api/GameApi";
+import {useRouter} from "vue-router";
 const gameStore = useGameStore();
+const  router = useRouter();
 
 // When saving a round:
 const saveRound = async () => {
+  let savedRound;
   if (isEditing.value) {
-    await gameStore.updateRound(round.value);
+    savedRound = await gameStore.addActiveRound(round.value);
   } else {
-    await gameStore.addActiveRound(round.value);
+    savedRound = await gameStore.addActiveRound(round.value);
   }
-  await router.push({ name: 'GameRounds' });
+  await router.push({ name: 'GameRounds',
+    params: { code: savedRound.code }});
 };
+
+
+onMounted(async () => {
+  try {
+    if (gameStore.gameTypes.length === 0) {
+      await gameStore.loadGameTypes();
+    }
+  } catch (error) {
+    console.error('Failed to load game types:', error);
+  }
+});
 </script>
