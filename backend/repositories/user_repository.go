@@ -20,6 +20,7 @@ type UserRepository interface {
 	Update(ctx context.Context, user *models.User) error
 	AliasUnique(ctx context.Context, alias string) (bool, error)
 	FindByID(ctx context.Context, ID primitive.ObjectID) (*models.User, error)
+	ListAll(ctx context.Context) ([]*models.User, error)
 }
 
 type UserRepositoryInstance struct {
@@ -83,11 +84,25 @@ func (r *UserRepositoryInstance) FindByExternalId(ctx context.Context, externalI
 func (r *UserRepositoryInstance) FindByID(ctx context.Context, id primitive.ObjectID) (*models.User, error) {
 	var user models.User
 
-	if err := r.collection.FindOne(ctx, bson.M{"ID": id}).Decode(&user); errors.Is(err, mongo.ErrNoDocuments) {
+	if err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&user); errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	} else {
 		return &user, err
 	}
+}
+
+func (r *UserRepositoryInstance) ListAll(ctx context.Context) ([]*models.User, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+
+	var users []*models.User
+	if err = cursor.All(ctx, &users); err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }
 
 func (r *UserRepositoryInstance) Update(ctx context.Context, user *models.User) error {

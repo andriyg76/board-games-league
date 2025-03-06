@@ -1,7 +1,6 @@
 package user_profile
 
 import (
-	"fmt"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/andriyg76/glog"
 	"github.com/golang-jwt/jwt"
@@ -31,19 +30,19 @@ func Test() {
 
 type UserProfile struct {
 	//ID is a player unique in database
-	ID          string   `json:"id"`
+	Code        string   `json:"code"`
 	ExternalIDs []string `json:"ids"`
 	Name        string   `json:"name"`
 	Picture     string   `json:"picture"`
 	jwt.StandardClaims
 }
 
-func CreateAuthToken(IDs []string, ID, name, avatar string) (string, error) {
-	if ID == "" {
-		return "", fmt.Errorf("ID should be specified for usertoken")
+func CreateAuthToken(IDs []string, Code, name, avatar string) (string, error) {
+	if Code == "" {
+		return "", glog.Error("code should be specified for usertoken.")
 	}
 	claims := UserProfile{
-		ID:          ID,
+		Code:        Code,
 		ExternalIDs: IDs,
 		Name:        name,
 		Picture:     avatar,
@@ -71,7 +70,7 @@ func ParseProfile(cookie string) (*UserProfile, error) {
 func GetUserProfile(r *http.Request) (*UserProfile, error) {
 	profile, ok := r.Context().Value("user").(*UserProfile)
 	if !ok || profile == nil {
-		return nil, glog.Error("user profile is not found in profile")
+		return nil, glog.Error("user profile is not found in profile.")
 	}
 	return profile, nil
 }

@@ -11,6 +11,7 @@ import (
 type UserService interface {
 	FindByID(ctx context.Context, ID primitive.ObjectID) (*models.User, error)
 	FindByCode(ctx context.Context, code string) (*models.User, error)
+	FindAll(ctx context.Context) ([]*models.User, error)
 }
 
 type userService struct {
@@ -33,4 +34,8 @@ func (s *userService) FindByCode(ctx context.Context, code string) (*models.User
 		return nil, err
 	}
 	return s.FindByID(ctx, id)
+}
+
+func (s *userService) FindAll(ctx context.Context) ([]*models.User, error) {
+	return s.userRepository.ListAll(ctx)
 }

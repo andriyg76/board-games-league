@@ -27,6 +27,12 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/{code}", h.updateGameType)
 		r.Delete("/{code}", h.deleteGameType)
 	})
+
+	r.Route("/players", func(r chi.Router) {
+		r.Get("/", h.listPlayers)
+		r.Get("/{code}", h.getPlayer)
+		r.Get("/i_am", h.iAm)
+	})
 }
 
 func NewHandler(r services.UserService, r2 repositories.GameRoundRepository, r3 repositories.GameTypeRepository) *Handler {
