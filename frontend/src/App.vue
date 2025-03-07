@@ -40,7 +40,12 @@
         <v-list-item
             v-if="loggedIn"
             to="/ui/admin/game-types"
-            :title="'Game Types'"
+            :title="t('gameTypes.title')"
+        />
+        <v-list-item
+            v-if="loggedIn"
+            to="/ui/game-rounds"
+            :title="t('gameRounds.title')"
         />
         <v-list-group v-if="loggedIn" value="Game Rounds">
           <v-list-item to="/ui/game-rounds/new" :title="t('gameRounds.start')" />
@@ -49,7 +54,7 @@
         <v-list-item
             v-if="loggedIn"
             to="/ui/user"
-            :title="'User'"
+            :title="t('admin.user')"
         />
       </v-list>
     </v-navigation-drawer>
@@ -69,9 +74,10 @@ import { useUserStore } from '@/store/user';
 const userStore = useUserStore();
 import GameroundMenuItem from "@/components/GameroundMenuItem.vue";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
-import { useI18n } from 'vue-i18n';
+import {useI18n} from "vue-i18n";
 
 const { t } = useI18n();
+
 const drawer = ref(false);
 const loggedIn = computed(() => userStore.$state.loggedIn);
 

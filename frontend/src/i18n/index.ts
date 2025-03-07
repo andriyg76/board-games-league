@@ -1,4 +1,4 @@
-import { createI18n } from 'vue-i18n'
+import {createI18n} from 'vue-i18n'
 
 const messages = {
     en: {
@@ -22,7 +22,11 @@ const messages = {
         gameRounds: {
             menu: 'Game Rounds',
             start: 'Start Game Round',
-            list: 'List Game Rounds'
+            list: 'List Game Rounds',
+            title: 'Game Rounds',
+        },
+        admin: {
+            user: 'User',
         },
         scoring: {
             classic: 'Classic board game scoring',
@@ -56,6 +60,12 @@ const messages = {
             update: 'Оновити',
             cancel: 'Скасувати'
         },
+        gameRounds: {
+            title: 'Раунди ігор',
+        },
+        admin: {
+            user: 'Користувач',
+        },
         scoring: {
             classic: 'Класичний підрахунок очок настільної гри',
             mafia: 'Команда проти команди, окремий модератор (Мафія)',
@@ -87,6 +97,12 @@ const messages = {
             icon: 'Ikoon',
             update: 'Uuenda',
             cancel: 'Tühista'
+        },
+        gameRounds: {
+            title: 'Mänguvoorud',
+        },
+        admin: {
+            user: 'Kasutaja',
         },
         scoring: {
             classic: 'Klassikaline lauamängu punktiarvestus',
