@@ -36,7 +36,16 @@ export const useGameStore = defineStore('game', {
             return savedRound;
         },
 
-        // ... other existing actions
+        async updateRound(round: GameRound): Promise<GameRound> {
+            const savedRound = await GameApi.updateGameRound(round);
+            const ix = this.activeRounds.findIndex(i => i.code === savedRound.code)
+            if (ix !== -1) {
+                this.activeRounds[ix] = savedRound;
+            } else {
+                this.activeRounds.push(savedRound);
+            }
+            return savedRound
+        }
     },
 
     getters: {

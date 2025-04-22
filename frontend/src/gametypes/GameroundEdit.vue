@@ -102,8 +102,15 @@ const round = ref<GameRound>({
   version: 0
 });
 
-const players = ref(Array<Player>());
-playerStore.allPlayers.then(v => players.value = v);
+const players = computed(() => playerStore.players.map(p => ({
+  code: p.code,
+  title: p.alias,
+  props: {
+    avatar: p.avatar,
+    prependAvatar: p.avatar,
+  }
+})));
+
 const gameTypes = computed(() => gameStore.gameTypes);
 const isEditing = computed(() => !!round.value.code);
 

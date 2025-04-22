@@ -99,8 +99,33 @@ export default {
             throw error;
         }
     },
+
     async createGameRound(round: GameRound): Promise<GameRound> {
-        return Promise.resolve({} as GameRound)
+        const response = await fetch('/api/game_rounds', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(round),
+        });
+        if (!response.ok) {
+            throw new Error('Error creating game round');
+        }
+        return await response.json();
+    },
+
+    async updateGameRound(round: GameRound): Promise<GameRound> {
+        const response = await fetch(`/api/game_rounds/${round.code}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(round),
+        })
+        if (!response.ok) {
+            throw new Error('Error updating game round');
+        }
+        return await response.json();
     },
 
     async listPlayers(): Promise<Player[]> {
@@ -125,7 +150,7 @@ export default {
             throw new Error('Failed to get current player');
         }
         return await response.json();
-    }
+    },
 };
 
 export interface GameRoundPlayer {
