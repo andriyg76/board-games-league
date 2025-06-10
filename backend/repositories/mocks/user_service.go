@@ -11,6 +11,11 @@ type MockUserService struct {
 	mock.Mock
 }
 
+func (m *MockUserService) FindAll(ctx context.Context) ([]*models.User, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*models.User), args.Error(1)
+}
+
 func (m *MockUserService) FindByID(ctx context.Context, ID primitive.ObjectID) (*models.User, error) {
 	args := m.Called(ctx, ID)
 	if user := args.Get(0); user != nil {

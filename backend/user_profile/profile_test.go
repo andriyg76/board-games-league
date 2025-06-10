@@ -22,5 +22,5 @@ func TestCreateAuthToken(t *testing.T) {
 	t.Log("Parsing profile: ")
 
 	restore, err := ParseProfile(token)
-	asserts.NoError(err).Equal([]string{user.Email}, restore.ExternalIDs).Equal("00", restore.ID)
+	asserts.NoError(err).Equal([]string{user.Email}, restore.ExternalIDs).Equal("00", restore.Code)
 }

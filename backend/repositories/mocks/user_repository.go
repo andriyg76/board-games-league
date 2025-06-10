@@ -12,6 +12,11 @@ type MockUserRepository struct {
 	mock2.Mock
 }
 
+func (m *MockUserRepository) ListAll(ctx context.Context) ([]*models.User, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*models.User), args.Error(1)
+}
+
 func (m *MockUserRepository) AliasUnique(ctx context.Context, alias string) (bool, error) {
 	args := m.Called(ctx, alias)
 	return args.Bool(0), args.Error(1)
