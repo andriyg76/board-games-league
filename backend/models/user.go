@@ -14,4 +14,6 @@ type User struct {
 	CreatedAt   time.Time          `bson:"created_at"`
 	UpdatedAt   time.Time          `bson:"updated_at"`
 	Alias       string             `bson:"alias"`
+	Names       []string           `bson:"names,omitempty"`
+	Avatars     []string           `bson:"avatars,omitempty"`
 }

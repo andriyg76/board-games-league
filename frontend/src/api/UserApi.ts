@@ -3,6 +3,8 @@ export interface User {
     name?: string;
     avatar?: string;
     alias?: string;
+    aliases?: string[];
+    names?: string[];
 }
 
 export default {

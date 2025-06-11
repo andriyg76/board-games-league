@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 )
@@ -72,6 +73,8 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
 			Alias:       "",
+			Names:       []string{externalUser.Name},
+			Avatars:     []string{externalUser.Avatar},
 		}
 		if isSuperAdmin(externalUser.ExternalIDs) {
 
@@ -114,21 +117,17 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 			}
 		}
 
-		if user.Name != externalUser.Name || user.Avatar != externalUser.Avatar {
-			user.Name = externalUser.Name
-			user.Avatar = externalUser.Avatar
+		if externalUser.Name != "" && !slices.Contains(user.Names, externalUser.Name) {
+			user.Names = append(user.Names, externalUser.Name)
+			updateProfile = true
+		}
+		if externalUser.Avatar != "" && !slices.Contains(user.Avatars, externalUser.Avatar) {
+			user.Avatars = append(user.Avatars, externalUser.Avatar)
 			updateProfile = true
 		}
 
 		for _, id := range externalUser.ExternalIDs {
-			found := false
-			for _, currentId := range user.ExternalIDs {
-				if currentId == id {
-					found = true
-					break
-				}
-			}
-			if !found {
+			if !slices.Contains(user.ExternalIDs, id) {
 				user.ExternalIDs = append(user.ExternalIDs, id)
 				updateProfile = true
 			}
