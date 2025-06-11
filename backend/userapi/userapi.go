@@ -83,7 +83,9 @@ func (h *Handler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 			Code:        utils.IdToCode(user.ID),
 			ExternalIDs: user.ExternalIDs,
 			Name:        user.Name,
+			Names:       user.Names,
 			Avatar:      user.Avatar,
+			Avatars:     user.Avatars,
 			Alias:       user.Alias,
 		}); err != nil {
 			_ = log.Error("serialising error %v", err)

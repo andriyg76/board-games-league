@@ -167,6 +167,8 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 		Name:        user.Name,
 		Avatar:      user.Avatar,
 		Alias:       user.Alias,
+		Avatars:     user.Avatars,
+		Names:       user.Names,
 	}); err != nil {
 		_ = glog.Error("serialising error %v", err)
 		http.Error(w, "serialising error", http.StatusInternalServerError)

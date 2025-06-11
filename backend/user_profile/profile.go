@@ -79,6 +79,8 @@ type UserResponse struct {
 	Code        string   `json:"code"`
 	ExternalIDs []string `json:"external_ids"`
 	Name        string   `json:"name"`
+	Names       []string `json:"names"`
 	Avatar      string   `json:"avatar"`
+	Avatars     []string `json:"avatars"`
 	Alias       string   `json:"alias"`
 }

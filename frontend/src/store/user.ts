@@ -5,6 +5,8 @@ interface User {
     name: string;
     avatar?: string;
     alias: string;
+    avatars?: string[];
+    names?: string[];
 }
 
 interface UserState {
