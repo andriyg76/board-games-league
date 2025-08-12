@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/andriyg76/glog v0.1.8
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
