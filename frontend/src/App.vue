@@ -15,6 +15,11 @@
             v-if="loggedIn"
             variant="text"
         >Game Types</v-btn>
+        <v-btn
+            to="/ui/leagues"
+            v-if="loggedIn"
+            variant="text"
+        >Leagues</v-btn>
         <gameround-menu-item v-if="loggedIn" />
         <v-btn
             to="/ui/user"
@@ -41,6 +46,11 @@
             v-if="loggedIn"
             to="/ui/admin/game-types"
             :title="t('gameTypes.title')"
+        />
+        <v-list-item
+            v-if="loggedIn"
+            to="/ui/leagues"
+            title="Leagues"
         />
         <v-list-item
             v-if="loggedIn"

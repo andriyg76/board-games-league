@@ -34,6 +34,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/gametypes/GameroundsList.vue')
   },
   {
+    path: '/ui/leagues',
+    name: 'Leagues',
+    component: () => import('@/gametypes/ListLeagues.vue')
+  },
+  {
     path: '/ui/game-rounds/new',
     name: 'NewGameRound',
     component: () => import('@/gametypes/GameroundEdit.vue')
