@@ -11,7 +11,7 @@ type GameRoundPlayer struct {
 	LabelName   string             `bson:"label_name,omitempty"`
 	Score       int64              `bson:"cooperative_score,omitempty"`
 	Position    int                `bson:"position,omitempty"`
-	PlayerID    primitive.ObjectID `bson:"_id,omitempty"`
+	PlayerID    primitive.ObjectID `bson:"player_id,omitempty"`
 }
 
 type TeamScore struct {
@@ -25,7 +25,7 @@ type GameRound struct {
 	Code             string             `bson:"-"`
 	Version          int64              `bson:"version"`
 	Name             string             `bson:"name"`
-	GameTypeID       primitive.ObjectID `bson:"_id,omitempty"`
+	GameTypeID       primitive.ObjectID `bson:"game_type_id,omitempty"`
 	StartTime        time.Time          `bson:"start_time"`
 	EndTime          time.Time          `bson:"end_time"`
 	Players          []GameRoundPlayer  `bson:"players"`

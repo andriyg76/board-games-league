@@ -103,7 +103,7 @@ func (h *Handler) AdminCreateUserHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if len(req.ExternalIDs) == 0 {
-		http.Error(w, "At leas one external ExternalIDs is required", http.StatusBadRequest)
+		http.Error(w, "At least one external ExternalIDs is required", http.StatusBadRequest)
 		return
 	}
 

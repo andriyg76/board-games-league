@@ -45,7 +45,7 @@ func ensureIndexes(r *UserRepositoryInstance) error {
 		},
 		{
 			Keys:    bson.M{"external_ids": 1},
-			Options: options.Index().SetUnique(true),
+			Options: options.Index(),
 		},
 	})
 	return err
