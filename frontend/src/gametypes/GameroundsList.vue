@@ -45,7 +45,7 @@ onMounted(async () => {
 const router = useRouter();
 
 const editRound = (round: GameRoundView) => {
-  router.push({ name: 'EditGameRound', params: { code: round.code }});
+  router.push({ name: 'EditGameRound', params: { id: round.code }});
 };
 
 const createNewRound = () => {
