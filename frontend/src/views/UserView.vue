@@ -47,12 +47,12 @@
                     label="Select Avatar"
                     class="mt-4"
                 >
-                  <template #item="{ _, item }">
+                  <template #item="{ item }">
                     <v-list-item :key="item.raw"
                                  :prepend-avatar="item.raw"
                     >select</v-list-item>
                   </template>
-                  <template #selection="{ _, item }">
+                  <template #selection="{ item }">
                     <v-avatar :image="item.raw" size="24" class="mr-2"></v-avatar>
                   </template>
                 </v-select>
