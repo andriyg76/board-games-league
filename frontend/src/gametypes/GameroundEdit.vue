@@ -121,7 +121,20 @@ const players = computed(() => {
     }
   }));
 });
+const players = ref<{ code: string; title: string; props: { avatar: string; prependAvatar: string } }[]>([]);
 
+// Load players using the async getter
+const loadPlayers = async () => {
+  const allPlayers = await playerStore.allPlayers();
+  players.value = allPlayers.map((p: Player) => ({
+    code: p.code,
+    title: p.alias,
+    props: {
+      avatar: p.avatar,
+      prependAvatar: p.avatar,
+    }
+  }));
+};
 const gameTypes = computed(() => gameStore.gameTypes);
 const isEditing = computed(() => !!round.value.code);
 
