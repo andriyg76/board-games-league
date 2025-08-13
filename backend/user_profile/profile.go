@@ -3,7 +3,7 @@ package user_profile
 import (
 	"github.com/andriyg76/bgl/utils"
 	"github.com/andriyg76/glog"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"os"
 	"time"
@@ -34,7 +34,26 @@ type UserProfile struct {
 	ExternalIDs []string `json:"ids"`
 	Name        string   `json:"name"`
 	Picture     string   `json:"picture"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
+}
+
+func (p UserProfile) GetExpirationTime() (*jwt.NumericDate, error) {
+	return p.ExpiresAt, nil
+}
+func (p UserProfile) GetIssuedAt() (*jwt.NumericDate, error) {
+	return p.IssuedAt, nil
+}
+func (p UserProfile) GetNotBefore() (*jwt.NumericDate, error) {
+	return p.NotBefore, nil
+}
+func (p UserProfile) GetIssuer() (string, error) {
+	return p.Issuer, nil
+}
+func (p UserProfile) GetSubject() (string, error) {
+	return p.Subject, nil
+}
+func (p UserProfile) GetAudience() (jwt.ClaimStrings, error) {
+	return p.Audience, nil
 }
 
 func CreateAuthToken(IDs []string, Code, name, avatar string) (string, error) {
@@ -46,9 +65,9 @@ func CreateAuthToken(IDs []string, Code, name, avatar string) (string, error) {
 		ExternalIDs: IDs,
 		Name:        name,
 		Picture:     avatar,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
-			IssuedAt:  time.Now().Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
@@ -58,7 +77,7 @@ func CreateAuthToken(IDs []string, Code, name, avatar string) (string, error) {
 
 func ParseProfile(cookie string) (*UserProfile, error) {
 	profile := &UserProfile{}
-	_, err := jwt.ParseWithClaims(cookie, profile, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(cookie, profile, func(token *jwt.Token) (any, error) {
 		return config.JwtSecret, nil
 	})
 	if err != nil {
