@@ -49,7 +49,7 @@ export const usePlayerStore = defineStore('player', {
                 state.loading = true;
                 try {
                     const player = await GameApi.getPlayer(code);
-                    if (!player) {
+                    if (player) {
                         state.players.push(player);
                     }
                     return player;
