@@ -39,6 +39,13 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 	gameType, err := h.gameTypeRepository.FindByName(r.Context(), req.Type)
 	if gameType == nil || err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error fetching game type")
+	if err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching game type")
+		return
+	}
+	if gameType == nil {
+		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, fmt.Errorf("game type %q not found", req.Type), "game type not found")
+		return
 	}
 
 	var teamScores []models.TeamScore
