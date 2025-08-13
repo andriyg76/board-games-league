@@ -3,7 +3,7 @@ package user_profile
 import (
 	"github.com/andriyg76/bgl/utils"
 	"github.com/andriyg76/glog"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"os"
 	"time"
@@ -29,20 +29,45 @@ func Test() {
 }
 
 type UserProfile struct {
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Picture string `json:"picture"`
-	jwt.StandardClaims
+	//ID is a player unique in database
+	Code        string   `json:"code"`
+	ExternalIDs []string `json:"ids"`
+	Name        string   `json:"name"`
+	Picture     string   `json:"picture"`
+	jwt.RegisteredClaims
 }
 
-func CreateAuthToken(email, name, avatar string) (string, error) {
+func (p UserProfile) GetExpirationTime() (*jwt.NumericDate, error) {
+	return p.ExpiresAt, nil
+}
+func (p UserProfile) GetIssuedAt() (*jwt.NumericDate, error) {
+	return p.IssuedAt, nil
+}
+func (p UserProfile) GetNotBefore() (*jwt.NumericDate, error) {
+	return p.NotBefore, nil
+}
+func (p UserProfile) GetIssuer() (string, error) {
+	return p.Issuer, nil
+}
+func (p UserProfile) GetSubject() (string, error) {
+	return p.Subject, nil
+}
+func (p UserProfile) GetAudience() (jwt.ClaimStrings, error) {
+	return p.Audience, nil
+}
+
+func CreateAuthToken(IDs []string, Code, name, avatar string) (string, error) {
+	if Code == "" {
+		return "", glog.Error("code should be specified for usertoken.")
+	}
 	claims := UserProfile{
-		Email:   email,
-		Name:    name,
-		Picture: avatar,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
-			IssuedAt:  time.Now().Unix(),
+		Code:        Code,
+		ExternalIDs: IDs,
+		Name:        name,
+		Picture:     avatar,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
@@ -52,19 +77,29 @@ func CreateAuthToken(email, name, avatar string) (string, error) {
 
 func ParseProfile(cookie string) (*UserProfile, error) {
 	profile := &UserProfile{}
-	_, error := jwt.ParseWithClaims(cookie, profile, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(cookie, profile, func(token *jwt.Token) (any, error) {
 		return config.JwtSecret, nil
 	})
-	if error != nil {
-		return nil, error
+	if err != nil {
+		return nil, err
 	}
-	return profile, error
+	return profile, err
 }
 
 func GetUserProfile(r *http.Request) (*UserProfile, error) {
 	profile, ok := r.Context().Value("user").(*UserProfile)
 	if !ok || profile == nil {
-		return nil, glog.Error("user profile is not found in profile")
+		return nil, glog.Error("user profile is not found in profile.")
 	}
 	return profile, nil
+}
+
+type UserResponse struct {
+	Code        string   `json:"code"`
+	ExternalIDs []string `json:"external_ids"`
+	Name        string   `json:"name"`
+	Names       []string `json:"names"`
+	Avatar      string   `json:"avatar"`
+	Avatars     []string `json:"avatars"`
+	Alias       string   `json:"alias"`
 }

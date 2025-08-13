@@ -1,5 +1,5 @@
 # Stage 1: Build the frontend
-FROM --platform=$BUILDPLATFORM node:16 as frontend-builder
+FROM --platform=$BUILDPLATFORM node:16 AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -10,7 +10,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build the backend
-FROM --platform=$BUILDPLATFORM golang:1.23 as backend-builder
+FROM --platform=$BUILDPLATFORM golang:1.24 AS backend-builder
 
 ARG TARGETARCH
 ARG TARGETOS

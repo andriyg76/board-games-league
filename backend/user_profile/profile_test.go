@@ -13,7 +13,7 @@ func TestCreateAuthToken(t *testing.T) {
 		AvatarURL: "http://example.com/avatar.jpg",
 	}
 
-	token, err := CreateAuthToken(user.Email, user.Name, user.AvatarURL)
+	token, err := CreateAuthToken([]string{user.Email}, "00", user.Name, user.AvatarURL)
 	asserts := asserts2.Get(t)
 	asserts.
 		NoError(err).
@@ -22,5 +22,5 @@ func TestCreateAuthToken(t *testing.T) {
 	t.Log("Parsing profile: ")
 
 	restore, err := ParseProfile(token)
-	asserts.NoError(err).Equal(user.Email, restore.Email)
+	asserts.NoError(err).Equal([]string{user.Email}, restore.ExternalIDs).Equal("00", restore.Code)
 }

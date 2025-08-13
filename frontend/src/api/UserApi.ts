@@ -1,8 +1,10 @@
 export interface User {
-    email?: string;
+    external_ids?: string[];
     name?: string;
-    picture?: string;
+    avatar?: string;
     alias?: string;
+    aliases?: string[];
+    names?: string[];
 }
 
 export default {
@@ -47,14 +49,14 @@ export default {
             throw new Error('Failed to update user');
         }
     },
-    async adminCreateUser(email: string): Promise<void> {
+    async adminCreateUser(external_ids: string[]): Promise<void> {
         try {
             const response = await fetch('/api/admin/user/create', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email }),
+                body: JSON.stringify({ external_ids }),
             });
 
             if (response.status === 201) {

@@ -1,18 +1,21 @@
 package main
 
 import (
-	"github.com/andriyg76/bgl/auth"
-	"github.com/andriyg76/bgl/db"
-	"github.com/andriyg76/bgl/frontendfs"
-	"github.com/andriyg76/bgl/repositories"
-	"github.com/andriyg76/bgl/userapi"
-	log "github.com/andriyg76/glog"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+
+	"github.com/andriyg76/bgl/auth"
+	"github.com/andriyg76/bgl/db"
+	"github.com/andriyg76/bgl/frontendfs"
+	"github.com/andriyg76/bgl/gameapi"
+	"github.com/andriyg76/bgl/repositories"
+	"github.com/andriyg76/bgl/services"
+	"github.com/andriyg76/bgl/userapi"
+	log "github.com/andriyg76/glog"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
@@ -26,31 +29,50 @@ func main() {
 
 	userRepository, err := repositories.NewUserRepository(mongodb)
 	if err != nil {
-		log.Fatal("Failed to initialise usersRepository")
+		log.Fatal("Failed to initialise usersRepository %v", err)
 	}
 
+	gameRoundRepository, err := repositories.NewGameRoundRepository(mongodb)
+	if err != nil {
+		log.Fatal("Failed to initialise gameRoundRepository %v", err)
+	}
+
+	gameTypeRepository, err := repositories.NewGameTypeRepository(mongodb)
+	if err != nil {
+		log.Fatal("Failed to initialise gameRoundRepository %v", err)
+	}
 	log.Info("Database connector initialised")
+
+	userService := services.NewUserService(userRepository)
+
+	log.Info("Services initialised...")
+
+	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository)
+	authHandler := auth.NewDefaultHandler(userRepository)
+	userProfileHandler := userapi.NewHandler(userRepository)
+
+	log.Info("Handlers instances connector initialised")
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
-	var provider auth.ExternalAuthProvider = auth.GothProvider{}
-
 	r.Route("/api", func(r chi.Router) {
-		r.Get("/auth/google", auth.HandleBeginLoginFlow(provider))
-		r.Post("/auth/google/callback", auth.GoogleCallbackHandler(userRepository, provider))
-		r.Post("/auth/logout", auth.LogoutHandler(userRepository, provider))
+		r.Get("/auth/google", authHandler.HandleBeginLoginFlow)
+		r.Post("/auth/google/callback", authHandler.GoogleCallbackHandler)
+		r.Post("/auth/logout", authHandler.LogoutHandler)
 
 		// Protected routes
 		r.Group(func(r chi.Router) {
-			r.Use(auth.Middleware(userRepository))
+			r.Use(authHandler.Middleware)
 			// Add your protected endpoints here
-			r.Get("/user", userapi.GetUserHandler(userRepository))
+			r.Get("/user", userProfileHandler.GetUserHandler)
 
-			r.Post("/user/alias/exist", userapi.CheckAliasUniquenessHandler(userRepository))
-			r.Put("/user/update", userapi.UpdateUser(userRepository))
+			r.Post("/user/alias/exist", userProfileHandler.CheckAliasUniquenessHandler)
+			r.Put("/user/update", userProfileHandler.UpdateUser)
 
-			r.Put("/admin/user/create", userapi.AdminCreateUserHandler(userRepository))
+			r.Put("/admin/user/create", userProfileHandler.AdminCreateUserHandler)
+
+			gameApiHandler.RegisterRoutes(r)
 		})
 		r.Handle("/*", http.NotFoundHandler())
 	})

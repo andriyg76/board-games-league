@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import GameTypesListGameTypes from "@/gametypes/ListGameTypes.vue";
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -21,6 +22,32 @@ const routes: Array<RouteRecordRaw> = [
     path: '/ui/admin/create-user', // constant at backend/auth/auth.go
     name: 'CreateUser',
     component: () => import('../components/CreateUser.vue'),
+  },
+  {
+    path: '/ui/admin/game-types',
+    name: 'CreateUser',
+    component: GameTypesListGameTypes,
+  },
+  {
+    path: '/ui/game-rounds',
+    name: 'GameRounds',
+    component: () => import('@/gametypes/GameroundsList.vue')
+  },
+  {
+    path: '/ui/leagues',
+    name: 'Leagues',
+    component: () => import('@/gametypes/ListLeagues.vue')
+  },
+  {
+    path: '/ui/game-rounds/new',
+    name: 'NewGameRound',
+    component: () => import('@/gametypes/GameroundEdit.vue')
+  },
+  {
+    path: '/ui/game-rounds/:id',
+    name: 'EditGameRound',
+    component: () => import('@/gametypes/GameroundEdit.vue'),
+    props: true
   },
 ]
 

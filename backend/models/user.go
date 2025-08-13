@@ -6,11 +6,14 @@ import (
 )
 
 type User struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Email     string             `bson:"email" json:"email"`
-	Name      string             `bson:"name" json:"name"`
-	Avatar    string             `bson:"picture,omitempty" json:"picture,omitempty"`
-	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
-	Alias     string             `bson:"alias"`
+	ID          primitive.ObjectID `bson:"_id,omitempty"`
+	Version     int64              `bson:"version"`
+	ExternalIDs []string           `bson:"external_ids"`
+	Name        string             `bson:"name"`
+	Avatar      string             `bson:"picture,omitempty"`
+	CreatedAt   time.Time          `bson:"created_at"`
+	UpdatedAt   time.Time          `bson:"updated_at"`
+	Alias       string             `bson:"alias"`
+	Names       []string           `bson:"names,omitempty"`
+	Avatars     []string           `bson:"avatars,omitempty"`
 }
