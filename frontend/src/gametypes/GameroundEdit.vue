@@ -109,7 +109,18 @@ const players = computed(() => playerStore.players.map(p => ({
     avatar: p.avatar,
     prependAvatar: p.avatar,
   }
-})));
+const players = computed(() => {
+  // Use a getter if available, otherwise fallback to an empty array
+  const playerList = playerStore.getPlayers ? playerStore.getPlayers : [];
+  return playerList.map((p: Player) => ({
+    code: p.code,
+    title: p.alias,
+    props: {
+      avatar: p.avatar,
+      prependAvatar: p.avatar,
+    }
+  }));
+});
 
 const gameTypes = computed(() => gameStore.gameTypes);
 const isEditing = computed(() => !!round.value.code);
