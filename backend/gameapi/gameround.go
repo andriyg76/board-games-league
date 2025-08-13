@@ -102,7 +102,7 @@ func (h *Handler) getUserInfo(context context.Context, ID primitive.ObjectID) (*
 }
 
 func (h *Handler) getGameRound(w http.ResponseWriter, r *http.Request) {
-	id, err := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
+	id, err := utils.GetIDFromChiURL(r, "id")
 	if err != nil {
 		http.Error(w, "Invalid game ID", http.StatusBadRequest)
 		return
