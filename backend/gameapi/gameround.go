@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"sort"
+	"time"
+
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"net/http"
-	"sort"
-	"time"
 )
 
 func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
@@ -38,13 +39,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 
 	gameType, err := h.gameTypeRepository.FindByName(r.Context(), req.Type)
 	if gameType == nil || err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error fetching game type")
-	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching game type")
-		return
-	}
-	if gameType == nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, fmt.Errorf("game type %q not found", req.Type), "game type not found")
+		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error fetching game type: "+req.Type)
 		return
 	}
 

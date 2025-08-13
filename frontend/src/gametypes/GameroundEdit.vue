@@ -102,16 +102,8 @@ const round = ref<GameRound>({
   version: 0
 });
 
-const players = computed(() => playerStore.players.map(p => ({
-  code: p.code,
-  title: p.alias,
-  props: {
-    avatar: p.avatar,
-    prependAvatar: p.avatar,
-  }
 const players = computed(() => {
-  // Use a getter if available, otherwise fallback to an empty array
-  const playerList = playerStore.getPlayers ? playerStore.getPlayers : [];
+  const playerList = playerStore.players || [];
   return playerList.map((p: Player) => ({
     code: p.code,
     title: p.alias,
@@ -121,20 +113,7 @@ const players = computed(() => {
     }
   }));
 });
-const players = ref<{ code: string; title: string; props: { avatar: string; prependAvatar: string } }[]>([]);
 
-// Load players using the async getter
-const loadPlayers = async () => {
-  const allPlayers = await playerStore.allPlayers();
-  players.value = allPlayers.map((p: Player) => ({
-    code: p.code,
-    title: p.alias,
-    props: {
-      avatar: p.avatar,
-      prependAvatar: p.avatar,
-    }
-  }));
-};
 const gameTypes = computed(() => gameStore.gameTypes);
 const isEditing = computed(() => !!round.value.code);
 

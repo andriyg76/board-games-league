@@ -1,6 +1,11 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
+
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/frontendfs"
@@ -11,10 +16,6 @@ import (
 	log "github.com/andriyg76/glog"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"os"
 )
 
 func main() {
@@ -28,17 +29,17 @@ func main() {
 
 	userRepository, err := repositories.NewUserRepository(mongodb)
 	if err != nil {
-		log.Fatal("Failed to initialise usersRepository")
+		log.Fatal("Failed to initialise usersRepository %v", err)
 	}
 
 	gameRoundRepository, err := repositories.NewGameRoundRepository(mongodb)
 	if err != nil {
-		log.Fatal("Failed to initialise gameRoundRepository")
+		log.Fatal("Failed to initialise gameRoundRepository %v", err)
 	}
 
 	gameTypeRepository, err := repositories.NewGameTypeRepository(mongodb)
 	if err != nil {
-		log.Fatal("Failed to initialise gameRoundRepository")
+		log.Fatal("Failed to initialise gameRoundRepository %v", err)
 	}
 	log.Info("Database connector initialised")
 
