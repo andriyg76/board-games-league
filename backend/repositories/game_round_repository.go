@@ -23,7 +23,7 @@ type gameRoundRepositoryInstance struct {
 	collection *mongo.Collection
 }
 
-func NewGameRoundRepository(mongodb *db.MongoDB) (*gameRoundRepositoryInstance, error) {
+func NewGameRoundRepository(mongodb *db.MongoDB) (GameRoundRepository, error) {
 	repo := &gameRoundRepositoryInstance{
 		collection: mongodb.Collection("game_rounds"),
 	}
