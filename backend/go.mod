@@ -6,7 +6,7 @@ toolchain go1.24.3
 
 require (
 	github.com/andriyg76/glog v0.1.8
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
