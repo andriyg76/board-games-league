@@ -100,6 +100,14 @@ export default {
         }
     },
 
+    async listGameRounds(): Promise<GameRound[]> {
+        const response = await fetch('/api/game_rounds');
+        if (!response.ok) {
+            throw new Error('Failed to load game rounds');
+        }
+        return await response.json();
+    },
+
     async createGameRound(round: GameRound): Promise<GameRound> {
         const response = await fetch('/api/game_rounds', {
             method: 'POST',
@@ -145,7 +153,7 @@ export default {
     },
 
     async getCurrentPlayer(): Promise<Player> {
-        const response = await fetch('/api/i_am');
+        const response = await fetch('/api/players/i_am');
         if (!response.ok) {
             throw new Error('Failed to get current player');
         }

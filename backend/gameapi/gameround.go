@@ -96,6 +96,16 @@ func (h *Handler) getUserInfo(context context.Context, ID primitive.ObjectID) (*
 	return h.userService.FindByID(context, ID)
 }
 
+func (h *Handler) listGameRounds(w http.ResponseWriter, r *http.Request) {
+	rounds, err := h.gameRoundRepository.FindAll(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, rounds, http.StatusOK)
+}
+
 func (h *Handler) getGameRound(w http.ResponseWriter, r *http.Request) {
 	id, err := utils.GetIDFromChiURL(r, "id")
 	if err != nil {

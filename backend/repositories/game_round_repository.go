@@ -15,6 +15,7 @@ import (
 type GameRoundRepository interface {
 	Create(ctx context.Context, round *models.GameRound) error
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.GameRound, error)
+	FindAll(ctx context.Context) ([]*models.GameRound, error)
 	Update(ctx context.Context, round *models.GameRound) error
 	Delete(ctx context.Context, id primitive.ObjectID) error
 }
@@ -83,6 +84,22 @@ func (r *gameRoundRepositoryInstance) FindByID(ctx context.Context, id primitive
 		return nil, nil
 	}
 	return &round, err
+}
+
+func (r *gameRoundRepositoryInstance) FindAll(ctx context.Context) ([]*models.GameRound, error) {
+	opts := options.Find().SetSort(bson.D{{"start_time", -1}})
+	cursor, err := r.collection.Find(ctx, bson.M{}, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var rounds []*models.GameRound
+	if err = cursor.All(ctx, &rounds); err != nil {
+		return nil, err
+	}
+
+	return rounds, nil
 }
 
 func (r *gameRoundRepositoryInstance) Update(ctx context.Context, round *models.GameRound) error {
