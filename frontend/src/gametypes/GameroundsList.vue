@@ -21,7 +21,7 @@
             </template>
             <template v-slot:append>
               <v-btn @click="editRound(round)" color="primary" class="mr-2">Edit</v-btn>
-              <v-btn v-if="!round.end_time" @click="finalizeRound(round.code)" color="success">Finalize</v-btn>
+              <v-btn v-if="!round.end_time" @click="openFinalizeDialog(round.code)" color="success">Finalize</v-btn>
             </template>
           </v-list-item>
         </v-list>
@@ -35,6 +35,12 @@
         </v-btn>
       </v-col>
     </v-row>
+
+    <FinalizeGameDialog
+      v-model="showFinalizeDialog"
+      :round-code="selectedRoundCode"
+      @finalized="handleFinalized"
+    />
   </v-container>
 </template>
 
@@ -43,26 +49,22 @@ import { ref, onMounted } from 'vue';
 import { GameRoundView } from './types';
 import { useRouter } from 'vue-router';
 import GameApi from '@/api/GameApi';
+import FinalizeGameDialog from './FinalizeGameDialog.vue';
+
+const router = useRouter();
 
 const gameRounds = ref<GameRoundView[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
+const showFinalizeDialog = ref(false);
+const selectedRoundCode = ref('');
+
 const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString();
 };
 
-const finalizeRound = async (code: string) => {
-  try {
-    // Navigate to the finalization page or implement inline finalization
-    router.push({ name: 'EditGameRound', params: { id: code }});
-  } catch (err) {
-    console.error('Error finalizing round:', err);
-    error.value = 'Failed to finalize game round';
-  }
-};
-
-onMounted(async () => {
+const loadGameRounds = async () => {
   loading.value = true;
   error.value = null;
   try {
@@ -73,9 +75,16 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
+};
 
-const router = useRouter();
+const openFinalizeDialog = (code: string) => {
+  selectedRoundCode.value = code;
+  showFinalizeDialog.value = true;
+};
+
+const handleFinalized = async () => {
+  await loadGameRounds();
+};
 
 const editRound = (round: GameRoundView) => {
   router.push({ name: 'EditGameRound', params: { id: round.code }});
@@ -84,4 +93,8 @@ const editRound = (round: GameRoundView) => {
 const createNewRound = () => {
   router.push({ name: 'NewGameRound' });
 };
+
+onMounted(async () => {
+  await loadGameRounds();
+});
 </script>
