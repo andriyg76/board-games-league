@@ -14,6 +14,7 @@ type Handler struct {
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/game_rounds", func(r chi.Router) {
+		r.Get("/", h.listGameRounds)
 		r.Post("/", h.startGame)
 		r.Get("/{code}", h.getGameRound)
 		r.Put("/{code}/finalize", h.finalizeGame)

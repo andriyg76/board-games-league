@@ -100,6 +100,14 @@ export default {
         }
     },
 
+    async listGameRounds(): Promise<GameRound[]> {
+        const response = await fetch('/api/game_rounds');
+        if (!response.ok) {
+            throw new Error('Failed to load game rounds');
+        }
+        return await response.json();
+    },
+
     async createGameRound(round: GameRound): Promise<GameRound> {
         const response = await fetch('/api/game_rounds', {
             method: 'POST',
@@ -128,6 +136,27 @@ export default {
         return await response.json();
     },
 
+    async finalizeGameRound(code: string, finalizationData: FinalizeGameRoundRequest): Promise<void> {
+        const response = await fetch(`/api/game_rounds/${code}/finalize`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(finalizationData),
+        });
+        if (!response.ok) {
+            throw new Error('Error finalizing game round');
+        }
+    },
+
+    async getGameRound(code: string): Promise<GameRound> {
+        const response = await fetch(`/api/game_rounds/${code}`);
+        if (!response.ok) {
+            throw new Error('Failed to get game round');
+        }
+        return await response.json();
+    },
+
     async listPlayers(): Promise<Player[]> {
         const response = await fetch('/api/players');
         if (!response.ok) {
@@ -145,7 +174,7 @@ export default {
     },
 
     async getCurrentPlayer(): Promise<Player> {
-        const response = await fetch('/api/i_am');
+        const response = await fetch('/api/players/i_am');
         if (!response.ok) {
             throw new Error('Failed to get current player');
         }
@@ -173,4 +202,10 @@ export interface Player {
     code: string,
     alias: string,
     avatar: string,
+}
+
+export interface FinalizeGameRoundRequest {
+    player_scores: Record<string, number>;
+    team_scores?: Record<string, number>;
+    cooperative_score?: number;
 }

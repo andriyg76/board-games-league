@@ -3,46 +3,88 @@
     <v-row>
       <v-col>
         <h2>Game Rounds</h2>
-        <v-list>
-          <v-list-item v-for="round in gameRounds" :key="round.id">
-            <v-list-item-content>
+
+        <v-alert v-if="error" type="error" class="mb-4">
+          {{ error }}
+        </v-alert>
+
+        <v-progress-circular v-if="loading" indeterminate color="primary" />
+
+        <v-list v-else-if="gameRounds.length > 0">
+          <v-list-item v-for="round in gameRounds" :key="round.code">
+            <template v-slot:default>
               <v-list-item-title>{{ round.name }}</v-list-item-title>
               <v-list-item-subtitle>
                 Started: {{ formatDate(round.start_time) }}
                 {{ round.end_time ? `| Ended: ${formatDate(round.end_time)}` : '' }}
               </v-list-item-subtitle>
-            </v-list-item-content>
-            <v-list-item-action>
-              <v-btn @click="editRound(round)" color="primary">Edit</v-btn>
-              <v-btn v-if="!round.end_time" @click="finalizeRound(round.id)" color="success">Finalize</v-btn>
-            </v-list-item-action>
+            </template>
+            <template v-slot:append>
+              <v-btn @click="editRound(round)" color="primary" class="mr-2">Edit</v-btn>
+              <v-btn v-if="!round.end_time" @click="openFinalizeDialog(round.code)" color="success">Finalize</v-btn>
+            </template>
           </v-list-item>
         </v-list>
+
+        <v-alert v-else type="info">
+          No game rounds found. Create one to get started!
+        </v-alert>
+
+        <v-btn @click="createNewRound" color="primary" class="mt-4">
+          Create New Round
+        </v-btn>
       </v-col>
     </v-row>
+
+    <FinalizeGameDialog
+      v-model="showFinalizeDialog"
+      :round-code="selectedRoundCode"
+      @finalized="handleFinalized"
+    />
   </v-container>
 </template>
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
 import { GameRoundView } from './types';
-import {useRouter} from "vue-router";
+import { useRouter } from 'vue-router';
+import GameApi from '@/api/GameApi';
+import FinalizeGameDialog from './FinalizeGameDialog.vue';
+
+const router = useRouter();
 
 const gameRounds = ref<GameRoundView[]>([]);
+const loading = ref(false);
+const error = ref<string | null>(null);
+
+const showFinalizeDialog = ref(false);
+const selectedRoundCode = ref('');
 
 const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString();
 };
 
-const finalizeRound = (id: string) => {
-  // Implement finalization logic
+const loadGameRounds = async () => {
+  loading.value = true;
+  error.value = null;
+  try {
+    gameRounds.value = await GameApi.listGameRounds();
+  } catch (err) {
+    console.error('Error fetching game rounds:', err);
+    error.value = 'Failed to load game rounds';
+  } finally {
+    loading.value = false;
+  }
 };
 
-onMounted(async () => {
-  // Fetch game rounds
-});
+const openFinalizeDialog = (code: string) => {
+  selectedRoundCode.value = code;
+  showFinalizeDialog.value = true;
+};
 
-const router = useRouter();
+const handleFinalized = async () => {
+  await loadGameRounds();
+};
 
 const editRound = (round: GameRoundView) => {
   router.push({ name: 'EditGameRound', params: { id: round.code }});
@@ -51,4 +93,8 @@ const editRound = (round: GameRoundView) => {
 const createNewRound = () => {
   router.push({ name: 'NewGameRound' });
 };
+
+onMounted(async () => {
+  await loadGameRounds();
+});
 </script>
