@@ -3,7 +3,13 @@
     <v-row>
       <v-col>
         <h2>{{ isEditing ? 'Edit Game Round' : 'New Game Round' }}</h2>
-        <v-form @submit.prevent="saveRound">
+
+        <div v-if="loadingRound" class="text-center pa-4">
+          <v-progress-circular indeterminate color="primary" size="64" />
+          <p class="mt-4">Loading game round...</p>
+        </div>
+
+        <v-form v-else @submit.prevent="saveRound">
           <v-row>
             <v-col cols="9">
               <v-select
@@ -86,12 +92,18 @@ import { ref, computed, onMounted } from 'vue';
 import { useGameStore } from '@/store/game';
 import { usePlayerStore } from '@/store/player';
 import { useRouter } from 'vue-router';
-import {GameRound, GameRoundPlayer, Player} from '@/api/GameApi';
+import { GameRound, GameRoundPlayer, Player } from '@/api/GameApi';
+import GameApi from '@/api/GameApi';
+
+const props = defineProps<{
+  id?: string;
+}>();
 
 const router = useRouter();
 const gameStore = useGameStore();
 const playerStore = usePlayerStore();
 const loading = ref(false);
+const loadingRound = ref(false);
 
 const round = ref<GameRound>({
   code: '',
@@ -106,6 +118,7 @@ const players = computed(() => {
   const playerList = playerStore.players || [];
   return playerList.map((p: Player) => ({
     code: p.code,
+    alias: p.alias,
     title: p.alias,
     props: {
       avatar: p.avatar,
@@ -120,6 +133,27 @@ const isEditing = computed(() => !!round.value.code);
 const selectedGameType = computed(() =>
     gameTypes.value.find(gt => gt.code === round.value.game_type)
 );
+
+const loadGameRound = async () => {
+  if (!props.id) return;
+
+  loadingRound.value = true;
+  try {
+    const loadedRound = await GameApi.getGameRound(props.id);
+    round.value = {
+      code: props.id,
+      name: loadedRound.name,
+      game_type: loadedRound.game_type,
+      start_time: loadedRound.start_time,
+      players: loadedRound.players,
+      version: loadedRound.version
+    };
+  } catch (error) {
+    console.error('Error loading game round:', error);
+  } finally {
+    loadingRound.value = false;
+  }
+};
 
 const startRound = async () => {
   if (!round.value.game_type) return;
@@ -159,11 +193,24 @@ const saveRound = async () => {
 
 onMounted(async () => {
   try {
+    // Load game types first
     if (gameStore.gameTypes.length === 0) {
       await gameStore.loadGameTypes();
     }
+
+    // Load players
+    if (!playerStore.players || playerStore.players.length === 0) {
+      await GameApi.listPlayers().then(p => {
+        playerStore.players = p;
+      });
+    }
+
+    // If editing, load the game round
+    if (props.id) {
+      await loadGameRound();
+    }
   } catch (error) {
-    console.error('Failed to load game types:', error);
+    console.error('Failed to load data:', error);
   }
 });
 </script>

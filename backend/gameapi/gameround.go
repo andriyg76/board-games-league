@@ -130,6 +130,61 @@ func (h *Handler) getGameRound(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) updateGameRound(w http.ResponseWriter, r *http.Request) {
+	id, err := utils.GetIDFromChiURL(r, "code")
+	if err != nil {
+		http.Error(w, "Invalid game ID", http.StatusBadRequest)
+		return
+	}
+
+	var req updateGameRoundRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	round, err := h.gameRoundRepository.FindByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if round == nil {
+		http.Error(w, "Game round not found", http.StatusNotFound)
+		return
+	}
+
+	// Update basic fields
+	round.Name = req.Name
+
+	// Update players if provided
+	if len(req.Players) > 0 {
+		players := make([]models.GameRoundPlayer, 0, len(req.Players))
+		for _, p := range req.Players {
+			userID, err := utils.CodeToID(p.UserID)
+			if err != nil {
+				http.Error(w, "Invalid user ID", http.StatusBadRequest)
+				return
+			}
+
+			players = append(players, models.GameRoundPlayer{
+				PlayerID:    userID,
+				Position:    p.Position,
+				Score:       p.Score,
+				IsModerator: p.IsModerator,
+				TeamName:    p.TeamName,
+			})
+		}
+		round.Players = players
+	}
+
+	if err := h.gameRoundRepository.Update(r.Context(), round); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, round, http.StatusOK)
+}
+
 func (h *Handler) updatePlayerScore(w http.ResponseWriter, r *http.Request) {
 	id, err := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
 	if err != nil {
@@ -266,6 +321,19 @@ type finalizeGameRequest struct {
 	PlayerScores     map[string]int64 `json:"player_scores"`
 	TeamScores       map[string]int64 `json:"team_scores,omitempty"`
 	CooperativeScore int64            `json:"cooperative_score,omitempty"`
+}
+
+type updateGameRoundRequest struct {
+	Name    string                  `json:"name"`
+	Players []updatePlayerSetup     `json:"players"`
+}
+
+type updatePlayerSetup struct {
+	UserID      string `json:"user_id"`
+	Position    int    `json:"position"`
+	Score       int64  `json:"score"`
+	IsModerator bool   `json:"is_moderator"`
+	TeamName    string `json:"team_name,omitempty"`
 }
 
 type startGameRequest struct {

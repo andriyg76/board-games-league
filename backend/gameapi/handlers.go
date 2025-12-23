@@ -17,6 +17,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/", h.listGameRounds)
 		r.Post("/", h.startGame)
 		r.Get("/{code}", h.getGameRound)
+		r.Put("/{code}", h.updateGameRound)
 		r.Put("/{code}/finalize", h.finalizeGame)
 		r.Put("/{code}/players/{userId}/score", h.updatePlayerScore)
 	})
