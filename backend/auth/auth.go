@@ -12,6 +12,7 @@ import (
 	"github.com/andriyg76/glog"
 	"github.com/gorilla/sessions"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
@@ -22,6 +23,14 @@ import (
 
 // Load super admins from environment variable
 var superAdmins = strings.Split(os.Getenv("SUPERADMINS"), ",")
+
+func stripPort(remoteAddr string) string {
+	remoteAddr = strings.TrimSpace(remoteAddr)
+	if host, _, err := net.SplitHostPort(remoteAddr); err == nil && host != "" {
+		return host
+	}
+	return remoteAddr
+}
 
 func init() {
 	glog.Info("Registered superadmins: %v", superAdmins)
@@ -145,9 +154,9 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Create session with rotate token and action token
-	ipAddress := r.RemoteAddr
+	ipAddress := stripPort(r.RemoteAddr)
 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		ipAddress = strings.Split(forwarded, ",")[0]
+		ipAddress = strings.TrimSpace(strings.Split(forwarded, ",")[0])
 	}
 	userAgent := r.Header.Get("User-Agent")
 	userCode := utils.IdToCode(user.ID)
@@ -219,9 +228,9 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	rotateToken := parts[1]
 
 	// Get IP and user agent for session tracking
-	ipAddress := r.RemoteAddr
+	ipAddress := stripPort(r.RemoteAddr)
 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		ipAddress = strings.Split(forwarded, ",")[0]
+		ipAddress = strings.TrimSpace(strings.Split(forwarded, ",")[0])
 	}
 	userAgent := r.Header.Get("User-Agent")
 

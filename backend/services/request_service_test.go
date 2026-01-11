@@ -50,4 +50,3 @@ func TestRequestService_IsTrustedOrigin_NoTrustedOriginsAllowsAll(t *testing.T) 
 		t.Fatalf("expected allow-all when trusted origins not configured")
 	}
 }
-

@@ -2,8 +2,8 @@ package services
 
 import (
 	"net"
-	"net/url"
 	"net/http"
+	"net/url"
 	"strings"
 )
 

@@ -19,7 +19,7 @@ export interface GeoIPInfo {
 }
 
 export interface SessionInfo {
-    rotate_token: string;
+    id: string;
     ip_address: string;
     user_agent: string;
     created_at: string;
@@ -94,12 +94,14 @@ export default {
         }
     },
     async getUserSessions(currentRotateToken?: string): Promise<SessionInfo[]> {
-        const url = currentRotateToken 
-            ? `/api/user/sessions?current=${encodeURIComponent(currentRotateToken)}`
-            : '/api/user/sessions';
-        
-        const response = await fetch(url, {
+        const headers: HeadersInit = {};
+        if (currentRotateToken) {
+            headers['Authorization'] = `Bearer ${currentRotateToken}`;
+        }
+
+        const response = await fetch('/api/user/sessions', {
             credentials: 'include',
+            headers,
         });
 
         if (!response.ok) {

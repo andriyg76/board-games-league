@@ -10,6 +10,7 @@ import (
 	"github.com/andriyg76/bgl/utils"
 	log "github.com/andriyg76/glog"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -146,15 +147,15 @@ func (h *Handler) AdminCreateUserHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type SessionInfo struct {
-	ID             string              `json:"id"`
-	IPAddress      string              `json:"ip_address"`
-	UserAgent      string              `json:"user_agent"`
-	CreatedAt      time.Time           `json:"created_at"`
-	UpdatedAt      time.Time           `json:"updated_at"`
-	LastRotationAt time.Time           `json:"last_rotation_at"`
-	ExpiresAt      time.Time           `json:"expires_at"`
-	IsCurrent      bool                `json:"is_current"`
-	GeoInfo        *models.GeoIPInfo   `json:"geo_info,omitempty"`
+	ID             string            `json:"id"`
+	IPAddress      string            `json:"ip_address"`
+	UserAgent      string            `json:"user_agent"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
+	LastRotationAt time.Time         `json:"last_rotation_at"`
+	ExpiresAt      time.Time         `json:"expires_at"`
+	IsCurrent      bool              `json:"is_current"`
+	GeoInfo        *models.GeoIPInfo `json:"geo_info,omitempty"`
 }
 
 func (h *Handler) GetUserSessionsHandler(w http.ResponseWriter, r *http.Request) {
@@ -219,6 +220,7 @@ func (h *Handler) GetUserSessionsHandler(w http.ResponseWriter, r *http.Request)
 		sessionInfos = append(sessionInfos, sessionInfo)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(sessionInfos); err != nil {
 		_ = log.Error("serialising error %v", err)
 		http.Error(w, "serialising error", http.StatusInternalServerError)
@@ -226,9 +228,9 @@ func (h *Handler) GetUserSessionsHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type Handler struct {
-	userRepository   repositories.UserRepository
+	userRepository    repositories.UserRepository
 	sessionRepository repositories.SessionRepository
-	geoIPService     services.GeoIPService
+	geoIPService      services.GeoIPService
 }
 
 func NewHandler(userRepository repositories.UserRepository) *Handler {
@@ -239,8 +241,8 @@ func NewHandler(userRepository repositories.UserRepository) *Handler {
 
 func NewHandlerWithServices(userRepository repositories.UserRepository, sessionRepository repositories.SessionRepository, geoIPService services.GeoIPService) *Handler {
 	return &Handler{
-		userRepository:   userRepository,
+		userRepository:    userRepository,
 		sessionRepository: sessionRepository,
-		geoIPService:     geoIPService,
+		geoIPService:      geoIPService,
 	}
 }

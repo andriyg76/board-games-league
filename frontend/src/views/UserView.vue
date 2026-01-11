@@ -89,7 +89,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="session in sessions" :key="session.rotate_token" :class="{ 'bg-blue-lighten-5': session.is_current }">
+                  <tr v-for="session in sessions" :key="session.id" :class="{ 'bg-blue-lighten-5': session.is_current }">
                     <td>
                       <span v-if="session.geo_info">
                         {{ session.geo_info.city || '' }}{{ session.geo_info.city && session.geo_info.country ? ', ' : '' }}{{ session.geo_info.country || '' }}
