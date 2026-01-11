@@ -1,5 +1,5 @@
 # Stage 1: Build the frontend
-FROM --platform=$BUILDPLATFORM node:16 AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:22 AS frontend-builder
 
 ARG BUILD_VERSION=unknown
 ARG BUILD_COMMIT=unknown
