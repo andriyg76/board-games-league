@@ -26,8 +26,10 @@ func (n *noopSessionService) CreateSession(ctx context.Context, userID primitive
 func (n *noopSessionService) RefreshActionToken(ctx context.Context, rotateToken, ipAddress, userAgent string) (newRotateToken, actionToken string, err error) {
 	return "", "", nil
 }
-func (n *noopSessionService) InvalidateSession(ctx context.Context, rotateToken string) error { return nil }
-func (n *noopSessionService) CleanupExpiredSessions(ctx context.Context) error                 { return nil }
+func (n *noopSessionService) InvalidateSession(ctx context.Context, rotateToken string) error {
+	return nil
+}
+func (n *noopSessionService) CleanupExpiredSessions(ctx context.Context) error { return nil }
 
 func setupTestRouter(mockUserRepo repositories.UserRepository, provider auth.ExternalAuthProvider) *chi.Mux {
 	r := chi.NewRouter()

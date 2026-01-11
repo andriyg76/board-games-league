@@ -1,5 +1,7 @@
 import {User} from "@/api/UserApi";
 
+type AuthCallbackResponse = User & { rotateToken?: string };
+
 export default {
     startLoginEntrypoint(provider: string) {
         const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -43,11 +45,11 @@ export default {
             throw new Error('Auth callback failed');
         }
 
-        const data = await response.json() || {};
+        const data = (await response.json() || {}) as AuthCallbackResponse;
         
         // Store rotateToken in localStorage if provided
-        if ((data as any).rotateToken) {
-            localStorage.setItem('rotateToken', (data as any).rotateToken);
+        if (data.rotateToken) {
+            localStorage.setItem('rotateToken', data.rotateToken);
         }
         
         return data;
