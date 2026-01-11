@@ -1,97 +1,99 @@
-# Documentation Index
+# Індекс документації
 
-## Session and Account Management
+*[English version](README.en.md)*
 
-- **[SESSION_MANAGEMENT.md](SESSION_MANAGEMENT.md)** - Comprehensive guide to the session management system, including:
-  - Architecture overview
-  - Token system (rotate tokens and action tokens)
-  - Component documentation
-  - Configuration
-  - Usage examples
-  - Security features
-  - Troubleshooting
+## Керування сесіями та обліковими записами
 
-- **[API_REFERENCE.md](API_REFERENCE.md)** - Complete API documentation:
-  - Authentication endpoints
-  - User endpoints
-  - Admin endpoints
-  - Game type endpoints
-  - Game round endpoints
-  - Player endpoints
-  - Request/response formats
-  - Error codes
-  - Authentication flow
+- **[SESSION_MANAGEMENT.md](SESSION_MANAGEMENT.md)** - Повний посібник системи керування сесіями, включаючи:
+  - Огляд архітектури
+  - Система токенів (токени обертання та токени дії)
+  - Документація компонентів
+  - Конфігурація
+  - Приклади використання
+  - Функції безпеки
+  - Усунення проблем
 
-## Game Management
+- **[API_REFERENCE.md](API_REFERENCE.md)** - Повна документація API:
+  - Точки доступу аутентифікації
+  - Користувацькі точки доступу
+  - Адміністративні точки доступу
+  - Точки доступу типів ігор
+  - Точки доступу ігрових раундів
+  - Точки доступу гравців
+  - Формати запитів/відповідей
+  - Коди помилок
+  - Потік аутентифікації
 
-- **[GAME_MANAGEMENT.md](GAME_MANAGEMENT.md)** - Complete guide to game management features:
-  - Game types configuration
-  - Scoring types (classic, cooperative, team-based, mafia)
-  - Labels and teams
-  - Game rounds lifecycle
-  - Player management
-  - Frontend components
-  - API examples
-  - Database collections
+## Керування іграми
 
-## Key Features
+- **[GAME_MANAGEMENT.md](GAME_MANAGEMENT.md)** - Повний посібник функцій керування іграми:
+  - Налаштування типів ігор
+  - Типи підрахунку очок (класичний, кооперативний, командний, мафія)
+  - Мітки та команди
+  - Життєвий цикл ігрових раундів
+  - Керування гравцями
+  - Клієнтські компоненти
+  - Приклади API
+  - Колекції бази даних
 
-### Game Management
-- Multiple scoring types (classic, cooperative, team vs team, mafia)
-- Game type configuration with labels and teams
-- Game round tracking with start/end times
-- Player score and position tracking
-- Team scores for team-based games
-- Cooperative scoring support
+## Ключові функції
 
-### Session Management
-- Hybrid token system (rotate tokens + action tokens)
-- Automatic token rotation every 12 hours
-- Session tracking with IP address and user agent
-- Geolocation integration
-- Multiple concurrent sessions per user
+### Керування іграми
+- Множинні типи підрахунку очок (класичний, кооперативний, команда проти команди, мафія)
+- Налаштування типів ігор з мітками та командами
+- Відстеження ігрових раундів з часом початку/завершення
+- Відстеження очок та позицій гравців
+- Командні очки для командних ігор
+- Підтримка кооперативного підрахунку очок
 
-### Security
-- HTTP-only cookies for action tokens
-- Secure, SameSite cookie settings
-- Token expiration and rotation
-- Session expiration (30 days)
-- Optimistic locking for concurrency
+### Керування сесіями
+- Гібридна система токенів (токени обертання + токени дії)
+- Автоматичне обертання токенів кожні 12 годин
+- Відстеження сесій з IP адресою та user agent
+- Інтеграція геолокації
+- Множинні одночасні сесії на користувача
 
-### Diagnostics
-- Admin-only diagnostics endpoint
-- Request information (IP, origin, user agent)
-- Geolocation data
-- Server configuration display
-- Trusted origins validation
-- Build information (version, commit, branch, date)
+### Безпека
+- HTTP-only cookies для токенів дії
+- Налаштування Secure, SameSite для cookies
+- Завершення терміну дії та обертання токенів
+- Завершення терміну дії сесій (30 днів)
+- Оптимістичне блокування для конкурентності
 
-### User Features
-- Session information display
-- Active sessions list
-- Current session indicator
-- Geographic location display
-- Session activity tracking
-- Player profile management
+### Діагностика
+- Точка доступу діагностики тільки для адмінів
+- Інформація про запити (IP, походження, user agent)
+- Дані геолокації
+- Відображення конфігурації сервера
+- Валідація довірених джерел
+- Інформація про збірку (версія, коміт, гілка, дата)
 
-## Getting Started
+### Функції користувача
+- Відображення інформації про сесії
+- Список активних сесій
+- Індикатор поточної сесії
+- Відображення географічного місцезнаходження
+- Відстеження активності сесій
+- Керування профілем гравця
 
-1. Configure environment variables (see [SESSION_MANAGEMENT.md](SESSION_MANAGEMENT.md#configuration))
-2. Set up MongoDB connection
-3. Configure Google OAuth credentials
-4. Set super admin external IDs
-5. (Optional) Configure trusted origins
+## Початок роботи
 
-## Architecture Overview
+1. Налаштуйте змінні середовища (див. [SESSION_MANAGEMENT.md](SESSION_MANAGEMENT.md#конфігурація))
+2. Налаштуйте підключення до MongoDB
+3. Налаштуйте облікові дані Google OAuth
+4. Встановіть зовнішні ID супер-адміністраторів
+5. (Опціонально) Налаштуйте довірені джерела
+
+## Огляд архітектури
 
 ```
 ┌─────────────┐
-│   Client    │
-│  (Browser)  │
+│   Клієнт    │
+│  (Браузер)  │
 └──────┬──────┘
        │
-       │ HTTP Requests
-       │ (actionToken cookie)
+       │ HTTP запити
+       │ (cookie actionToken)
        │
 ┌──────▼──────────┐
 │   Backend API   │
@@ -108,16 +110,16 @@
        ┌─────────┘
        │
 ┌──────▼──────┐
-│   Services  │
+│   Сервіси   │
 │  - Session  │
 │  - Request  │
 │  - GeoIP    │
 └─────────────┘
 ```
 
-## Related Documentation
+## Пов'язана документація
 
-- Backend code: `backend/`
-- Frontend code: `frontend/`
-- Configuration: Environment variables
-- Database: MongoDB collections and indexes
+- Backend код: `backend/`
+- Frontend код: `frontend/`
+- Конфігурація: Змінні середовища
+- База даних: Колекції та індекси MongoDB
