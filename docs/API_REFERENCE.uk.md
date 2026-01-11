@@ -145,7 +145,7 @@
 ```json
 [
   {
-    "rotate_token": "token_string",
+    "id": "session_id",
     "ip_address": "192.168.1.1",
     "user_agent": "Mozilla/5.0...",
     "created_at": "2024-01-01T00:00:00Z",
@@ -247,6 +247,12 @@
   "server_info": {
     "host_url": "http://localhost:8080",
     "trusted_origins": ["http://localhost:3000"]
+  },
+  "build_info": {
+    "version": "1.0.0",
+    "commit": "abc123",
+    "branch": "main",
+    "date": "2024-01-01T00:00:00Z"
   },
   "request_info": {
     "ip_address": "192.168.1.1",

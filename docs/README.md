@@ -64,6 +64,7 @@
 - Geolocation data
 - Server configuration display
 - Trusted origins validation
+- Build information (version, commit, branch, date)
 
 ### User Features
 - Session information display
