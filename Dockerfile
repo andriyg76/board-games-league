@@ -63,12 +63,8 @@ WORKDIR /app
 # Install necessary packages
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy both binaries
-COPY --from=backend-builder /app/main-amd64 ./main-amd64
-COPY --from=backend-builder /app/main-arm64 ./main-arm64
-
-# Select the correct binary based on target architecture
-RUN cp ./main-${TARGETARCH} ./main && rm ./main-amd64 ./main-arm64
+# Copy the correct binary for target architecture
+COPY --from=backend-builder /app/main-${TARGETARCH} ./main
 
 # Expose the port the app runs on
 EXPOSE 8080
