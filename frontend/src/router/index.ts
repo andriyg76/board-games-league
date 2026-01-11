@@ -29,6 +29,11 @@ const routes: Array<RouteRecordRaw> = [
     component: GameTypesListGameTypes,
   },
   {
+    path: '/ui/admin/diagnostics',
+    name: 'Diagnostics',
+    component: () => import('../views/DiagnosticsView.vue'),
+  },
+  {
     path: '/ui/game-rounds',
     name: 'GameRounds',
     component: () => import('@/gametypes/GameroundsList.vue')

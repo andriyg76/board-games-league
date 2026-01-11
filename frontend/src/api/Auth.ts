@@ -31,6 +31,13 @@ export default {
             throw new Error('Auth callback failed');
         }
 
-        return await response.json() || {};
+        const data = await response.json() || {};
+        
+        // Store rotateToken in localStorage if provided
+        if ((data as any).rotateToken) {
+            localStorage.setItem('rotateToken', (data as any).rotateToken);
+        }
+        
+        return data;
     }
 }

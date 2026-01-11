@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
+	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	log "github.com/andriyg76/glog"
@@ -144,12 +145,93 @@ func (h *Handler) AdminCreateUserHandler(w http.ResponseWriter, r *http.Request)
 	_, _ = fmt.Fprintf(w, "User created successfully")
 }
 
+type SessionInfo struct {
+	RotateToken    string              `json:"rotate_token"`
+	IPAddress      string              `json:"ip_address"`
+	UserAgent      string              `json:"user_agent"`
+	CreatedAt      time.Time           `json:"created_at"`
+	UpdatedAt      time.Time           `json:"updated_at"`
+	LastRotationAt time.Time           `json:"last_rotation_at"`
+	ExpiresAt      time.Time           `json:"expires_at"`
+	IsCurrent      bool                `json:"is_current"`
+	GeoInfo        *models.GeoIPInfo   `json:"geo_info,omitempty"`
+}
+
+func (h *Handler) GetUserSessionsHandler(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value("user").(*user_profile.UserProfile)
+	if !ok || claims == nil {
+		utils.LogAndWriteHTTPError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"), "unauthorized")
+		return
+	}
+
+	user, err := h.userRepository.FindByExternalId(r.Context(), claims.ExternalIDs)
+	if err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user")
+		return
+	}
+	if user == nil {
+		utils.LogAndWriteHTTPError(w, http.StatusNotFound, fmt.Errorf("user not found"), "user not found")
+		return
+	}
+
+	// Get current rotate token from query param (optional)
+	currentRotateToken := r.URL.Query().Get("current")
+
+	// Get all sessions for user
+	sessions, err := h.sessionRepository.FindByUserID(r.Context(), user.ID)
+	if err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching sessions")
+		return
+	}
+
+	// Convert to SessionInfo with geo lookup
+	sessionInfos := make([]SessionInfo, 0, len(sessions))
+	for _, session := range sessions {
+		isCurrent := currentRotateToken != "" && session.RotateToken == currentRotateToken
+
+		sessionInfo := SessionInfo{
+			RotateToken:    session.RotateToken,
+			IPAddress:      session.IPAddress,
+			UserAgent:      session.UserAgent,
+			CreatedAt:      session.CreatedAt,
+			UpdatedAt:      session.UpdatedAt,
+			LastRotationAt: session.LastRotationAt,
+			ExpiresAt:      session.ExpiresAt,
+			IsCurrent:      isCurrent,
+		}
+
+		// Try to get geo info (non-blocking - if it fails, just omit it)
+		if session.IPAddress != "" && h.geoIPService != nil {
+			if geoInfo, err := h.geoIPService.GetGeoIPInfo(session.IPAddress); err == nil {
+				sessionInfo.GeoInfo = geoInfo
+			}
+		}
+
+		sessionInfos = append(sessionInfos, sessionInfo)
+	}
+
+	if err := json.NewEncoder(w).Encode(sessionInfos); err != nil {
+		_ = log.Error("serialising error %v", err)
+		http.Error(w, "serialising error", http.StatusInternalServerError)
+	}
+}
+
 type Handler struct {
-	userRepository repositories.UserRepository
+	userRepository   repositories.UserRepository
+	sessionRepository repositories.SessionRepository
+	geoIPService     services.GeoIPService
 }
 
 func NewHandler(userRepository repositories.UserRepository) *Handler {
 	return &Handler{
 		userRepository: userRepository,
+	}
+}
+
+func NewHandlerWithServices(userRepository repositories.UserRepository, sessionRepository repositories.SessionRepository, geoIPService services.GeoIPService) *Handler {
+	return &Handler{
+		userRepository:   userRepository,
+		sessionRepository: sessionRepository,
+		geoIPService:     geoIPService,
 	}
 }

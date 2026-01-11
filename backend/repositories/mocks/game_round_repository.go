@@ -24,6 +24,14 @@ func (m *MockGameRoundRepository) FindByID(ctx context.Context, id primitive.Obj
 	return nil, args.Error(1)
 }
 
+func (m *MockGameRoundRepository) FindAll(ctx context.Context) ([]*models.GameRound, error) {
+	args := m.Called(ctx)
+	if rounds := args.Get(0); rounds != nil {
+		return rounds.([]*models.GameRound), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
 func (m *MockGameRoundRepository) Update(ctx context.Context, round *models.GameRound) error {
 	args := m.Called(ctx, round)
 	return args.Error(0)

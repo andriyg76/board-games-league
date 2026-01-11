@@ -57,6 +57,10 @@ func (p UserProfile) GetAudience() (jwt.ClaimStrings, error) {
 }
 
 func CreateAuthToken(IDs []string, Code, name, avatar string) (string, error) {
+	return CreateAuthTokenWithExpiry(IDs, Code, name, avatar, 24*time.Hour)
+}
+
+func CreateAuthTokenWithExpiry(IDs []string, Code, name, avatar string, expiry time.Duration) (string, error) {
 	if Code == "" {
 		return "", glog.Error("code should be specified for usertoken.")
 	}
@@ -66,7 +70,7 @@ func CreateAuthToken(IDs []string, Code, name, avatar string) (string, error) {
 		Name:        name,
 		Picture:     avatar,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
