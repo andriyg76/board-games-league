@@ -146,7 +146,7 @@ func (h *Handler) AdminCreateUserHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type SessionInfo struct {
-	RotateToken    string              `json:"rotate_token"`
+	ID             string              `json:"id"`
 	IPAddress      string              `json:"ip_address"`
 	UserAgent      string              `json:"user_agent"`
 	CreatedAt      time.Time           `json:"created_at"`
@@ -174,8 +174,17 @@ func (h *Handler) GetUserSessionsHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Get current rotate token from query param (optional)
+	// Get current rotate token from query param or Authorization header (optional)
 	currentRotateToken := r.URL.Query().Get("current")
+	if currentRotateToken == "" {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				currentRotateToken = parts[1]
+			}
+		}
+	}
 
 	// Get all sessions for user
 	sessions, err := h.sessionRepository.FindByUserID(r.Context(), user.ID)
@@ -190,7 +199,7 @@ func (h *Handler) GetUserSessionsHandler(w http.ResponseWriter, r *http.Request)
 		isCurrent := currentRotateToken != "" && session.RotateToken == currentRotateToken
 
 		sessionInfo := SessionInfo{
-			RotateToken:    session.RotateToken,
+			ID:             session.ID.Hex(),
 			IPAddress:      session.IPAddress,
 			UserAgent:      session.UserAgent,
 			CreatedAt:      session.CreatedAt,
