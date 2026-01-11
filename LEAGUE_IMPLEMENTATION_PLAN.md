@@ -71,10 +71,18 @@
 
 ##### Модель Ліги (`league.go`)
 ```go
+type LeagueStatus string
+
+const (
+    LeagueActive   LeagueStatus = "active"
+    LeagueArchived LeagueStatus = "archived"
+)
+
 type League struct {
     ID          primitive.ObjectID `bson:"_id,omitempty"`
     Version     int64              `bson:"version"`
     Name        string             `bson:"name"`
+    Status      LeagueStatus       `bson:"status"`      // "active" | "archived"
     CreatedAt   time.Time          `bson:"created_at"`
     UpdatedAt   time.Time          `bson:"updated_at"`
 }
@@ -155,6 +163,27 @@ type GameRound struct {
 }
 ```
 
+##### Модель Нотифікацій (`notification.go`)
+```go
+type NotificationType string
+
+const (
+    NotificationLeagueJoin NotificationType = "league_join"
+    NotificationLeagueBan  NotificationType = "league_ban"
+)
+
+type Notification struct {
+    ID        primitive.ObjectID `bson:"_id,omitempty"`
+    UserID    primitive.ObjectID `bson:"user_id"`
+    Type      NotificationType   `bson:"type"`
+    Title     string             `bson:"title"`
+    Message   string             `bson:"message"`
+    LeagueID  primitive.ObjectID `bson:"league_id,omitempty"`
+    IsRead    bool               `bson:"is_read"`
+    CreatedAt time.Time          `bson:"created_at"`
+}
+```
+
 #### 2. Репозиторії (backend/repositories/)
 
 ##### LeagueRepository (`league_repository.go`)
@@ -207,6 +236,11 @@ type LeagueService interface {
     // Отримання інформації про лігу
     GetLeague(ctx context.Context, leagueID primitive.ObjectID) (*League, error)
     ListLeagues(ctx context.Context) ([]*League, error)
+    ListActiveLeagues(ctx context.Context) ([]*League, error)
+
+    // Управління лігою (тільки суперадмін)
+    ArchiveLeague(ctx context.Context, leagueID primitive.ObjectID) error
+    UnarchiveLeague(ctx context.Context, leagueID primitive.ObjectID) error
 
     // Управління членством
     GetLeagueMembers(ctx context.Context, leagueID primitive.ObjectID) ([]*User, error)
@@ -268,6 +302,12 @@ func (h *Handler) acceptInvitation(w http.ResponseWriter, r *http.Request)
 
 // POST /api/leagues/:code/ban/:userCode - Забанити користувача (тільки суперадмін)
 func (h *Handler) banUserFromLeague(w http.ResponseWriter, r *http.Request)
+
+// POST /api/leagues/:code/archive - Архівувати лігу (тільки суперадмін)
+func (h *Handler) archiveLeague(w http.ResponseWriter, r *http.Request)
+
+// POST /api/leagues/:code/unarchive - Розархівувати лігу (тільки суперадмін)
+func (h *Handler) unarchiveLeague(w http.ResponseWriter, r *http.Request)
 ```
 
 ##### Оновлення обробників Ігрових Кіл
@@ -298,6 +338,7 @@ func RequireSuperAdmin(userService UserService) func(http.Handler) http.Handler
 export interface League {
   code: string;
   name: string;
+  status: 'active' | 'archived';
   created_at: string;
   updated_at: string;
 }
@@ -333,6 +374,17 @@ export interface LeagueStanding {
   position_points: number;
   moderation_points: number;
 }
+
+export interface Notification {
+  code: string;
+  user_id: string;
+  type: 'league_join' | 'league_ban';
+  title: string;
+  message: string;
+  league_id?: string;
+  is_read: boolean;
+  created_at: string;
+}
 ```
 
 #### 2. API Клієнт (frontend/src/api/LeagueApi.ts)
@@ -342,6 +394,7 @@ class LeagueApi {
   // Ліги
   static async createLeague(name: string): Promise<League>
   static async listLeagues(): Promise<League[]>
+  static async listActiveLeagues(): Promise<League[]>
   static async getLeague(code: string): Promise<League>
 
   // Члени
@@ -354,8 +407,18 @@ class LeagueApi {
   static async createInvitation(leagueCode: string): Promise<LeagueInvitation>
   static async acceptInvitation(token: string): Promise<League>
 
-  // Адміністрування
+  // Адміністрування (тільки суперадмін)
   static async banUser(leagueCode: string, userCode: string): Promise<void>
+  static async archiveLeague(leagueCode: string): Promise<void>
+  static async unarchiveLeague(leagueCode: string): Promise<void>
+}
+
+class NotificationApi {
+  // Нотифікації
+  static async getNotifications(): Promise<Notification[]>
+  static async getUnreadCount(): Promise<number>
+  static async markAsRead(notificationCode: string): Promise<void>
+  static async markAllAsRead(): Promise<void>
 }
 ```
 
@@ -470,6 +533,7 @@ interface LeagueState {
   "_id": ObjectId,
   "version": NumberLong,
   "name": String,
+  "status": String, // "active" | "archived"
   "created_at": ISODate,
   "updated_at": ISODate
 }
@@ -477,6 +541,7 @@ interface LeagueState {
 
 **Індекси:**
 - `{ "name": 1 }` - унікальний
+- `{ "status": 1 }`
 
 #### league_memberships
 ```json
@@ -532,6 +597,25 @@ interface LeagueState {
 
 **Новий Індекс:**
 - `{ "league_id": 1, "start_time": -1 }`
+
+#### notifications
+```json
+{
+  "_id": ObjectId,
+  "user_id": ObjectId,
+  "type": String, // "league_join" | "league_ban" | тощо
+  "title": String,
+  "message": String,
+  "league_id": ObjectId,
+  "is_read": Boolean,
+  "created_at": ISODate
+}
+```
+
+**Індекси:**
+- `{ "user_id": 1, "created_at": -1 }`
+- `{ "user_id": 1, "is_read": 1 }`
+- `{ "created_at": 1 }` - TTL індекс для автоматичного видалення старих (90 днів)
 
 ---
 
@@ -839,58 +923,134 @@ DefaultPointsConfig = PointsConfig{
 
 ---
 
-## Відкриті Питання / Необхідні Рішення
+## Прийняті Рішення
 
-1. **Конфігурація Балів**:
-   - Де зберігати конфігурацію балів? (Змінні оточення, база даних, hardcoded?)
-   - Чи потрібна можливість налаштування балів per-league?
-   - Як рахувати бали для кооперативних та командних ігор?
+### 1. Конфігурація Балів
+**Рішення:** Hardcoded константи в коді
+- Базові бали для участі, позицій, модерації - жорстко задані в коді
+- Таблиця результатів (standings) **не зберігається в БД**
+- Обчислюється динамічно при запиті та після закриття раунду
+- Налаштування балів per-league - відкладено на v2
 
-2. **Ліга за Замовчуванням**:
-   - Що робити з існуючими game_rounds без league_id?
-   - Створити "Лігу за Замовчуванням" для старих даних?
-   - Чи дозволяти створювати game rounds без ліги?
+**Константи для v1:**
+```go
+ParticipationPoints: 1
+ModerationPoints: 2
+PositionPoints: {1: 10, 2: 7, 3: 5, 4: 3, 5: 1}
+// Для позицій > 5: max(0, 11 - position)
+```
 
-3. **Управління Суперадміном**:
-   - Як визначити хто є суперадміном? (Список в config? Таблиця roles в БД?)
-   - Чи потрібен UI для управління ролями суперадміна?
+### 2. Ліга за Замовчуванням
+**Рішення:** Створити "Основна ліга" при міграції
+- При розгортанні v1: створити лігу з назвою "Основна ліга"
+- Всі існуючі game_rounds отримають `league_id` цієї ліги
+- Всі існуючі користувачі автоматично стають членами "Основної ліги"
+- Нові game_rounds **обов'язково** мають належати якійсь лізі
 
-4. **Термін Дії Запрошень**:
-   - Чи повинні запрошення мати термін дії?
-   - Який термін за замовчуванням? (24 години? 7 днів? Безстроково?)
+### 3. Управління Суперадміном
+**Рішення:** Використати існуючий список адмінів з ENV (v1)
+- **Для v1:** Використовуємо існуючу змінну оточення зі списком адмінів
+- **Для v2 (низький пріоритет):** Окрема таблиця roles/permissions
+- Функції суперадміна: створення ліг, бан користувачів, архівація ліг
 
-5. **Архівування Ліги**:
-   - Чи потрібна можливість "архівувати" лігу (зробити read-only)?
-   - Чи можна видалити лігу? (Що робити з game_rounds?)
+### 4. Термін Дії Запрошень
+**Рішення:** 7 днів з моменту створення
+- Поле `expires_at` встановлюється на `created_at + 7 днів`
+- TTL індекс в MongoDB для автоматичного видалення застарілих запрошень
+- Після використання (is_used=true) запрошення також стає недійсним
 
-6. **Множинні Запрошення**:
-   - Чи може бути кілька активних запрошень для однієї ліги?
-   - Чи потрібно показувати список активних запрошень?
-   - Чи можна "відкликати" запрошення?
+### 5. Архівування Ліги
+**Рішення:** Архівація суперадміном (read-only режим)
+- Додати поле `status` в League model: "active" | "archived"
+- **Тільки суперадмін** може архівувати/розархівувати лігу
+- Архівована ліга:
+  - Неможливо створювати нові game_rounds
+  - Історія та standings доступні для перегляду
+  - Можна розархівувати
+- Видалення ліг - не реалізовуємо в v1
 
-7. **Система Нотифікацій**:
-   - Чи потрібні нотифікації при прийнятті запрошення?
-   - Чи потрібні нотифікації при бані?
+### 6. Множинні Запрошення
+**Рішення:** Необмежена кількість активних запрошень
+- Будь-який член ліги може створювати скільки завгодно запрошень
+- Кожне запрошення:
+  - Одноразове (is_used після використання)
+  - Термін дії 7 днів
+  - Унікальний токен
+- **Відкладено на v2:**
+  - Відкликання (скасування) запрошень
+  - Список активних запрошень в UI
 
-8. **Функції Таблиці Лідерів**:
-   - Чи потрібна історія рейтингу (зміни рейтингу в часі)?
-   - Чи потрібні досягнення/бейджі?
-   - Чи потрібна статистика по типу гри в межах ліги?
+### 7. Система Нотифікацій
+**Рішення:** Базові in-app нотифікації для v1
+- Нова колекція `notifications` в БД
+- Сценарії нотифікацій:
+  - Коли хтось приєднався до ліги по запрошенню
+  - Коли гравця забанили в лізі
+- UI: "Дзвіночок" в header з лічильником непрочитаних
+- **Відкладено на v2:**
+  - Email нотифікації
+  - Discord webhook
+  - Нотифікації про завершення раундів
+
+### 8. Функції Таблиці Лідерів
+**Рішення:** Базовий рейтинг + статистика по типах ігор
+- **Основна таблиця standings:**
+  - Total points (загальні бали)
+  - Games played (зіграно ігор)
+  - Games moderated (промодеровано)
+  - Breakdown по місцях (1-ше, 2-ге, 3-тє місця)
+  - Breakdown по типах балів (participation, position, moderation)
+- **Статистика по типах ігор:**
+  - Скільки разів грав кожну гру
+  - Win rate по кожній грі (% перших місць)
+  - Улюблена гра (найбільше партій)
+- **Відкладено на v2:**
+  - Історія рейтингу (графіки зміни в часі)
+  - Досягнення/бейджі
+  - Порівняння з іншими гравцями
+
+---
+
+## Відкриті Технічні Питання (TODO)
+
+1. **Підрахунок балів для різних scoring types:**
+   - Як рахувати бали для кооперативних ігор (cooperative, cooperative_with_moderator)?
+   - Як рахувати бали для командних ігор (team_vs_team)?
+   - Чи всі в команді отримують бали за позицію команди?
+
+2. **Модель Notification:**
+   - Структура notification (type, message, read status, created_at)
+   - Retention policy (скільки зберігати старі нотифікації)
+
+3. **Архівована ліга в UI:**
+   - Як візуально позначати архівовану лігу?
+   - Показувати в списку ліг окремо чи разом з активними?
 
 ---
 
 ## Майбутні Покращення (Поза Межами v1)
 
+### Відкладено з v1 на v2:
+- **Система ролей**: Окрема таблиця roles/permissions замість списку адмінів в ENV
+- **Email нотифікації**: Відправка email при важливих подіях
+- **Discord webhook**: Інтеграція з Discord для нотифікацій
+- **Історія рейтингу**: Графіки зміни рейтингу гравців в часі
+- **Досягнення/бейджі**: Система нагород за досягнення
+- **Відкликання запрошень**: Можливість скасувати активне запрошення
+- **Список запрошень**: UI для перегляду всіх активних запрошень ліги
+- **Налаштування балів per-league**: Кожна ліга може мати свою систему балів
+
+### Довгострокові покращення:
 - **Сезони**: Розділення ліги на сезони з окремими рейтингами
 - **Турніри**: Окремий режим для турнірів з bracket системою
-- **Досягнення**: Система досягнень та бейджів
-- **Статистика**: Детальна аналітика гравців (win rate, улюблені ігри, тощо)
-- **Соціальні Функції**: Чат, коментарі до раундів
-- **Розширені Права**: Різні ролі в лізі (модератор, член, глядач)
-- **Налаштування Ліги**: Налаштування балів per-league
-- **Експорт**: Експорт рейтингу в CSV/PDF
-- **Публічні/Приватні Ліги**: Контроль видимості ліги
+- **Розширена статистика**: Детальна аналітика (тренди, графіки, порівняння)
+- **Соціальні функції**: Чат, коментарі до раундів, реакції
+- **Розширені права**: Різні ролі в лізі (модератор, член, глядач, observer)
+- **Експорт**: Експорт рейтингу в CSV/PDF/Excel
+- **Публічні/Приватні ліги**: Контроль видимості ліги
 - **Федерація**: Об'єднання кількох ліг для спільних турнірів
+- **Мобільний додаток**: Native iOS/Android app
+- **Real-time оновлення**: WebSocket для live standings під час гри
 
 ---
 
