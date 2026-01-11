@@ -24,6 +24,7 @@ type GameRound struct {
 	ID               primitive.ObjectID `bson:"_id,omitempty"`
 	Code             string             `bson:"-"`
 	Version          int64              `bson:"version"`
+	LeagueID         primitive.ObjectID `bson:"league_id,omitempty"`
 	Name             string             `bson:"name"`
 	GameTypeID       primitive.ObjectID `bson:"game_type_id,omitempty"`
 	StartTime        time.Time          `bson:"start_time"`
