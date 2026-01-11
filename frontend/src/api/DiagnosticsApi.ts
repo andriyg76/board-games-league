@@ -9,11 +9,19 @@ export interface GeoIPInfo {
     ip?: string;
 }
 
+export interface BuildInfo {
+    version: string;
+    commit: string;
+    branch: string;
+    date: string;
+}
+
 export interface DiagnosticsResponse {
     server_info: {
         host_url: string;
         trusted_origins: string[];
     };
+    build_info: BuildInfo;
     request_info: {
         ip_address: string;
         base_url: string;
@@ -21,6 +29,25 @@ export interface DiagnosticsResponse {
         origin: string;
         is_trusted: boolean;
         geo_info?: GeoIPInfo;
+    };
+}
+
+export async function getFrontendBuildInfo(): Promise<BuildInfo> {
+    try {
+        const response = await fetch('/version.json', {
+            credentials: 'include',
+        });
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (e) {
+        console.error("Failed to load frontend version info:", e);
+    }
+    return {
+        version: "unknown",
+        commit: "unknown",
+        branch: "unknown",
+        date: "unknown",
     };
 }
 
