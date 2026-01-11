@@ -12,13 +12,25 @@ export default {
     },
 
     async logout(): Promise<void> {
-        const response = await fetch('/api/auth/logout', {
-            method: 'POST',
-            credentials: 'include',
-        });
+        const rotateToken = localStorage.getItem('rotateToken');
+        try {
+            const headers: HeadersInit = {};
+            if (rotateToken) {
+                headers['Authorization'] = `Bearer ${rotateToken}`;
+            }
 
-        if (!response.ok) {
-            throw new Error('Logout failed');
+            const response = await fetch('/api/auth/logout', {
+                method: 'POST',
+                credentials: 'include',
+                headers,
+            });
+
+            if (!response.ok) {
+                throw new Error('Logout failed');
+            }
+        } finally {
+            // Ensure rotate token is removed even if request fails
+            localStorage.removeItem('rotateToken');
         }
     },
     async handleAuthCallback(params: string): Promise<User | null> {

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"net/url"
 	"net/http"
 	"strings"
 )
@@ -82,7 +83,11 @@ func (s *requestService) IsTrustedOrigin(r *http.Request, trustedOrigins []strin
 		if referer == "" {
 			return false
 		}
-		origin = referer
+		if parsed, err := url.Parse(referer); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+			origin = parsed.Scheme + "://" + parsed.Host
+		} else {
+			return false
+		}
 	}
 
 	// Remove trailing slash and compare
