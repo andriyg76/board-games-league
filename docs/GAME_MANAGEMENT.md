@@ -1,28 +1,31 @@
-# Game Management
+# Керування іграми
 
-## Overview
+*[English version](GAME_MANAGEMENT.en.md)*
 
-The Board Games League application provides comprehensive game management functionality, including game types configuration, game rounds tracking, and player management. This document covers all game-related features implemented in the system.
+## Огляд
 
-## Architecture
+Додаток Board Games League надає комплексний функціонал керування іграми, включаючи налаштування типів ігор, відстеження ігрових раундів та керування гравцями. Цей документ охоплює всі функції, пов'язані з іграми, реалізовані в системі.
 
-### Data Models
+## Архітектура
+
+### Моделі даних
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │    GameType     │     │    GameRound    │     │      User       │
-│                 │     │                 │     │    (Player)     │
-│ - ID            │◄────│ - GameTypeID    │     │                 │
-│ - Name          │     │ - Name          │     │ - ID            │
-│ - ScoringType   │     │ - StartTime     │     │ - Alias         │
-│ - Labels        │     │ - EndTime       │     │ - Avatar        │
-│ - Teams         │     │ - Players[]     │◄────│ - Name          │
+│   (Тип гри)     │     │  (Ігровий раунд)│     │    (Гравець)    │
+│                 │     │                 │     │                 │
+│ - ID            │◄────│ - GameTypeID    │     │ - ID            │
+│ - Name          │     │ - Name          │     │ - Alias         │
+│ - ScoringType   │     │ - StartTime     │     │ - Avatar        │
+│ - Labels        │     │ - EndTime       │     │ - Name          │
+│ - Teams         │     │ - Players[]     │◄────│                 │
 │ - MinPlayers    │     │ - TeamScores[]  │     │                 │
 │ - MaxPlayers    │     │ - CoopScore     │     │                 │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
-### Component Structure
+### Структура компонентів
 
 ```
 Backend                          Frontend
@@ -39,52 +42,52 @@ Backend                          Frontend
     └── game_round_repository.go    └── player.ts
 ```
 
-## Game Types
+## Типи ігор
 
-### Concept
+### Концепція
 
-A Game Type defines the rules and scoring mechanism for a specific board game. Each game type has:
+Тип гри визначає правила та механізм підрахунку очок для конкретної настільної гри. Кожен тип гри має:
 
-- **Name**: The display name of the game
-- **Scoring Type**: How scores are calculated and winners determined
-- **Labels**: Optional categorization tags with colors and icons
-- **Teams**: Optional team definitions for team-based games
-- **Player Limits**: Minimum and maximum number of players
+- **Назва**: Відображувана назва гри
+- **Тип підрахунку**: Як розраховуються очки та визначаються переможці
+- **Мітки**: Опціональні теги категоризації з кольорами та іконками
+- **Команди**: Опціональні визначення команд для командних ігор
+- **Обмеження гравців**: Мінімальна та максимальна кількість гравців
 
-### Scoring Types
+### Типи підрахунку очок
 
-The system supports multiple scoring mechanisms:
+Система підтримує декілька механізмів підрахунку:
 
-| Scoring Type | Description | Use Case |
-|--------------|-------------|----------|
-| `classic` | Traditional competitive scoring - highest score wins | Most board games (Catan, Ticket to Ride) |
-| `cooperative` | All players win or lose together | Pandemic, Forbidden Island |
-| `cooperative_with_moderator` | Cooperative with a separate moderator | Games with a game master |
-| `team_vs_team` | Teams compete against each other | Team-based games |
-| `mafia` | Team vs Team with hidden roles and moderator | Mafia, Werewolf |
-| `custom` | No predefined scheme - raw score entry | Any custom scoring |
+| Тип підрахунку | Опис | Приклад використання |
+|----------------|------|----------------------|
+| `classic` | Традиційний змагальний підрахунок - виграє найвища сума | Більшість настільних ігор (Catan, Ticket to Ride) |
+| `cooperative` | Всі гравці виграють або програють разом | Pandemic, Forbidden Island |
+| `cooperative_with_moderator` | Кооперативна гра з окремим модератором | Ігри з ведучим |
+| `team_vs_team` | Команди змагаються одна з одною | Командні ігри |
+| `mafia` | Команда проти команди з прихованими ролями та модератором | Мафія, Вовкулаки |
+| `custom` | Без попередньо визначеної схеми - пряме введення очок | Будь-який власний підрахунок |
 
-### Labels
+### Мітки
 
-Labels are used to categorize players within a game (e.g., roles, starting positions). Each label has:
+Мітки використовуються для категоризації гравців у грі (наприклад, ролі, стартові позиції). Кожна мітка має:
 
-- **Name**: Label identifier
-- **Color**: Display color (hex format)
-- **Icon**: Material Design icon name
+- **Назва**: Ідентифікатор мітки
+- **Колір**: Колір відображення (формат hex)
+- **Іконка**: Назва іконки Material Design
 
-Labels are available for scoring types: `classic`, `custom`
+Мітки доступні для типів підрахунку: `classic`, `custom`
 
-### Teams
+### Команди
 
-Teams group players for team-based games. Each team has:
+Команди групують гравців для командних ігор. Кожна команда має:
 
-- **Name**: Team identifier
-- **Color**: Team color (hex format)
-- **Icon**: Team icon
+- **Назва**: Ідентифікатор команди
+- **Колір**: Колір команди (формат hex)
+- **Іконка**: Іконка команди
 
-Teams are available for scoring types: `mafia`, `custom`, `team_vs_team`
+Команди доступні для типів підрахунку: `mafia`, `custom`, `team_vs_team`
 
-### Model Structure
+### Структура моделі
 
 ```go
 type GameType struct {
@@ -108,32 +111,33 @@ type Label struct {
 }
 ```
 
-## Game Rounds
+## Ігрові раунди
 
-### Concept
+### Концепція
 
-A Game Round represents a single play session of a game type. It tracks:
+Ігровий раунд представляє одну ігрову сесію певного типу гри. Він відстежує:
 
-- Which game type is being played
-- When the game started and ended
-- Who participated and their positions/scores
-- Team scores (for team games)
-- Cooperative score (for cooperative games)
+- Який тип гри грається
+- Коли гра почалася та закінчилася
+- Хто брав участь та їхні позиції/очки
+- Командні очки (для командних ігор)
+- Кооперативні очки (для кооперативних ігор)
 
-### Round Lifecycle
+### Життєвий цикл раунду
 
 ```
 ┌─────────┐     ┌───────────┐     ┌───────────┐     ┌──────────┐
-│  Start  │────>│  Active   │────>│ Finalize  │────>│ Completed│
-│  Game   │     │  (Playing)│     │  (Scores) │     │          │
+│  Старт  │────>│  Активна  │────>│ Завершення│────>│Завершено │
+│   гри   │     │  (Грається)│    │  (Очки)   │     │          │
 └─────────┘     └───────────┘     └───────────┘     └──────────┘
      │                │                  │                │
      │                │                  │                │
-  Create          Update             Set final        EndTime
-  round           scores             positions        is set
+  Створити        Оновити          Встановити        EndTime
+  раунд           очки             фінальні          встановлено
+                                   позиції
 ```
 
-### Model Structure
+### Структура моделі
 
 ```go
 type GameRound struct {
@@ -166,24 +170,24 @@ type TeamScore struct {
 }
 ```
 
-### Team Validation
+### Валідація команд
 
-For games with teams defined:
-- Each team must have at least one player assigned
-- Players must be assigned to existing teams only
-- The validation occurs when starting a new game round
+Для ігор з визначеними командами:
+- Кожна команда повинна мати принаймні одного призначеного гравця
+- Гравці повинні бути призначені тільки до існуючих команд
+- Валідація відбувається при створенні нового ігрового раунду
 
-## Players
+## Гравці
 
-### Concept
+### Концепція
 
-Players are users who participate in game rounds. The player system provides:
+Гравці - це користувачі, які беруть участь в ігрових раундах. Система гравців надає:
 
-- List of all registered players
-- Individual player lookup by code
-- Current authenticated player info
+- Список всіх зареєстрованих гравців
+- Пошук окремого гравця за кодом
+- Інформацію про поточного автентифікованого гравця
 
-### Player Information
+### Інформація про гравця
 
 ```go
 type Player struct {
@@ -193,108 +197,108 @@ type Player struct {
 }
 ```
 
-The `code` is a unique identifier derived from the user's MongoDB ObjectID.
+`code` - це унікальний ідентифікатор, отриманий з MongoDB ObjectID користувача.
 
-## API Endpoints
+## API точки доступу
 
-### Game Types
+### Типи ігор
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/game_types` | List all game types |
-| POST | `/api/game_types` | Create a new game type |
-| GET | `/api/game_types/{code}` | Get a specific game type |
-| PUT | `/api/game_types/{code}` | Update a game type |
-| DELETE | `/api/game_types/{code}` | Delete a game type |
+| Метод | Точка доступу | Опис |
+|-------|---------------|------|
+| GET | `/api/game_types` | Список всіх типів ігор |
+| POST | `/api/game_types` | Створити новий тип гри |
+| GET | `/api/game_types/{code}` | Отримати конкретний тип гри |
+| PUT | `/api/game_types/{code}` | Оновити тип гри |
+| DELETE | `/api/game_types/{code}` | Видалити тип гри |
 
-### Game Rounds
+### Ігрові раунди
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/game_rounds` | List all game rounds |
-| POST | `/api/game_rounds` | Start a new game round |
-| GET | `/api/game_rounds/{code}` | Get a specific game round |
-| PUT | `/api/game_rounds/{code}` | Update a game round |
-| PUT | `/api/game_rounds/{code}/finalize` | Finalize a game round |
-| PUT | `/api/game_rounds/{code}/players/{userId}/score` | Update player score |
+| Метод | Точка доступу | Опис |
+|-------|---------------|------|
+| GET | `/api/game_rounds` | Список всіх ігрових раундів |
+| POST | `/api/game_rounds` | Розпочати новий ігровий раунд |
+| GET | `/api/game_rounds/{code}` | Отримати конкретний ігровий раунд |
+| PUT | `/api/game_rounds/{code}` | Оновити ігровий раунд |
+| PUT | `/api/game_rounds/{code}/finalize` | Завершити ігровий раунд |
+| PUT | `/api/game_rounds/{code}/players/{userId}/score` | Оновити очки гравця |
 
-### Players
+### Гравці
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/players` | List all players |
-| GET | `/api/players/{code}` | Get a specific player |
-| GET | `/api/players/i_am` | Get current authenticated player |
+| Метод | Точка доступу | Опис |
+|-------|---------------|------|
+| GET | `/api/players` | Список всіх гравців |
+| GET | `/api/players/{code}` | Отримати конкретного гравця |
+| GET | `/api/players/i_am` | Отримати поточного автентифікованого гравця |
 
-## Frontend Components
+## Клієнтські компоненти
 
-### Views and Components
+### Види та компоненти
 
 #### ListGameTypes.vue
 
-Admin interface for managing game types:
-- View list of all game types
-- Create new game types
-- Edit existing game types
-- Delete game types
-- Configure labels and teams with color pickers
+Адміністративний інтерфейс для керування типами ігор:
+- Перегляд списку всіх типів ігор
+- Створення нових типів ігор
+- Редагування існуючих типів ігор
+- Видалення типів ігор
+- Налаштування міток та команд з вибором кольорів
 
 #### GameroundsList.vue
 
-Main game rounds management view:
-- Display list of all game rounds
-- Show round status (active/completed)
-- Edit active rounds
-- Finalize games
-- Create new rounds
+Головний вид керування ігровими раундами:
+- Відображення списку всіх ігрових раундів
+- Показ статусу раунду (активний/завершений)
+- Редагування активних раундів
+- Завершення ігор
+- Створення нових раундів
 
 #### GameroundEdit.vue
 
-Form for creating and editing game rounds:
-- Select game type
-- Add/remove players
-- Assign teams and labels
-- Set moderator status
-- Update player scores
+Форма для створення та редагування ігрових раундів:
+- Вибір типу гри
+- Додавання/видалення гравців
+- Призначення команд та міток
+- Встановлення статусу модератора
+- Оновлення очок гравців
 
 #### FinalizeGameDialog.vue
 
-Dialog for ending a game round:
-- Enter final player scores
-- Enter team scores (if applicable)
-- Enter cooperative score (if applicable)
-- Calculates final positions
+Діалог для завершення ігрового раунду:
+- Введення фінальних очок гравців
+- Введення командних очок (якщо застосовно)
+- Введення кооперативних очок (якщо застосовно)
+- Розрахунок фінальних позицій
 
-### Pinia Stores
+### Pinia сховища
 
 #### game.ts
 
-State management for game data:
-- `gameTypes`: Cached list of game types
-- `activeRounds`: Currently active game rounds
-- `loadGameTypes()`: Fetch game types from API
-- `addActiveRound()`: Create new game round
-- `updateRound()`: Update existing round
-- `getGameTypeByCode`: Find game type by code
+Керування станом для ігрових даних:
+- `gameTypes`: Кешований список типів ігор
+- `activeRounds`: Поточні активні ігрові раунди
+- `loadGameTypes()`: Отримати типи ігор з API
+- `addActiveRound()`: Створити новий ігровий раунд
+- `updateRound()`: Оновити існуючий раунд
+- `getGameTypeByCode`: Знайти тип гри за кодом
 
 #### player.ts
 
-State management for player data:
-- `players`: Cached list of players
-- `currentPlayer`: Currently authenticated player
-- `allPlayers`: Get all players (with lazy loading)
-- `getPlayerByCode`: Find player by code
+Керування станом для даних гравців:
+- `players`: Кешований список гравців
+- `currentPlayer`: Поточний автентифікований гравець
+- `allPlayers`: Отримати всіх гравців (з лінивим завантаженням)
+- `getPlayerByCode`: Знайти гравця за кодом
 
-## Usage Examples
+## Приклади використання
 
-### Creating a Game Type
+### Створення типу гри
 
 ```typescript
 const gameType: GameType = {
     name: "Catan",
     scoring_type: "classic",
     labels: [
-        { name: "First Player", color: "#FF0000", icon: "mdi-flag" }
+        { name: "Перший гравець", color: "#FF0000", icon: "mdi-flag" }
     ],
     teams: [],
     min_players: 3,
@@ -304,11 +308,11 @@ const gameType: GameType = {
 await GameApi.createGameType(gameType);
 ```
 
-### Starting a Game Round
+### Запуск ігрового раунду
 
 ```typescript
 const round: GameRound = {
-    name: "Friday Night Catan",
+    name: "П'ятнична гра в Catan",
     game_type: "Catan",
     start_time: new Date().toISOString(),
     players: [
@@ -321,7 +325,7 @@ const round: GameRound = {
 await GameApi.createGameRound(round);
 ```
 
-### Finalizing a Game
+### Завершення гри
 
 ```typescript
 const finalizationData: FinalizeGameRoundRequest = {
@@ -335,78 +339,78 @@ const finalizationData: FinalizeGameRoundRequest = {
 await GameApi.finalizeGameRound(roundCode, finalizationData);
 ```
 
-### Team Game Example
+### Приклад командної гри
 
 ```typescript
-// Game type with teams
+// Тип гри з командами
 const mafiaGame: GameType = {
-    name: "Mafia",
+    name: "Мафія",
     scoring_type: "mafia",
     labels: [],
     teams: [
-        { name: "Civilians", color: "#00FF00", icon: "mdi-account-group" },
-        { name: "Mafia", color: "#FF0000", icon: "mdi-skull" }
+        { name: "Мирні", color: "#00FF00", icon: "mdi-account-group" },
+        { name: "Мафія", color: "#FF0000", icon: "mdi-skull" }
     ],
     min_players: 6,
     max_players: 15
 };
 
-// Starting a game with teams
+// Запуск гри з командами
 const mafiaRound: GameRound = {
-    name: "Epic Mafia Night",
-    game_type: "Mafia",
+    name: "Епічна ніч мафії",
+    game_type: "Мафія",
     start_time: new Date().toISOString(),
     players: [
         { user_id: "player1", is_moderator: true, team_name: "" },
-        { user_id: "player2", is_moderator: false, team_name: "Civilians" },
-        { user_id: "player3", is_moderator: false, team_name: "Mafia" },
-        // ... more players
+        { user_id: "player2", is_moderator: false, team_name: "Мирні" },
+        { user_id: "player3", is_moderator: false, team_name: "Мафія" },
+        // ... більше гравців
     ]
 };
 ```
 
-## Database Collections
+## Колекції бази даних
 
 ### game_types
 
-Stores game type definitions:
-- Index: `name` (unique)
+Зберігає визначення типів ігор:
+- Індекс: `name` (унікальний)
 
 ### game_rounds
 
-Stores game round data:
-- Index: `game_type_id`
-- Index: `start_time`
-- Index: `players.player_id`
+Зберігає дані ігрових раундів:
+- Індекс: `game_type_id`
+- Індекс: `start_time`
+- Індекс: `players.player_id`
 
-## Frontend Routes
+## Маршрути клієнтської частини
 
-| Route | Component | Description |
-|-------|-----------|-------------|
-| `/ui/admin/game-types` | ListGameTypes.vue | Game types management |
-| `/ui/game-rounds` | GameroundsList.vue | Game rounds list |
-| `/ui/game-rounds/new` | GameroundEdit.vue | Create new round |
-| `/ui/game-rounds/:id` | GameroundEdit.vue | Edit existing round |
-| `/ui/leagues` | ListLeagues.vue | Leagues view (future) |
+| Маршрут | Компонент | Опис |
+|---------|-----------|------|
+| `/ui/admin/game-types` | ListGameTypes.vue | Керування типами ігор |
+| `/ui/game-rounds` | GameroundsList.vue | Список ігрових раундів |
+| `/ui/game-rounds/new` | GameroundEdit.vue | Створити новий раунд |
+| `/ui/game-rounds/:id` | GameroundEdit.vue | Редагувати існуючий раунд |
+| `/ui/leagues` | ListLeagues.vue | Вид ліг (майбутнє) |
 
-## Internationalization
+## Інтернаціоналізація
 
-The frontend supports multiple languages using vue-i18n:
+Клієнтська частина підтримує декілька мов використовуючи vue-i18n:
 
-- `gameTypes.title`: "Game Types" title
-- `gameTypes.edit`: Edit button text
-- `gameTypes.delete`: Delete button text
-- `gameTypes.create`: Create button text
-- `scoring.*`: Scoring type descriptions
+- `gameTypes.title`: Заголовок "Типи ігор"
+- `gameTypes.edit`: Текст кнопки редагування
+- `gameTypes.delete`: Текст кнопки видалення
+- `gameTypes.create`: Текст кнопки створення
+- `scoring.*`: Описи типів підрахунку очок
 
-## Future Enhancements
+## Майбутні покращення
 
-Potential improvements:
-- Statistics and leaderboards
-- Player rating system (ELO)
-- Game history and replays
-- Tournament management
-- League standings
-- Achievement system
-- Game recommendations
-- Export/import game data
+Потенційні покращення:
+- Статистика та таблиці лідерів
+- Система рейтингу гравців (ELO)
+- Історія ігор та повтори
+- Керування турнірами
+- Таблиці ліг
+- Система досягнень
+- Рекомендації ігор
+- Експорт/імпорт ігрових даних

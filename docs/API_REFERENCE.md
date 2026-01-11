@@ -1,147 +1,149 @@
-# API Reference
+# Довідник API
 
-## Authentication Endpoints
+*[English version](API_REFERENCE.en.md)*
+
+## Точки доступу аутентифікації
 
 ### POST /api/auth/google/callback
 
-Google OAuth callback endpoint. Creates a new session and returns authentication tokens.
+Точка доступу callback Google OAuth. Створює нову сесію та повертає токени аутентифікації.
 
-**Request:**
-- Method: POST
-- Query Parameters: OAuth callback parameters from Google
-- Body: None
+**Запит:**
+- Метод: POST
+- Параметри запиту: Параметри callback OAuth від Google
+- Тіло: Відсутнє
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 {
   "code": "user_code",
   "external_ids": ["email@example.com"],
-  "name": "User Name",
+  "name": "Ім'я користувача",
   "avatar": "https://...",
   "alias": "user_alias",
-  "names": ["User Name"],
+  "names": ["Ім'я користувача"],
   "avatars": ["https://..."],
   "rotateToken": "base64_encoded_token"
 }
 ```
 
-**Cookies Set:**
-- `auth_token`: JWT action token (HTTP-only, Secure, SameSite=Strict)
+**Встановлені Cookies:**
+- `auth_token`: JWT токен дії (HTTP-only, Secure, SameSite=Strict)
 
-**Notes:**
-- `rotateToken` should be stored in localStorage by the client
-- `auth_token` cookie is set automatically
+**Примітки:**
+- `rotateToken` повинен бути збережений в localStorage клієнтом
+- Cookie `auth_token` встановлюється автоматично
 
 ---
 
 ### POST /api/auth/refresh
 
-Refreshes the action token. Optionally rotates the rotate token if 12 hours have passed since last rotation.
+Оновлює токен дії. Опціонально обертає токен обертання якщо пройшло 12 годин з останнього обертання.
 
-**Request:**
-- Method: POST
-- Headers:
+**Запит:**
+- Метод: POST
+- Заголовки:
   - `Authorization: Bearer <rotateToken>`
-- Body: None
+- Тіло: Відсутнє
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 {
-  "rotateToken": "new_rotate_token"  // Only present if token was rotated
+  "rotateToken": "new_rotate_token"  // Тільки якщо токен був обернутий
 }
 ```
 
-**Cookies Set:**
-- `auth_token`: New JWT action token
+**Встановлені Cookies:**
+- `auth_token`: Новий JWT токен дії
 
-**Error Responses:**
-- 401 Unauthorized: Invalid or expired rotate token
+**Помилки:**
+- 401 Unauthorized: Недійсний або застарілий токен обертання
 
-**Notes:**
-- If `rotateToken` is returned, client must update localStorage
-- Action token expires after 1 hour
-- Rotate token rotates every 12 hours
+**Примітки:**
+- Якщо `rotateToken` повернуто, клієнт повинен оновити localStorage
+- Токен дії закінчується через 1 годину
+- Токен обертання обертається кожні 12 годин
 
 ---
 
 ### POST /api/auth/logout
 
-Invalidates the current session and clears authentication cookies.
+Деактивує поточну сесію та очищає cookies аутентифікації.
 
-**Request:**
-- Method: POST
-- Headers (either):
-  - `Authorization: Bearer <rotateToken>`, OR
+**Запит:**
+- Метод: POST
+- Заголовки (один з варіантів):
+  - `Authorization: Bearer <rotateToken>`, АБО
   - `Content-Type: application/json`
-- Body (optional):
+- Тіло (опціонально):
 ```json
 {
   "rotateToken": "token_to_invalidate"
 }
 ```
 
-**Response:**
-- Status: 200 OK
-- Body: None
+**Відповідь:**
+- Статус: 200 OK
+- Тіло: Відсутнє
 
-**Cookies Cleared:**
-- `auth_token`: Action token cookie cleared
+**Очищені Cookies:**
+- `auth_token`: Cookie токена дії очищено
 
-**Notes:**
-- Client should remove `rotateToken` from localStorage after logout
+**Примітки:**
+- Клієнт повинен видалити `rotateToken` з localStorage після виходу
 
 ---
 
-## User Endpoints
+## Користувацькі точки доступу
 
-All user endpoints require authentication (action token cookie).
+Всі користувацькі точки доступу потребують аутентифікації (cookie токена дії).
 
 ### GET /api/user
 
-Gets the current user's profile information.
+Отримує інформацію профілю поточного користувача.
 
-**Request:**
-- Method: GET
-- Headers: None (uses cookie)
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: GET
+- Заголовки: Відсутні (використовує cookie)
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 {
   "code": "user_code",
   "external_ids": ["email@example.com"],
-  "name": "User Name",
+  "name": "Ім'я користувача",
   "avatar": "https://...",
   "alias": "user_alias",
-  "names": ["User Name"],
+  "names": ["Ім'я користувача"],
   "avatars": ["https://..."]
 }
 ```
 
-**Error Responses:**
-- 401 Unauthorized: Invalid or expired token
+**Помилки:**
+- 401 Unauthorized: Недійсний або застарілий токен
 
 ---
 
 ### GET /api/user/sessions
 
-Gets all active sessions for the current user.
+Отримує всі активні сесії поточного користувача.
 
-**Request:**
-- Method: GET
-- Query Parameters:
-  - `current` (optional): Rotate token to mark as current session
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: GET
+- Параметри запиту:
+  - `current` (опціональний): Токен обертання для позначення як поточна сесія
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 [
   {
@@ -167,28 +169,28 @@ Gets all active sessions for the current user.
 ]
 ```
 
-**Error Responses:**
-- 401 Unauthorized: Invalid or expired token
+**Помилки:**
+- 401 Unauthorized: Недійсний або застарілий токен
 
-**Notes:**
-- `geo_info` may be null if geolocation lookup failed
-- `is_current` is true if `current` query param matches the session's rotate token
+**Примітки:**
+- `geo_info` може бути null якщо пошук геолокації не вдався
+- `is_current` є true якщо параметр `current` запиту відповідає токену обертання сесії
 
 ---
 
 ### POST /api/user/alias/exist
 
-Checks if an alias is available.
+Перевіряє чи доступний псевдонім.
 
-**Request:**
-- Method: POST
-- Query Parameters:
-  - `alias`: Alias to check
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: POST
+- Параметри запиту:
+  - `alias`: Псевдонім для перевірки
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 {
   "isUnique": true
@@ -199,49 +201,49 @@ Checks if an alias is available.
 
 ### PUT /api/user/update
 
-Updates the current user's profile.
+Оновлює профіль поточного користувача.
 
-**Request:**
-- Method: PUT
-- Headers:
+**Запит:**
+- Метод: PUT
+- Заголовки:
   - `Content-Type: application/json`
-- Cookies: `auth_token` (required)
-- Body:
+- Cookies: `auth_token` (обов'язковий)
+- Тіло:
 ```json
 {
-  "name": "New Name",
+  "name": "Нове ім'я",
   "avatar": "https://...",
   "alias": "new_alias"
 }
 ```
 
-**Response:**
-- Status: 200 OK
-- Body: None
+**Відповідь:**
+- Статус: 200 OK
+- Тіло: Відсутнє
 
-**Error Responses:**
-- 400 Bad Request: Invalid request body
-- 401 Unauthorized: Invalid or expired token
-- 409 Conflict: Alias already taken
+**Помилки:**
+- 400 Bad Request: Недійсне тіло запиту
+- 401 Unauthorized: Недійсний або застарілий токен
+- 409 Conflict: Псевдонім вже зайнятий
 
 ---
 
-## Admin Endpoints
+## Адміністративні точки доступу
 
-All admin endpoints require authentication and super admin privileges.
+Всі адміністративні точки доступу потребують аутентифікації та прав супер-адміністратора.
 
 ### GET /api/admin/diagnostics
 
-Gets system diagnostic information (admin only).
+Отримує діагностичну інформацію системи (тільки для адмінів).
 
-**Request:**
-- Method: GET
-- Cookies: `auth_token` (required)
-- Headers: None
+**Запит:**
+- Метод: GET
+- Cookies: `auth_token` (обов'язковий)
+- Заголовки: Відсутні
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 {
   "server_info": {
@@ -268,96 +270,96 @@ Gets system diagnostic information (admin only).
 }
 ```
 
-**Error Responses:**
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Not a super admin
+**Помилки:**
+- 401 Unauthorized: Не автентифікований
+- 403 Forbidden: Не є супер-адміністратором
 
-**Notes:**
-- `geo_info` may be null if geolocation lookup failed
-- `trusted_origins` comes from `TRUSTED_ORIGINS` environment variable
+**Примітки:**
+- `geo_info` може бути null якщо пошук геолокації не вдався
+- `trusted_origins` походить зі змінної середовища `TRUSTED_ORIGINS`
 
 ---
 
 ### PUT /api/admin/user/create
 
-Creates a new user (admin only).
+Створює нового користувача (тільки для адмінів).
 
-**Request:**
-- Method: PUT
-- Headers:
+**Запит:**
+- Метод: PUT
+- Заголовки:
   - `Content-Type: application/json`
-- Cookies: `auth_token` (required)
-- Body:
+- Cookies: `auth_token` (обов'язковий)
+- Тіло:
 ```json
 {
   "external_ids": ["email@example.com"]
 }
 ```
 
-**Response:**
-- Status: 201 Created
-- Body: "User created successfully"
+**Відповідь:**
+- Статус: 201 Created
+- Тіло: "User created successfully"
 
-**Error Responses:**
-- 400 Bad Request: Missing or invalid external_ids
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Not a super admin
-- 409 Conflict: User already exists
+**Помилки:**
+- 400 Bad Request: Відсутні або недійсні external_ids
+- 401 Unauthorized: Не автентифікований
+- 403 Forbidden: Не є супер-адміністратором
+- 409 Conflict: Користувач вже існує
 
 ---
 
-## Error Responses
+## Відповіді про помилки
 
-All endpoints may return the following error responses:
+Всі точки доступу можуть повертати наступні відповіді про помилки:
 
 ### 400 Bad Request
-Invalid request format or missing required parameters.
+Недійсний формат запиту або відсутні обов'язкові параметри.
 
 ### 401 Unauthorized
-Authentication required or token invalid/expired.
+Потрібна аутентифікація або токен недійсний/застарілий.
 
 ### 403 Forbidden
-Authenticated but lacks required permissions (admin endpoints).
+Автентифікований але не має необхідних дозволів (адміністративні точки доступу).
 
 ### 404 Not Found
-Resource not found.
+Ресурс не знайдено.
 
 ### 409 Conflict
-Resource conflict (e.g., alias already taken).
+Конфлікт ресурсу (наприклад, псевдонім вже зайнятий).
 
 ### 500 Internal Server Error
-Server error. Check server logs for details.
+Помилка сервера. Перевірте логи сервера для деталей.
 
-## Authentication
+## Аутентифікація
 
-Most endpoints require authentication via the `auth_token` cookie (JWT action token).
+Більшість точок доступу потребують аутентифікації через cookie `auth_token` (JWT токен дії).
 
-**Token Refresh Flow:**
-1. Client receives 401 Unauthorized
-2. Client calls `/api/auth/refresh` with `rotateToken` from localStorage
-3. Server returns new `actionToken` cookie
-4. Client retries original request
+**Потік оновлення токена:**
+1. Клієнт отримує 401 Unauthorized
+2. Клієнт викликає `/api/auth/refresh` з `rotateToken` з localStorage
+3. Сервер повертає новий cookie `actionToken`
+4. Клієнт повторює оригінальний запит
 
-**Token Rotation:**
-- Rotate tokens automatically rotate every 12 hours
-- When rotated, new `rotateToken` is returned in refresh response
-- Client must update localStorage with new token
+**Обертання токена:**
+- Токени обертання автоматично обертаються кожні 12 годин
+- При обертанні новий `rotateToken` повертається у відповіді на оновлення
+- Клієнт повинен оновити localStorage новим токеном
 
-## Game Type Endpoints
+## Точки доступу типів ігор
 
-All game type endpoints require authentication (action token cookie).
+Всі точки доступу типів ігор потребують аутентифікації (cookie токена дії).
 
 ### GET /api/game_types
 
-Gets all game types.
+Отримує всі типи ігор.
 
-**Request:**
-- Method: GET
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: GET
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 [
   {
@@ -366,7 +368,7 @@ Gets all game types.
     "scoring_type": "classic",
     "version": 1,
     "labels": [
-      { "name": "First Player", "color": "#FF0000", "icon": "mdi-flag" }
+      { "name": "Перший гравець", "color": "#FF0000", "icon": "mdi-flag" }
     ],
     "teams": []
   }
@@ -377,28 +379,28 @@ Gets all game types.
 
 ### POST /api/game_types
 
-Creates a new game type.
+Створює новий тип гри.
 
-**Request:**
-- Method: POST
-- Headers:
+**Запит:**
+- Метод: POST
+- Заголовки:
   - `Content-Type: application/json`
-- Cookies: `auth_token` (required)
-- Body:
+- Cookies: `auth_token` (обов'язковий)
+- Тіло:
 ```json
 {
   "name": "Catan",
   "scoring_type": "classic",
   "labels": [
-    { "name": "First Player", "color": "#FF0000", "icon": "mdi-flag" }
+    { "name": "Перший гравець", "color": "#FF0000", "icon": "mdi-flag" }
   ],
   "teams": []
 }
 ```
 
-**Response:**
-- Status: 201 Created
-- Body:
+**Відповідь:**
+- Статус: 201 Created
+- Тіло:
 ```json
 {
   "code": "abc123",
@@ -410,95 +412,95 @@ Creates a new game type.
 }
 ```
 
-**Error Responses:**
-- 400 Bad Request: Invalid request body or duplicate label/team names
-- 401 Unauthorized: Invalid or expired token
+**Помилки:**
+- 400 Bad Request: Недійсне тіло запиту або дублікат назв міток/команд
+- 401 Unauthorized: Недійсний або застарілий токен
 
-**Notes:**
-- `scoring_type` must be one of: `classic`, `mafia`, `custom`, `cooperative`, `cooperative_with_moderator`, `team_vs_team`
-- Label and team names must be unique within their respective arrays
+**Примітки:**
+- `scoring_type` повинен бути одним з: `classic`, `mafia`, `custom`, `cooperative`, `cooperative_with_moderator`, `team_vs_team`
+- Назви міток та команд повинні бути унікальними в своїх масивах
 
 ---
 
 ### GET /api/game_types/{code}
 
-Gets a specific game type by code.
+Отримує конкретний тип гри за кодом.
 
-**Request:**
-- Method: GET
-- URL Parameters: `code` - Game type code
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: GET
+- URL параметри: `code` - код типу гри
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 200 OK
-- Body: Same as single item in list response
+**Відповідь:**
+- Статус: 200 OK
+- Тіло: Такий самий як один елемент у відповіді списку
 
-**Error Responses:**
-- 400 Bad Request: Invalid code format
-- 404 Not Found: Game type not found
+**Помилки:**
+- 400 Bad Request: Недійсний формат коду
+- 404 Not Found: Тип гри не знайдено
 
 ---
 
 ### PUT /api/game_types/{code}
 
-Updates an existing game type.
+Оновлює існуючий тип гри.
 
-**Request:**
-- Method: PUT
-- URL Parameters: `code` - Game type code
-- Headers:
+**Запит:**
+- Метод: PUT
+- URL параметри: `code` - код типу гри
+- Заголовки:
   - `Content-Type: application/json`
-- Cookies: `auth_token` (required)
-- Body: Same as POST request body
+- Cookies: `auth_token` (обов'язковий)
+- Тіло: Таке саме як тіло запиту POST
 
-**Response:**
-- Status: 200 OK
-- Body: Updated game type object
+**Відповідь:**
+- Статус: 200 OK
+- Тіло: Оновлений об'єкт типу гри
 
-**Error Responses:**
-- 400 Bad Request: Invalid request body or duplicate label/team names
-- 404 Not Found: Game type not found
+**Помилки:**
+- 400 Bad Request: Недійсне тіло запиту або дублікат назв міток/команд
+- 404 Not Found: Тип гри не знайдено
 
 ---
 
 ### DELETE /api/game_types/{code}
 
-Deletes a game type.
+Видаляє тип гри.
 
-**Request:**
-- Method: DELETE
-- URL Parameters: `code` - Game type code
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: DELETE
+- URL параметри: `code` - код типу гри
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 204 No Content
+**Відповідь:**
+- Статус: 204 No Content
 
-**Error Responses:**
-- 400 Bad Request: Invalid code format
-- 404 Not Found: Game type not found
+**Помилки:**
+- 400 Bad Request: Недійсний формат коду
+- 404 Not Found: Тип гри не знайдено
 
 ---
 
-## Game Round Endpoints
+## Точки доступу ігрових раундів
 
-All game round endpoints require authentication (action token cookie).
+Всі точки доступу ігрових раундів потребують аутентифікації (cookie токена дії).
 
 ### GET /api/game_rounds
 
-Gets all game rounds.
+Отримує всі ігрові раунди.
 
-**Request:**
-- Method: GET
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: GET
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 [
   {
     "code": "xyz789",
-    "name": "Friday Night Game",
+    "name": "П'ятнична гра",
     "game_type_id": "...",
     "start_time": "2024-01-01T19:00:00Z",
     "end_time": "2024-01-01T22:00:00Z",
@@ -521,17 +523,17 @@ Gets all game rounds.
 
 ### POST /api/game_rounds
 
-Starts a new game round.
+Розпочинає новий ігровий раунд.
 
-**Request:**
-- Method: POST
-- Headers:
+**Запит:**
+- Метод: POST
+- Заголовки:
   - `Content-Type: application/json`
-- Cookies: `auth_token` (required)
-- Body:
+- Cookies: `auth_token` (обов'язковий)
+- Тіло:
 ```json
 {
-  "name": "Friday Night Game",
+  "name": "П'ятнична гра",
   "type": "Catan",
   "start_time": "2024-01-01T19:00:00Z",
   "players": [
@@ -545,54 +547,54 @@ Starts a new game round.
 }
 ```
 
-**Response:**
-- Status: 201 Created
-- Body: Created game round object
+**Відповідь:**
+- Статус: 201 Created
+- Тіло: Створений об'єкт ігрового раунду
 
-**Error Responses:**
-- 400 Bad Request: Invalid request body, game type not found, or invalid team assignments
-- 401 Unauthorized: Invalid or expired token
-- 500 Internal Server Error: Error creating round
+**Помилки:**
+- 400 Bad Request: Недійсне тіло запиту, тип гри не знайдено, або недійсні призначення команд
+- 401 Unauthorized: Недійсний або застарілий токен
+- 500 Internal Server Error: Помилка створення раунду
 
-**Notes:**
-- `type` refers to the game type name (not code)
-- For team games, each team defined in the game type must have at least one player assigned
+**Примітки:**
+- `type` посилається на назву типу гри (не код)
+- Для командних ігор кожна команда, визначена в типі гри, повинна мати принаймні одного призначеного гравця
 
 ---
 
 ### GET /api/game_rounds/{code}
 
-Gets a specific game round by code.
+Отримує конкретний ігровий раунд за кодом.
 
-**Request:**
-- Method: GET
-- URL Parameters: `code` - Game round code
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: GET
+- URL параметри: `code` - код ігрового раунду
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 200 OK
-- Body: Game round object
+**Відповідь:**
+- Статус: 200 OK
+- Тіло: Об'єкт ігрового раунду
 
-**Error Responses:**
-- 400 Bad Request: Invalid code format
-- 404 Not Found: Game round not found
+**Помилки:**
+- 400 Bad Request: Недійсний формат коду
+- 404 Not Found: Ігровий раунд не знайдено
 
 ---
 
 ### PUT /api/game_rounds/{code}
 
-Updates an existing game round.
+Оновлює існуючий ігровий раунд.
 
-**Request:**
-- Method: PUT
-- URL Parameters: `code` - Game round code
-- Headers:
+**Запит:**
+- Метод: PUT
+- URL параметри: `code` - код ігрового раунду
+- Заголовки:
   - `Content-Type: application/json`
-- Cookies: `auth_token` (required)
-- Body:
+- Cookies: `auth_token` (обов'язковий)
+- Тіло:
 ```json
 {
-  "name": "Updated Game Name",
+  "name": "Оновлена назва гри",
   "players": [
     {
       "user_id": "player_code",
@@ -605,27 +607,27 @@ Updates an existing game round.
 }
 ```
 
-**Response:**
-- Status: 200 OK
-- Body: Updated game round object
+**Відповідь:**
+- Статус: 200 OK
+- Тіло: Оновлений об'єкт ігрового раунду
 
-**Error Responses:**
-- 400 Bad Request: Invalid request body or user ID
-- 404 Not Found: Game round not found
+**Помилки:**
+- 400 Bad Request: Недійсне тіло запиту або ID користувача
+- 404 Not Found: Ігровий раунд не знайдено
 
 ---
 
 ### PUT /api/game_rounds/{code}/finalize
 
-Finalizes a game round with final scores and positions.
+Завершує ігровий раунд з фінальними очками та позиціями.
 
-**Request:**
-- Method: PUT
-- URL Parameters: `code` - Game round code
-- Headers:
+**Запит:**
+- Метод: PUT
+- URL параметри: `code` - код ігрового раунду
+- Заголовки:
   - `Content-Type: application/json`
-- Cookies: `auth_token` (required)
-- Body:
+- Cookies: `auth_token` (обов'язковий)
+- Тіло:
 ```json
 {
   "player_scores": {
@@ -634,75 +636,75 @@ Finalizes a game round with final scores and positions.
     "player_code_3": 7
   },
   "team_scores": {
-    "Team A": 15,
-    "Team B": 12
+    "Команда A": 15,
+    "Команда B": 12
   },
   "cooperative_score": 0
 }
 ```
 
-**Response:**
-- Status: 200 OK
+**Відповідь:**
+- Статус: 200 OK
 
-**Error Responses:**
-- 400 Bad Request: Invalid request body
-- 404 Not Found: Game round not found
+**Помилки:**
+- 400 Bad Request: Недійсне тіло запиту
+- 404 Not Found: Ігровий раунд не знайдено
 
-**Notes:**
-- `team_scores` and `cooperative_score` are optional
-- Player positions are automatically calculated based on scores (highest score = position 1)
-- Sets the `end_time` to current time
+**Примітки:**
+- `team_scores` та `cooperative_score` опціональні
+- Позиції гравців автоматично розраховуються на основі очок (найвищий бал = позиція 1)
+- Встановлює `end_time` на поточний час
 
 ---
 
 ### PUT /api/game_rounds/{code}/players/{userId}/score
 
-Updates a specific player's score within a game round.
+Оновлює очки конкретного гравця в ігровому раунді.
 
-**Request:**
-- Method: PUT
-- URL Parameters:
-  - `code` - Game round code
-  - `userId` - Player user ID
-- Headers:
+**Запит:**
+- Метод: PUT
+- URL параметри:
+  - `code` - код ігрового раунду
+  - `userId` - ID користувача гравця
+- Заголовки:
   - `Content-Type: application/json`
-- Cookies: `auth_token` (required)
-- Body:
+- Cookies: `auth_token` (обов'язковий)
+- Тіло:
 ```json
 {
   "score": 5
 }
 ```
 
-**Response:**
-- Status: 200 OK
+**Відповідь:**
+- Статус: 200 OK
 
-**Error Responses:**
-- 400 Bad Request: Invalid game ID or user ID
-- 404 Not Found: Game round not found or player not in game
+**Помилки:**
+- 400 Bad Request: Недійсний ID гри або ID користувача
+- 404 Not Found: Ігровий раунд не знайдено або гравець не в грі
 
 ---
 
-## Player Endpoints
+## Точки доступу гравців
 
-All player endpoints require authentication (action token cookie).
+Всі точки доступу гравців потребують аутентифікації (cookie токена дії).
 
 ### GET /api/players
 
-Gets all registered players.
+Отримує всіх зареєстрованих гравців.
 
-**Request:**
-- Method: GET
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: GET
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 [
   {
     "code": "abc123",
-    "alias": "player_alias",
+    "alias": "псевдонім_гравця",
     "avatar": "https://..."
   }
 ]
@@ -712,62 +714,62 @@ Gets all registered players.
 
 ### GET /api/players/{code}
 
-Gets a specific player by code.
+Отримує конкретного гравця за кодом.
 
-**Request:**
-- Method: GET
-- URL Parameters: `code` - Player code
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: GET
+- URL параметри: `code` - код гравця
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 {
   "code": "abc123",
-  "alias": "player_alias",
+  "alias": "псевдонім_гравця",
   "avatar": "https://..."
 }
 ```
 
-**Error Responses:**
-- 400 Bad Request: Invalid player code
-- 404 Not Found: Player not found
+**Помилки:**
+- 400 Bad Request: Недійсний код гравця
+- 404 Not Found: Гравця не знайдено
 
 ---
 
 ### GET /api/players/i_am
 
-Gets the current authenticated player's information.
+Отримує інформацію про поточного автентифікованого гравця.
 
-**Request:**
-- Method: GET
-- Cookies: `auth_token` (required)
+**Запит:**
+- Метод: GET
+- Cookies: `auth_token` (обов'язковий)
 
-**Response:**
-- Status: 200 OK
-- Body:
+**Відповідь:**
+- Статус: 200 OK
+- Тіло:
 ```json
 {
   "code": "abc123",
-  "alias": "my_alias",
+  "alias": "мій_псевдонім",
   "avatar": "https://..."
 }
 ```
 
-**Error Responses:**
-- 404 Not Found: Player profile not found
-- 500 Internal Server Error: Error fetching user
+**Помилки:**
+- 404 Not Found: Профіль гравця не знайдено
+- 500 Internal Server Error: Помилка отримання користувача
 
 ---
 
-## Rate Limits
+## Обмеження швидкості
 
-- Geolocation API (ipapi.co): Check ipapi.co documentation for rate limits
-- No built-in rate limiting on application endpoints (can be added via middleware)
+- API геолокації (ipapi.co): Перевірте документацію ipapi.co для обмежень швидкості
+- Вбудованих обмежень швидкості на точках доступу додатку немає (може бути додано через middleware)
 
 ## CORS
 
-- Configure trusted origins via `TRUSTED_ORIGINS` environment variable
-- Format: Comma-separated list of URLs (e.g., `http://localhost:3000,https://example.com`)
-- Used by `RequestService.IsTrustedOrigin()` for validation
+- Налаштуйте довірені джерела через змінну середовища `TRUSTED_ORIGINS`
+- Формат: Список URL через кому (наприклад, `http://localhost:3000,https://example.com`)
+- Використовується `RequestService.IsTrustedOrigin()` для валідації
