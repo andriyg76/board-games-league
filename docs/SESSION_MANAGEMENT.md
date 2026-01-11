@@ -1,263 +1,266 @@
-# Session and Account Management
+# Керування сесіями та обліковими записами
 
-## Overview
+*[English version](SESSION_MANAGEMENT.en.md)*
 
-The board-games-league application uses a hybrid token-based authentication system with session tracking, geolocation, and diagnostic capabilities. This system provides secure, scalable session management with rotate tokens and short-lived action tokens.
+## Огляд
 
-## Architecture
+Додаток board-games-league використовує гібридну систему аутентифікації на основі токенів з відстеженням сесій, геолокацією та діагностичними можливостями. Ця система забезпечує безпечне, масштабоване керування сесіями з токенами обертання та короткочасними токенами дії.
 
-### Token System
+## Архітектура
 
-The system uses a two-token approach:
+### Система токенів
 
-1. **Rotate Token** (Long-lived)
-   - Stored in browser `localStorage` (client-side)
-   - Persisted in MongoDB (server-side)
-   - Lifetime: 30 days
-   - Rotation interval: Every 12 hours (when action token is refreshed)
-   - Purpose: Used only for refreshing action tokens
-   - Not sent with every request (stored in localStorage, not cookies)
+Система використовує підхід з двома токенами:
 
-2. **Action Token** (Short-lived)
-   - Stored in HTTP-only, Secure, SameSite cookie
-   - Format: JWT (JSON Web Token)
-   - Lifetime: 1 hour
-   - Purpose: Used for authenticating API requests
-   - Automatically refreshed using rotate token when expired
+1. **Токен обертання** (Довгоживучий)
+   - Зберігається в `localStorage` браузера (клієнтська сторона)
+   - Зберігається в MongoDB (серверна сторона)
+   - Тривалість: 30 днів
+   - Інтервал обертання: Кожні 12 годин (коли токен дії оновлюється)
+   - Призначення: Використовується тільки для оновлення токенів дії
+   - Не відправляється з кожним запитом (зберігається в localStorage, не в cookies)
 
-### Token Flow
+2. **Токен дії** (Короткочасний)
+   - Зберігається в HTTP-only, Secure, SameSite cookie
+   - Формат: JWT (JSON Web Token)
+   - Тривалість: 1 година
+   - Призначення: Використовується для аутентифікації API запитів
+   - Автоматично оновлюється за допомогою токена обертання після закінчення терміну дії
+
+### Потік токенів
 
 ```
 ┌─────────┐                ┌──────────┐                ┌─────────┐
-│ Client  │                │  Server  │                │   DB    │
+│ Клієнт  │                │  Сервер  │                │   БД    │
 └────┬────┘                └────┬─────┘                └────┬────┘
      │                          │                           │
-     │  1. Login Request        │                           │
+     │  1. Запит входу          │                           │
      │─────────────────────────>│                           │
      │                          │                           │
-     │                          │  2. Create Session        │
+     │                          │  2. Створити сесію        │
      │                          │──────────────────────────>│
      │                          │                           │
-     │  3. Return rotateToken   │                           │
-     │     + Set actionToken    │                           │
+     │  3. Повернути rotateToken│                           │
+     │     + Встановити actionToken│                        │
      │<─────────────────────────│                           │
      │                          │                           │
-     │  4. Store rotateToken    │                           │
-     │     in localStorage      │                           │
+     │  4. Зберегти rotateToken │                           │
+     │     в localStorage      │                           │
      │                          │                           │
-     │  5. API Request          │                           │
-     │     (with actionToken)   │                           │
+     │  5. API запит            │                           │
+     │     (з actionToken)      │                           │
      │─────────────────────────>│                           │
-     │                          │  6. Validate JWT          │
-     │  7. Response             │                           │
+     │                          │  6. Перевірити JWT        │
+     │  7. Відповідь            │                           │
      │<─────────────────────────│                           │
      │                          │                           │
-     │  8. Action Token Expired │                           │
-     │     (401 error)          │                           │
+     │  8. Токен дії закінчився │                           │
+     │     (помилка 401)        │                           │
      │<─────────────────────────│                           │
      │                          │                           │
-     │  9. Refresh Request      │                           │
+     │  9. Запит оновлення      │                           │
      │     (Authorization:      │                           │
      │      Bearer rotateToken) │                           │
      │─────────────────────────>│                           │
-     │                          │  10. Validate rotateToken │
+     │                          │  10. Перевірити rotateToken│
      │                          │──────────────────────────>│
      │                          │                           │
-     │                          │  11. Rotate if needed     │
+     │                          │  11. Обернути якщо потрібно│
      │                          │──────────────────────────>│
-     │  12. New actionToken     │                           │
-     │      + New rotateToken   │                           │
-     │      (if rotated)        │                           │
+     │  12. Новий actionToken   │                           │
+     │      + Новий rotateToken │                           │
+     │      (якщо обернуто)    │                           │
      │<─────────────────────────│                           │
 ```
 
-## Components
+## Компоненти
 
-### Backend Components
+### Серверні компоненти
 
-#### Models
+#### Моделі
 
-**Session Model** (`backend/models/session.go`)
-- Stores session information in MongoDB
-- Fields:
-  - `RotateToken`: Unique token identifier
-  - `UserID`: Reference to user
-  - `CreatedAt`, `UpdatedAt`, `LastRotationAt`: Timestamps
-  - `ExpiresAt`: Session expiration (30 days)
-  - `IPAddress`, `UserAgent`: Request tracking
-  - `Version`: Optimistic locking for concurrent updates
+**Модель Session** (`backend/models/session.go`)
+- Зберігає інформацію про сесію в MongoDB
+- Поля:
+  - `RotateToken`: Унікальний ідентифікатор токена
+  - `UserID`: Посилання на користувача
+  - `CreatedAt`, `UpdatedAt`, `LastRotationAt`: Мітки часу
+  - `ExpiresAt`: Завершення сесії (30 днів)
+  - `IPAddress`, `UserAgent`: Відстеження запитів
+  - `Version`: Оптимістичне блокування для конкурентних оновлень
 
-**User Model** (`backend/models/user.go`)
-- Extended with `LastActivity` field to track user activity
+**Модель User** (`backend/models/user.go`)
+- Розширена полем `LastActivity` для відстеження активності користувача
 
-**GeoIPInfo Model** (`backend/models/geoip.go`)
-- Stores geolocation information
-- Fields: Country, Region, City, Timezone, ISP, etc.
+**Модель GeoIPInfo** (`backend/models/geoip.go`)
+- Зберігає інформацію про геолокацію
+- Поля: Країна, Регіон, Місто, Часовий пояс, ISP тощо
 
-#### Services
+#### Сервіси
 
 **SessionService** (`backend/services/session_service.go`)
-- `CreateSession()`: Creates new session with rotate and action tokens
-- `RefreshActionToken()`: Refreshes action token, rotates rotate token if needed (12h interval)
-- `InvalidateSession()`: Deletes session (logout)
-- `CleanupExpiredSessions()`: Removes expired sessions (background task)
+- `CreateSession()`: Створює нову сесію з токенами обертання та дії
+- `RefreshActionToken()`: Оновлює токен дії, обертає токен обертання якщо потрібно (інтервал 12 год)
+- `InvalidateSession()`: Видаляє сесію (вихід)
+- `CleanupExpiredSessions()`: Видаляє застарілі сесії (фонова задача)
 
 **RequestService** (`backend/services/request_service.go`)
-- `GetClientIP()`: Extracts client IP from headers (X-Forwarded-For, X-Real-IP, RemoteAddr)
-- `BuildBaseURL()`: Constructs base URL from request protocol and host
-- `IsTrustedOrigin()`: Validates request origin against trusted origins list
+- `GetClientIP()`: Витягує IP адресу клієнта з заголовків (X-Forwarded-For, X-Real-IP, RemoteAddr)
+- `BuildBaseURL()`: Формує базовий URL з протоколу та хосту запиту
+- `IsTrustedOrigin()`: Перевіряє походження запиту проти списку довірених джерел
 
 **GeoIPService** (`backend/services/geoip_service.go`)
-- `GetGeoIPInfo()`: Resolves IP address to geographic information
-- Uses ipapi.co API (free tier, no API key required)
-- Returns country, region, city, timezone, ISP information
+- `GetGeoIPInfo()`: Визначає географічну інформацію за IP адресою
+- Використовує API ipapi.co (безкоштовний рівень, API ключ не потрібен)
+- Повертає країну, регіон, місто, часовий пояс, інформацію про ISP
 
-#### Repositories
+#### Репозиторії
 
 **SessionRepository** (`backend/repositories/session_repository.go`)
-- MongoDB operations for sessions
-- Indexes: `rotate_token` (unique), `user_id`, `expires_at`
-- Methods: Create, FindByRotateToken, FindByUserID, Update, Delete, DeleteExpired
+- Операції MongoDB для сесій
+- Індекси: `rotate_token` (унікальний), `user_id`, `expires_at`
+- Методи: Create, FindByRotateToken, FindByUserID, Update, Delete, DeleteExpired
 
-#### API Endpoints
+#### API точки доступу
 
-**Authentication Endpoints**
+**Точки доступу аутентифікації**
 
 - `POST /api/auth/google/callback`
-  - Google OAuth callback
-  - Creates session
-  - Returns user data + `rotateToken` (for localStorage)
-  - Sets `actionToken` cookie
+  - Callback Google OAuth
+  - Створює сесію
+  - Повертає дані користувача + `rotateToken` (для localStorage)
+  - Встановлює cookie `actionToken`
 
 - `POST /api/auth/refresh`
-  - Refreshes action token
-  - Request: `Authorization: Bearer <rotateToken>`
-  - Response: New `actionToken` cookie + optional `rotateToken` (if rotated)
-  - Returns JSON: `{rotateToken?: string}`
+  - Оновлює токен дії
+  - Запит: `Authorization: Bearer <rotateToken>`
+  - Відповідь: Новий cookie `actionToken` + опціональний `rotateToken` (якщо обернуто)
+  - Повертає JSON: `{rotateToken?: string}`
 
 - `POST /api/auth/logout`
-  - Invalidates session
-  - Accepts `rotateToken` in request body or Authorization header
-  - Clears action token cookie
+  - Деактивує сесію
+  - Приймає `rotateToken` в тілі запиту або заголовку Authorization
+  - Очищує cookie токена дії
+  - Очищає rotateToken з localStorage (клієнтська сторона)
 
-**User Endpoints**
+**Користувацькі точки доступу**
 
 - `GET /api/user/sessions`
-  - Returns all active sessions for current user
-  - Query param: `?current=<rotateToken>` (optional, marks current session)
-  - Response: Array of session info with geo information
+  - Повертає всі активні сесії поточного користувача
+  - Параметр запиту: `?current=<rotateToken>` (опціональний, позначає поточну сесію)
+  - Відповідь: Масив інформації про сесії з геолокацією
 
-**Admin Endpoints**
+**Адміністративні точки доступу**
 
 - `GET /api/admin/diagnostics`
-  - Admin-only endpoint
-  - Returns server info, request info, and geolocation data
-  - Requires super admin privileges
+  - Точка доступу тільки для адмінів
+  - Повертає інформацію про сервер, запит та геолокацію
+  - Потребує прав супер-адміністратора
 
-### Frontend Components
+### Клієнтські компоненти
 
-#### API Clients
+#### API клієнти
 
 **UserApi** (`frontend/src/api/UserApi.ts`)
-- `getUserSessions(currentRotateToken?)`: Fetches user sessions
+- `getUserSessions(currentRotateToken?)`: Отримує сесії користувача
 
 **DiagnosticsApi** (`frontend/src/api/DiagnosticsApi.ts`)
-- `getDiagnostics()`: Fetches diagnostic information (admin-only)
+- `getDiagnostics()`: Отримує діагностичну інформацію (тільки для адмінів)
 
 **Auth** (`frontend/src/api/Auth.ts`)
-- Updated to store `rotateToken` in localStorage after login
+- Оновлено для збереження `rotateToken` в localStorage після входу
 
-#### Views
+#### Види
 
 **UserView** (`frontend/src/views/UserView.vue`)
-- Displays user profile
-- Shows active sessions table with:
-  - Location (city, country)
-  - IP address
+- Відображає профіль користувача
+- Показує таблицю активних сесій з:
+  - Місцем розташування (місто, країна)
+  - IP адресою
   - User agent
-  - Created timestamp
-  - Last activity
-  - Current session indicator
+  - Міткою часу створення
+  - Останньою активністю
+  - Індикатором поточної сесії
 
 **DiagnosticsView** (`frontend/src/views/DiagnosticsView.vue`)
-- Admin-only page
-- Displays:
-  - Server information (host URL, trusted origins)
-  - Request information (IP, base URL, origin, trusted status)
-  - Geolocation information
+- Сторінка тільки для адмінів
+- Відображає:
+  - Інформацію про сервер (host URL, довірені джерела)
+  - Інформацію про запит (IP, базовий URL, походження, статус довіри)
+  - Інформацію про геолокацію
 
-## Configuration
+## Конфігурація
 
-### Environment Variables
+### Змінні середовища
 
-**Required**
-- `MONGODB_URI`: MongoDB connection string
-- `GOOGLE_CLIENT_ID`: Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
-- `JWT_SECRET`: Secret key for signing JWT tokens
-- `SESSION_SECRET`: Secret key for session cookies
-- `SUPERADMINS`: Comma-separated list of external IDs (emails) for super admins
+**Обов'язкові**
+- `MONGODB_URI`: Рядок підключення до MongoDB
+- `GOOGLE_CLIENT_ID`: Client ID Google OAuth
+- `GOOGLE_CLIENT_SECRET`: Client Secret Google OAuth
+- `JWT_SECRET`: Секретний ключ для підпису JWT токенів
+- `SESSION_SECRET`: Секретний ключ для cookies сесій
+- `SUPERADMINS`: Список зовнішніх ID (email) супер-адміністраторів через кому
 
-**Optional**
-- `TRUSTED_ORIGINS`: Comma-separated list of trusted origins for CORS validation
-- `HOST_URL`: Base URL of the application (auto-detected if not set)
+**Опціональні**
+- `TRUSTED_ORIGINS`: Список довірених джерел через кому для валідації CORS
+- `HOST_URL`: Базовий URL додатку (автоматично визначається якщо не встановлено)
 
-### Database
+### База даних
 
-The system creates a new MongoDB collection: `sessions`
+Система створює нову колекцію MongoDB: `sessions`
 
-Indexes created:
-- `rotate_token` (unique)
+Створені індекси:
+- `rotate_token` (унікальний)
 - `user_id`
 - `expires_at`
 
-### Token Lifetimes
+### Тривалість життя токенів
 
-- **Action Token**: 1 hour (configurable in `user_profile.CreateAuthTokenWithExpiry`)
-- **Rotate Token**: Rotates every 12 hours, expires after 30 days
+- **Токен дії**: 1 година (налаштовується в `user_profile.CreateAuthTokenWithExpiry`)
+- **Токен обертання**: Обертається кожні 12 годин, закінчується через 30 днів
 
-## Usage
+## Використання
 
-### User Flow
+### Потік користувача
 
-1. **Login**
-   - User clicks login → redirects to Google OAuth
-   - After authentication, callback creates session
-   - `rotateToken` stored in localStorage
-   - `actionToken` set as HTTP-only cookie
+1. **Вхід**
+   - Користувач натискає вхід → перенаправлення на Google OAuth
+   - Після аутентифікації callback створює сесію
+   - `rotateToken` зберігається в localStorage
+   - `actionToken` встановлюється як HTTP-only cookie
 
-2. **Making Requests**
-   - Client sends requests with `actionToken` cookie automatically
-   - Middleware validates token
-   - If expired, client receives 401
+2. **Виконання запитів**
+   - Клієнт відправляє запити з cookie `actionToken` автоматично
+   - Middleware перевіряє токен
+   - Якщо закінчився, клієнт отримує 401
 
-3. **Token Refresh**
-   - Client detects 401 error
-   - Calls `/api/auth/refresh` with `rotateToken` from localStorage
-   - Receives new `actionToken` cookie
-   - Receives new `rotateToken` if rotation occurred (update localStorage)
+3. **Оновлення токена**
+   - Клієнт виявляє помилку 401
+   - Викликає `/api/auth/refresh` з `rotateToken` з localStorage
+   - Отримує новий cookie `actionToken`
+   - Отримує новий `rotateToken` якщо відбулося обертання (оновлює localStorage)
 
-4. **Viewing Sessions**
-   - User navigates to profile page
-   - Sessions table shows all active sessions
-   - Current session is highlighted
+4. **Перегляд сесій**
+   - Користувач переходить на сторінку профілю
+   - Таблиця сесій показує всі активні сесії
+   - Поточна сесія виділяється
 
-5. **Logout**
-   - Client calls `/api/auth/logout` with `rotateToken`
-   - Server invalidates session
-   - Client removes `rotateToken` from localStorage
-   - Cookie is cleared by server
+5. **Вихід**
+   - Клієнт викликає `/api/auth/logout` з `rotateToken`
+   - Сервер деактивує сесію
+   - Клієнт видаляє `rotateToken` з localStorage
+   - Cookie очищується сервером
 
-### Admin Flow
+### Потік адміністратора
 
-1. **Access Diagnostics**
-   - Admin navigates to `/ui/admin/diagnostics`
-   - System displays diagnostic information
-   - Non-admins receive 403 Forbidden
+1. **Доступ до діагностики**
+   - Адмін переходить до `/ui/admin/diagnostics`
+   - Система відображає діагностичну інформацію
+   - Неадміни отримують 403 Forbidden
 
-### Developer Flow
+### Потік розробника
 
-#### Adding New Protected Routes
+#### Додавання нових захищених маршрутів
 
 ```go
 r.Group(func(r chi.Router) {
@@ -266,89 +269,89 @@ r.Group(func(r chi.Router) {
 })
 ```
 
-#### Accessing User in Handler
+#### Доступ до користувача в обробнику
 
 ```go
 profile, ok := r.Context().Value("user").(*user_profile.UserProfile)
 if !ok || profile == nil {
-    // Handle unauthorized
+    // Обробити неавторизований доступ
 }
 ```
 
-#### Checking Admin Status
+#### Перевірка статусу адміна
 
 ```go
 if !auth.IsSuperAdmin(profile.ExternalIDs) {
-    // Handle unauthorized
+    // Обробити неавторизований доступ
 }
 ```
 
-## Security Features
+## Функції безпеки
 
-1. **HTTP-Only Cookies**: Action tokens stored in HTTP-only cookies prevent XSS attacks
-2. **Secure Cookies**: Cookies marked as Secure (HTTPS only)
-3. **SameSite Strict**: Prevents CSRF attacks
-4. **Token Rotation**: Rotate tokens rotate every 12 hours
-5. **Session Expiration**: Sessions expire after 30 days
-6. **Optimistic Locking**: Prevents race conditions during token rotation
-7. **IP Tracking**: Sessions track IP addresses for security monitoring
-8. **Trusted Origins**: Optional origin validation for CORS
+1. **HTTP-Only Cookies**: Токени дії зберігаються в HTTP-only cookies запобігають XSS атакам
+2. **Secure Cookies**: Cookies позначені як Secure (тільки HTTPS)
+3. **SameSite Strict**: Запобігає CSRF атакам
+4. **Обертання токенів**: Токени обертання обертаються кожні 12 годин
+5. **Завершення сесій**: Сесії закінчуються через 30 днів
+6. **Оптимістичне блокування**: Запобігає гонкам під час обертання токенів
+7. **Відстеження IP**: Сесії відстежують IP адреси для моніторингу безпеки
+8. **Довірені джерела**: Опціональна валідація походження для CORS
 
-## Background Tasks
+## Фонові завдання
 
-**Session Cleanup**
-- Runs every 1 hour
-- Removes expired sessions from database
-- Logs cleanup activity
+**Очищення сесій**
+- Запускається кожну 1 годину
+- Видаляє застарілі сесії з бази даних
+- Логує активність очищення
 
-## Geolocation
+## Геолокація
 
-The system uses ipapi.co API for geolocation (free tier):
-- No API key required
-- Rate limits apply (check ipapi.co documentation)
-- Falls back gracefully if service unavailable
-- Geo information is optional and non-blocking
+Система використовує API ipapi.co для геолокації (безкоштовний рівень):
+- API ключ не потрібен
+- Застосовуються обмеження швидкості (перевірте документацію ipapi.co)
+- Gracefully відступає якщо сервіс недоступний
+- Інформація про геолокацію опціональна та неблокуюча
 
-## Troubleshooting
+## Усунення проблем
 
-### Session Not Working
+### Сесія не працює
 
-1. Check that `rotateToken` is stored in localStorage
-2. Verify `actionToken` cookie is set (check browser DevTools)
-3. Check server logs for authentication errors
-4. Verify JWT_SECRET is set correctly
+1. Перевірте що `rotateToken` збережено в localStorage
+2. Переконайтеся що cookie `actionToken` встановлено (перевірте DevTools браузера)
+3. Перевірте логи сервера на помилки аутентифікації
+4. Переконайтеся що JWT_SECRET встановлено правильно
 
-### Geolocation Not Showing
+### Геолокація не відображається
 
-1. Check internet connectivity (service uses external API)
-2. Verify ipapi.co service is accessible
-3. Check rate limits on ipapi.co
-4. Geo info is optional - sessions work without it
+1. Перевірте підключення до інтернету (сервіс використовує зовнішній API)
+2. Переконайтеся що сервіс ipapi.co доступний
+3. Перевірте обмеження швидкості на ipapi.co
+4. Інформація про геолокацію опціональна - сесії працюють без неї
 
-### Admin Access Denied
+### Доступ адміна заборонено
 
-1. Verify user's external ID is in `SUPERADMINS` environment variable
-2. Check that external IDs match exactly (case-sensitive)
-3. User must re-authenticate after being added to SUPERADMINS
+1. Переконайтеся що зовнішній ID користувача в `SUPERADMINS` змінній середовища
+2. Перевірте що зовнішні ID точно збігаються (чутливо до регістру)
+3. Користувач повинен повторно автентифікуватися після додавання до SUPERADMINS
 
-## Migration Notes
+## Примітки про міграцію
 
-### From Old System
+### Зі старої системи
 
-- Old JWT tokens will be invalid after deployment
-- Users must re-authenticate
-- No database migration needed (new collection)
-- Existing user data is preserved
+- Старі JWT токени будуть недійсними після розгортання
+- Користувачі повинні повторно автентифікуватися
+- Міграція бази даних не потрібна (нова колекція)
+- Існуючі дані користувачів збережені
 
-### Backward Compatibility
+### Зворотна сумісність
 
-- Old authentication endpoints are replaced
-- Frontend must be updated to use new token system
-- Session information is new feature (backward compatible)
+- Старі точки доступу аутентифікації замінені
+- Frontend повинен бути оновлено для використання нової системи токенів
+- Інформація про сесії - нова функція (зворотно сумісна)
 
-## API Examples
+## Приклади API
 
-### Refresh Token
+### Оновлення токена
 
 ```bash
 curl -X POST http://localhost:8080/api/auth/refresh \
@@ -356,21 +359,21 @@ curl -X POST http://localhost:8080/api/auth/refresh \
   -H "Cookie: auth_token=<old_action_token>"
 ```
 
-Response:
+Відповідь:
 ```json
 {
   "rotateToken": "new_rotate_token_if_rotated"
 }
 ```
 
-### Get User Sessions
+### Отримання сесій користувача
 
 ```bash
 curl http://localhost:8080/api/user/sessions?current=<rotateToken> \
   -H "Cookie: auth_token=<action_token>"
 ```
 
-Response:
+Відповідь:
 ```json
 [
   {
@@ -392,14 +395,14 @@ Response:
 ]
 ```
 
-### Diagnostics (Admin Only)
+### Діагностика (Тільки для адмінів)
 
 ```bash
 curl http://localhost:8080/api/admin/diagnostics \
   -H "Cookie: auth_token=<action_token>"
 ```
 
-Response:
+Відповідь:
 ```json
 {
   "server_info": {
@@ -420,12 +423,12 @@ Response:
 }
 ```
 
-## Future Enhancements
+## Майбутні покращення
 
-Potential improvements:
-- Session revocation UI (revoke specific sessions)
-- Session limits (max concurrent sessions per user)
-- More granular session permissions
-- Local geolocation database (reduce external API dependency)
-- Session activity logs
-- Multi-factor authentication support
+Потенційні покращення:
+- UI відкликання сесій (відкликати конкретні сесії)
+- Обмеження сесій (макс одночасні сесії на користувача)
+- Більш детальні дозволи сесій
+- Локальна база даних геолокації (зменшити залежність від зовнішнього API)
+- Журнали активності сесій
+- Підтримка багатофакторної аутентифікації
