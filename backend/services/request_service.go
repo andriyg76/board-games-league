@@ -1,6 +1,7 @@
 package services
 
 import (
+	"net"
 	"net/url"
 	"net/http"
 	"strings"
@@ -39,11 +40,11 @@ func (s *requestService) GetClientIP(r *http.Request) string {
 	}
 
 	// Fall back to RemoteAddr (remove port if present)
-	ip := r.RemoteAddr
-	if idx := strings.LastIndex(ip, ":"); idx != -1 {
-		ip = ip[:idx]
+	remote := strings.TrimSpace(r.RemoteAddr)
+	if host, _, err := net.SplitHostPort(remote); err == nil && host != "" {
+		return host
 	}
-	return ip
+	return remote
 }
 
 // BuildBaseURL constructs the base URL from the request.
