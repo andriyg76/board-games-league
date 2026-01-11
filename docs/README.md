@@ -15,11 +15,34 @@
   - Authentication endpoints
   - User endpoints
   - Admin endpoints
+  - Game type endpoints
+  - Game round endpoints
+  - Player endpoints
   - Request/response formats
   - Error codes
   - Authentication flow
 
+## Game Management
+
+- **[GAME_MANAGEMENT.md](GAME_MANAGEMENT.md)** - Complete guide to game management features:
+  - Game types configuration
+  - Scoring types (classic, cooperative, team-based, mafia)
+  - Labels and teams
+  - Game rounds lifecycle
+  - Player management
+  - Frontend components
+  - API examples
+  - Database collections
+
 ## Key Features
+
+### Game Management
+- Multiple scoring types (classic, cooperative, team vs team, mafia)
+- Game type configuration with labels and teams
+- Game round tracking with start/end times
+- Player score and position tracking
+- Team scores for team-based games
+- Cooperative scoring support
 
 ### Session Management
 - Hybrid token system (rotate tokens + action tokens)
@@ -48,6 +71,7 @@
 - Current session indicator
 - Geographic location display
 - Session activity tracking
+- Player profile management
 
 ## Getting Started
 

@@ -343,6 +343,424 @@ Most endpoints require authentication via the `auth_token` cookie (JWT action to
 - When rotated, new `rotateToken` is returned in refresh response
 - Client must update localStorage with new token
 
+## Game Type Endpoints
+
+All game type endpoints require authentication (action token cookie).
+
+### GET /api/game_types
+
+Gets all game types.
+
+**Request:**
+- Method: GET
+- Cookies: `auth_token` (required)
+
+**Response:**
+- Status: 200 OK
+- Body:
+```json
+[
+  {
+    "code": "abc123",
+    "name": "Catan",
+    "scoring_type": "classic",
+    "version": 1,
+    "labels": [
+      { "name": "First Player", "color": "#FF0000", "icon": "mdi-flag" }
+    ],
+    "teams": []
+  }
+]
+```
+
+---
+
+### POST /api/game_types
+
+Creates a new game type.
+
+**Request:**
+- Method: POST
+- Headers:
+  - `Content-Type: application/json`
+- Cookies: `auth_token` (required)
+- Body:
+```json
+{
+  "name": "Catan",
+  "scoring_type": "classic",
+  "labels": [
+    { "name": "First Player", "color": "#FF0000", "icon": "mdi-flag" }
+  ],
+  "teams": []
+}
+```
+
+**Response:**
+- Status: 201 Created
+- Body:
+```json
+{
+  "code": "abc123",
+  "name": "Catan",
+  "scoring_type": "classic",
+  "version": 1,
+  "labels": [...],
+  "teams": []
+}
+```
+
+**Error Responses:**
+- 400 Bad Request: Invalid request body or duplicate label/team names
+- 401 Unauthorized: Invalid or expired token
+
+**Notes:**
+- `scoring_type` must be one of: `classic`, `mafia`, `custom`, `cooperative`, `cooperative_with_moderator`, `team_vs_team`
+- Label and team names must be unique within their respective arrays
+
+---
+
+### GET /api/game_types/{code}
+
+Gets a specific game type by code.
+
+**Request:**
+- Method: GET
+- URL Parameters: `code` - Game type code
+- Cookies: `auth_token` (required)
+
+**Response:**
+- Status: 200 OK
+- Body: Same as single item in list response
+
+**Error Responses:**
+- 400 Bad Request: Invalid code format
+- 404 Not Found: Game type not found
+
+---
+
+### PUT /api/game_types/{code}
+
+Updates an existing game type.
+
+**Request:**
+- Method: PUT
+- URL Parameters: `code` - Game type code
+- Headers:
+  - `Content-Type: application/json`
+- Cookies: `auth_token` (required)
+- Body: Same as POST request body
+
+**Response:**
+- Status: 200 OK
+- Body: Updated game type object
+
+**Error Responses:**
+- 400 Bad Request: Invalid request body or duplicate label/team names
+- 404 Not Found: Game type not found
+
+---
+
+### DELETE /api/game_types/{code}
+
+Deletes a game type.
+
+**Request:**
+- Method: DELETE
+- URL Parameters: `code` - Game type code
+- Cookies: `auth_token` (required)
+
+**Response:**
+- Status: 204 No Content
+
+**Error Responses:**
+- 400 Bad Request: Invalid code format
+- 404 Not Found: Game type not found
+
+---
+
+## Game Round Endpoints
+
+All game round endpoints require authentication (action token cookie).
+
+### GET /api/game_rounds
+
+Gets all game rounds.
+
+**Request:**
+- Method: GET
+- Cookies: `auth_token` (required)
+
+**Response:**
+- Status: 200 OK
+- Body:
+```json
+[
+  {
+    "code": "xyz789",
+    "name": "Friday Night Game",
+    "game_type_id": "...",
+    "start_time": "2024-01-01T19:00:00Z",
+    "end_time": "2024-01-01T22:00:00Z",
+    "players": [
+      {
+        "player_id": "...",
+        "position": 1,
+        "score": 10,
+        "is_moderator": false,
+        "team_name": ""
+      }
+    ],
+    "team_scores": [],
+    "cooperative_score": 0
+  }
+]
+```
+
+---
+
+### POST /api/game_rounds
+
+Starts a new game round.
+
+**Request:**
+- Method: POST
+- Headers:
+  - `Content-Type: application/json`
+- Cookies: `auth_token` (required)
+- Body:
+```json
+{
+  "name": "Friday Night Game",
+  "type": "Catan",
+  "start_time": "2024-01-01T19:00:00Z",
+  "players": [
+    {
+      "user_id": "player_object_id",
+      "position": 1,
+      "is_moderator": false,
+      "team_name": ""
+    }
+  ]
+}
+```
+
+**Response:**
+- Status: 201 Created
+- Body: Created game round object
+
+**Error Responses:**
+- 400 Bad Request: Invalid request body, game type not found, or invalid team assignments
+- 401 Unauthorized: Invalid or expired token
+- 500 Internal Server Error: Error creating round
+
+**Notes:**
+- `type` refers to the game type name (not code)
+- For team games, each team defined in the game type must have at least one player assigned
+
+---
+
+### GET /api/game_rounds/{code}
+
+Gets a specific game round by code.
+
+**Request:**
+- Method: GET
+- URL Parameters: `code` - Game round code
+- Cookies: `auth_token` (required)
+
+**Response:**
+- Status: 200 OK
+- Body: Game round object
+
+**Error Responses:**
+- 400 Bad Request: Invalid code format
+- 404 Not Found: Game round not found
+
+---
+
+### PUT /api/game_rounds/{code}
+
+Updates an existing game round.
+
+**Request:**
+- Method: PUT
+- URL Parameters: `code` - Game round code
+- Headers:
+  - `Content-Type: application/json`
+- Cookies: `auth_token` (required)
+- Body:
+```json
+{
+  "name": "Updated Game Name",
+  "players": [
+    {
+      "user_id": "player_code",
+      "position": 1,
+      "score": 5,
+      "is_moderator": false,
+      "team_name": ""
+    }
+  ]
+}
+```
+
+**Response:**
+- Status: 200 OK
+- Body: Updated game round object
+
+**Error Responses:**
+- 400 Bad Request: Invalid request body or user ID
+- 404 Not Found: Game round not found
+
+---
+
+### PUT /api/game_rounds/{code}/finalize
+
+Finalizes a game round with final scores and positions.
+
+**Request:**
+- Method: PUT
+- URL Parameters: `code` - Game round code
+- Headers:
+  - `Content-Type: application/json`
+- Cookies: `auth_token` (required)
+- Body:
+```json
+{
+  "player_scores": {
+    "player_code_1": 10,
+    "player_code_2": 8,
+    "player_code_3": 7
+  },
+  "team_scores": {
+    "Team A": 15,
+    "Team B": 12
+  },
+  "cooperative_score": 0
+}
+```
+
+**Response:**
+- Status: 200 OK
+
+**Error Responses:**
+- 400 Bad Request: Invalid request body
+- 404 Not Found: Game round not found
+
+**Notes:**
+- `team_scores` and `cooperative_score` are optional
+- Player positions are automatically calculated based on scores (highest score = position 1)
+- Sets the `end_time` to current time
+
+---
+
+### PUT /api/game_rounds/{code}/players/{userId}/score
+
+Updates a specific player's score within a game round.
+
+**Request:**
+- Method: PUT
+- URL Parameters:
+  - `code` - Game round code
+  - `userId` - Player user ID
+- Headers:
+  - `Content-Type: application/json`
+- Cookies: `auth_token` (required)
+- Body:
+```json
+{
+  "score": 5
+}
+```
+
+**Response:**
+- Status: 200 OK
+
+**Error Responses:**
+- 400 Bad Request: Invalid game ID or user ID
+- 404 Not Found: Game round not found or player not in game
+
+---
+
+## Player Endpoints
+
+All player endpoints require authentication (action token cookie).
+
+### GET /api/players
+
+Gets all registered players.
+
+**Request:**
+- Method: GET
+- Cookies: `auth_token` (required)
+
+**Response:**
+- Status: 200 OK
+- Body:
+```json
+[
+  {
+    "code": "abc123",
+    "alias": "player_alias",
+    "avatar": "https://..."
+  }
+]
+```
+
+---
+
+### GET /api/players/{code}
+
+Gets a specific player by code.
+
+**Request:**
+- Method: GET
+- URL Parameters: `code` - Player code
+- Cookies: `auth_token` (required)
+
+**Response:**
+- Status: 200 OK
+- Body:
+```json
+{
+  "code": "abc123",
+  "alias": "player_alias",
+  "avatar": "https://..."
+}
+```
+
+**Error Responses:**
+- 400 Bad Request: Invalid player code
+- 404 Not Found: Player not found
+
+---
+
+### GET /api/players/i_am
+
+Gets the current authenticated player's information.
+
+**Request:**
+- Method: GET
+- Cookies: `auth_token` (required)
+
+**Response:**
+- Status: 200 OK
+- Body:
+```json
+{
+  "code": "abc123",
+  "alias": "my_alias",
+  "avatar": "https://..."
+}
+```
+
+**Error Responses:**
+- 404 Not Found: Player profile not found
+- 500 Internal Server Error: Error fetching user
+
+---
+
 ## Rate Limits
 
 - Geolocation API (ipapi.co): Check ipapi.co documentation for rate limits
