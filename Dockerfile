@@ -1,5 +1,5 @@
-# Stage 1: Build the frontend (only on amd64 to avoid emulation overhead)
-FROM --platform=linux/amd64 node:22 AS frontend-builder
+# Stage 1: Build the frontend (on build platform to avoid emulation)
+FROM --platform=$BUILDPLATFORM node:22 AS frontend-builder
 
 ARG BUILD_VERSION=unknown
 ARG BUILD_COMMIT=unknown
