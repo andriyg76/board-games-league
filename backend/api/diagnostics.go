@@ -14,6 +14,14 @@ import (
 	"strings"
 )
 
+// BuildInfo holds build-time information injected via ldflags
+var (
+	BuildVersion  = "unknown"
+	BuildCommit   = "unknown"
+	BuildBranch   = "unknown"
+	BuildDate     = "unknown"
+)
+
 type DiagnosticsHandler struct {
 	requestService services.RequestService
 	geoIPService   services.GeoIPService
@@ -31,6 +39,12 @@ type DiagnosticsResponse struct {
 		HostURL      string   `json:"host_url"`
 		TrustedOrigins []string `json:"trusted_origins"`
 	} `json:"server_info"`
+	BuildInfo struct {
+		Version string `json:"version"`
+		Commit  string `json:"commit"`
+		Branch  string `json:"branch"`
+		Date    string `json:"date"`
+	} `json:"build_info"`
 	RequestInfo struct {
 		IPAddress  string             `json:"ip_address"`
 		BaseURL    string             `json:"base_url"`
@@ -72,6 +86,10 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 	response := DiagnosticsResponse{}
 	response.ServerInfo.HostURL = utils.GetHostUrl(r)
 	response.ServerInfo.TrustedOrigins = trustedOrigins
+	response.BuildInfo.Version = BuildVersion
+	response.BuildInfo.Commit = BuildCommit
+	response.BuildInfo.Branch = BuildBranch
+	response.BuildInfo.Date = BuildDate
 	response.RequestInfo.IPAddress = clientIP
 	response.RequestInfo.BaseURL = baseURL
 	response.RequestInfo.UserAgent = r.Header.Get("User-Agent")

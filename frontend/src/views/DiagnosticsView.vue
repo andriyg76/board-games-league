@@ -6,6 +6,31 @@
         <v-row>
           <v-col cols="12" md="6">
             <v-card class="mb-4">
+              <v-card-title>Backend Build Information</v-card-title>
+              <v-card-text>
+                <p><strong>Version:</strong> {{ diagnostics.build_info.version }}</p>
+                <p><strong>Commit:</strong> {{ diagnostics.build_info.commit }}</p>
+                <p><strong>Branch:</strong> {{ diagnostics.build_info.branch }}</p>
+                <p><strong>Build Date:</strong> {{ diagnostics.build_info.date }}</p>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-card class="mb-4">
+              <v-card-title>Frontend Build Information</v-card-title>
+              <v-card-text>
+                <p><strong>Version:</strong> {{ frontendBuildInfo.version }}</p>
+                <p><strong>Commit:</strong> {{ frontendBuildInfo.commit }}</p>
+                <p><strong>Branch:</strong> {{ frontendBuildInfo.branch }}</p>
+                <p><strong>Build Date:</strong> {{ frontendBuildInfo.date }}</p>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <v-row>
+          <v-col cols="12" md="6">
+            <v-card class="mb-4">
               <v-card-title>Server Information</v-card-title>
               <v-card-text>
                 <p><strong>Host URL:</strong> {{ diagnostics.server_info.host_url }}</p>
@@ -66,14 +91,21 @@
 </template>
 
 <script lang="ts" setup>
-import DiagnosticsApi, { DiagnosticsResponse } from "@/api/DiagnosticsApi";
+import DiagnosticsApi, { DiagnosticsResponse, getFrontendBuildInfo, BuildInfo } from "@/api/DiagnosticsApi";
 import { ref, onMounted } from "vue";
 
 const diagnostics = ref<DiagnosticsResponse | null>(null);
+const frontendBuildInfo = ref<BuildInfo>({
+  version: "unknown",
+  commit: "unknown",
+  branch: "unknown",
+  date: "unknown",
+});
 
 onMounted(async () => {
   try {
     diagnostics.value = await DiagnosticsApi.getDiagnostics();
+    frontendBuildInfo.value = await getFrontendBuildInfo();
   } catch (e) {
     console.error("Error loading diagnostics:", e);
   }
