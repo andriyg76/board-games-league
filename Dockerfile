@@ -1,4 +1,4 @@
-# Stage 1: Build the frontend
+# Stage 1: Build the frontend (on build platform to avoid emulation)
 FROM --platform=$BUILDPLATFORM node:22 AS frontend-builder
 
 ARG BUILD_VERSION=unknown
@@ -18,11 +18,9 @@ RUN echo "{\"version\":\"${BUILD_VERSION}\",\"commit\":\"${BUILD_COMMIT}\",\"bra
 
 RUN npm run build
 
-# Stage 2: Build the backend
+# Stage 2: Build the backend for both architectures
 FROM --platform=$BUILDPLATFORM golang:1.24 AS backend-builder
 
-ARG TARGETARCH
-ARG TARGETOS
 ARG BUILD_VERSION=unknown
 ARG BUILD_COMMIT=unknown
 ARG BUILD_BRANCH=unknown
@@ -46,23 +44,27 @@ RUN go test ./...
 # copy frontend
 COPY --from=frontend-builder /app/frontend/dist ./frontendfs
 
-# Build the backend with version info
-# Set build date if not provided
+# Build the backend for both architectures
 RUN BUILD_DATE_VAL="${BUILD_DATE:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}" && \
-  GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+  GOOS=linux GOARCH=amd64 go build \
   -ldflags "-X github.com/andriyg76/bgl/api.BuildVersion=${BUILD_VERSION} -X github.com/andriyg76/bgl/api.BuildCommit=${BUILD_COMMIT} -X github.com/andriyg76/bgl/api.BuildBranch=${BUILD_BRANCH} -X github.com/andriyg76/bgl/api.BuildDate=${BUILD_DATE_VAL}" \
-  -o /app/main -v .
+  -o /app/main-amd64 -v . && \
+  GOOS=linux GOARCH=arm64 go build \
+  -ldflags "-X github.com/andriyg76/bgl/api.BuildVersion=${BUILD_VERSION} -X github.com/andriyg76/bgl/api.BuildCommit=${BUILD_COMMIT} -X github.com/andriyg76/bgl/api.BuildBranch=${BUILD_BRANCH} -X github.com/andriyg76/bgl/api.BuildDate=${BUILD_DATE_VAL}" \
+  -o /app/main-arm64 -v .
 
 # Stage 3: Create the final image
 FROM ubuntu:latest
 
+ARG TARGETARCH
+
 WORKDIR /app
 
 # Install necessary packages
-RUN apt-get update && apt-get install -y ca-certificates
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy the backend binary
-COPY --from=backend-builder /app/main .
+# Copy the correct binary for target architecture
+COPY --from=backend-builder /app/main-${TARGETARCH} ./main
 
 # Expose the port the app runs on
 EXPOSE 8080
