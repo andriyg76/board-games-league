@@ -25,7 +25,7 @@ const createUser = async () => {
   try {
     await UserApi.adminCreateUser(externalIDs.value);
     message.value = 'User created successfully';
-  } catch (error) {
+  } catch (_error) {
     message.value = 'Failed to create user';
   }
 };
