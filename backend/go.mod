@@ -2,7 +2,7 @@ module github.com/andriyg76/bgl
 
 go 1.23.0
 
-toolchain go1.24.3
+toolchain go1.23.12
 
 require (
 	github.com/andriyg76/glog v0.1.8

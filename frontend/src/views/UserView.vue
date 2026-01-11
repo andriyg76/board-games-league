@@ -70,6 +70,48 @@
           Save Profile
         </v-btn>
       </v-form>
+
+      <v-row class="mt-4">
+        <v-col cols="12">
+          <v-card>
+            <v-card-title>Active Sessions</v-card-title>
+            <v-card-text>
+              <v-skeleton-loader v-if="loadingSessions" type="table"></v-skeleton-loader>
+              <v-table v-else-if="sessions.length > 0">
+                <thead>
+                  <tr>
+                    <th>Location</th>
+                    <th>IP Address</th>
+                    <th>User Agent</th>
+                    <th>Created</th>
+                    <th>Last Activity</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="session in sessions" :key="session.id" :class="{ 'bg-blue-lighten-5': session.is_current }">
+                    <td>
+                      <span v-if="session.geo_info">
+                        {{ session.geo_info.city || '' }}{{ session.geo_info.city && session.geo_info.country ? ', ' : '' }}{{ session.geo_info.country || '' }}
+                      </span>
+                      <span v-else class="text-grey">Unknown</span>
+                    </td>
+                    <td>{{ session.ip_address }}</td>
+                    <td class="text-truncate" style="max-width: 300px;">{{ session.user_agent }}</td>
+                    <td>{{ formatDate(session.created_at) }}</td>
+                    <td>{{ formatDate(session.updated_at) }}</td>
+                    <td>
+                      <v-chip v-if="session.is_current" color="primary" size="small">Current</v-chip>
+                      <v-chip v-else color="default" size="small">Active</v-chip>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+              <p v-else>No active sessions found.</p>
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
     </template>
     <template v-else>
       <p>Please log in to view and edit your profile.</p>
@@ -78,7 +120,7 @@
 </template>
 
 <script lang="ts" setup>
-import UserApi, { User } from "@/api/UserApi";
+import UserApi, { User, SessionInfo } from "@/api/UserApi";
 import { useUserStore } from '@/store/user';
 import { ref, onMounted, watch } from "vue";
 
@@ -87,6 +129,8 @@ const isAliasUnique = ref<boolean | null>(null);
 const initialAlias = ref<string>('');
 const initialName = ref<string>('');
 const initialAvatar = ref<string>('');
+const sessions = ref<SessionInfo[]>([]);
+const loadingSessions = ref(false);
 
 const rules = {
   required: (value: string) => !!value || 'Required.',
@@ -134,6 +178,26 @@ watch(() => userStore.user.alias, (newAlias, oldAlias) => {
 });
 
 
+function formatDate(dateString: string): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleString();
+}
+
+async function loadSessions() {
+  loadingSessions.value = true;
+  try {
+    // Get rotate token from localStorage if available
+    const rotateToken = localStorage.getItem('rotateToken') || undefined;
+    sessions.value = await UserApi.getUserSessions(rotateToken || undefined);
+  } catch (e) {
+    console.error("Error loading sessions:", e);
+    sessions.value = [];
+  } finally {
+    loadingSessions.value = false;
+  }
+}
+
 onMounted(async () => {
   // Fetch the current user data if not already loaded in the store
   if (!userStore.loggedIn) {
@@ -149,5 +213,10 @@ onMounted(async () => {
   initialAlias.value = userStore.user.alias;
   initialName.value = userStore.user.name;
   initialAvatar.value = userStore.user.avatar;
+  
+  // Load sessions
+  if (userStore.loggedIn) {
+    await loadSessions();
+  }
 });
 </script>

@@ -7,6 +7,29 @@ export interface User {
     names?: string[];
 }
 
+export interface GeoIPInfo {
+    country?: string;
+    country_code?: string;
+    region?: string;
+    region_name?: string;
+    city?: string;
+    timezone?: string;
+    isp?: string;
+    ip?: string;
+}
+
+export interface SessionInfo {
+    id: string;
+    ip_address: string;
+    user_agent: string;
+    created_at: string;
+    updated_at: string;
+    last_rotation_at: string;
+    expires_at: string;
+    is_current: boolean;
+    geo_info?: GeoIPInfo;
+}
+
 export default {
     async getUser(): Promise<User | null> {
         const response = await fetch('/api/user', {
@@ -69,5 +92,22 @@ export default {
             console.error('Failed to create user:', error);
             throw new Error('Error creating user:' + error);
         }
+    },
+    async getUserSessions(currentRotateToken?: string): Promise<SessionInfo[]> {
+        const headers: HeadersInit = {};
+        if (currentRotateToken) {
+            headers['Authorization'] = `Bearer ${currentRotateToken}`;
+        }
+
+        const response = await fetch('/api/user/sessions', {
+            credentials: 'include',
+            headers,
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to get user sessions');
+        }
+
+        return await response.json();
     }
 }

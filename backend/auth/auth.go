@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
+	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/andriyg76/glog"
 	"github.com/gorilla/sessions"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
@@ -21,6 +23,14 @@ import (
 
 // Load super admins from environment variable
 var superAdmins = strings.Split(os.Getenv("SUPERADMINS"), ",")
+
+func stripPort(remoteAddr string) string {
+	remoteAddr = strings.TrimSpace(remoteAddr)
+	if host, _, err := net.SplitHostPort(remoteAddr); err == nil && host != "" {
+		return host
+	}
+	return remoteAddr
+}
 
 func init() {
 	glog.Info("Registered superadmins: %v", superAdmins)
@@ -143,40 +153,150 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	token, err := user_profile.CreateAuthToken(externalUser.ExternalIDs, utils.IdToCode(user.ID), externalUser.Name, externalUser.Avatar)
+	// Create session with rotate token and action token
+	ipAddress := stripPort(r.RemoteAddr)
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		ipAddress = strings.TrimSpace(strings.Split(forwarded, ",")[0])
+	}
+	userAgent := r.Header.Get("User-Agent")
+	userCode := utils.IdToCode(user.ID)
+
+	rotateToken, actionToken, err := h.sessionService.CreateSession(
+		r.Context(),
+		user.ID,
+		userCode,
+		user.ExternalIDs,
+		user.Name,
+		user.Avatar,
+		ipAddress,
+		userAgent,
+	)
 	if err != nil {
-		_ = glog.Error("Token creation failed: %v", err)
+		_ = glog.Error("Session creation failed: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Set secure cookie
+	// Set action token cookie (1 hour expiry)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
-		Value:    token,
+		Value:    actionToken,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
-		MaxAge:   24 * 60 * 60, // 24 hours
+		MaxAge:   60 * 60, // 1 hour
 	})
 
-	if err := json.NewEncoder(w).Encode(user_profile.UserResponse{
-		Code:        utils.IdToCode(user.ID),
-		ExternalIDs: user.ExternalIDs,
-		Name:        user.Name,
-		Avatar:      user.Avatar,
-		Alias:       user.Alias,
-		Avatars:     user.Avatars,
-		Names:       user.Names,
-	}); err != nil {
+	// Return user data with rotate token (for client to store in localStorage)
+	response := struct {
+		user_profile.UserResponse
+		RotateToken string `json:"rotateToken"`
+	}{
+		UserResponse: user_profile.UserResponse{
+			Code:        userCode,
+			ExternalIDs: user.ExternalIDs,
+			Name:        user.Name,
+			Avatar:      user.Avatar,
+			Alias:       user.Alias,
+			Avatars:     user.Avatars,
+			Names:       user.Names,
+		},
+		RotateToken: rotateToken,
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		_ = glog.Error("serialising error %v", err)
 		http.Error(w, "serialising error", http.StatusInternalServerError)
 	}
 }
 
+func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract rotate token from Authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Authorization header required", http.StatusUnauthorized)
+		return
+	}
+
+	// Expect "Bearer <token>" format
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
+		return
+	}
+	rotateToken := parts[1]
+
+	// Get IP and user agent for session tracking
+	ipAddress := stripPort(r.RemoteAddr)
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		ipAddress = strings.TrimSpace(strings.Split(forwarded, ",")[0])
+	}
+	userAgent := r.Header.Get("User-Agent")
+
+	// Refresh action token (and rotate token if needed)
+	newRotateToken, actionToken, err := h.sessionService.RefreshActionToken(r.Context(), rotateToken, ipAddress, userAgent)
+	if err != nil {
+		_ = glog.Error("Token refresh failed: %v", err)
+		http.Error(w, "Token refresh failed", http.StatusUnauthorized)
+		return
+	}
+
+	// Set new action token cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth_token",
+		Value:    actionToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   60 * 60, // 1 hour
+	})
+
+	// Return new rotate token if it was rotated
+	response := make(map[string]interface{})
+	if newRotateToken != "" {
+		response["rotateToken"] = newRotateToken
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		_ = glog.Error("Failed to encode refresh response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
 func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	_ = h.provider.LogoutHandler(w, r)
+
+	// Try to get rotate token from request body or Authorization header
+	var rotateToken string
+	if r.Header.Get("Content-Type") == "application/json" {
+		var body struct {
+			RotateToken string `json:"rotateToken"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			rotateToken = body.RotateToken
+		}
+	}
+
+	// Fallback to Authorization header
+	if rotateToken == "" {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				rotateToken = parts[1]
+			}
+		}
+	}
+
+	// Invalidate session if rotate token provided
+	if rotateToken != "" {
+		if err := h.sessionService.InvalidateSession(r.Context(), rotateToken); err != nil {
+			glog.Warn("Failed to invalidate session: %v", err)
+		}
+	}
 
 	// Clear the auth cookie
 	clearCookies(w)
@@ -228,7 +348,7 @@ var config = struct {
 	DiscordClientSecret: os.Getenv("DISCORD_CLIENT_SECRET"),
 }
 
-func (_ *Handler) Middleware(next http.Handler) http.Handler {
+func (h *Handler) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("auth_token")
 		if err != nil {
@@ -236,9 +356,15 @@ func (_ *Handler) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Parse and validate JWT (expiration is checked automatically by jwt library)
 		profile, err := user_profile.ParseProfile(cookie.Value)
+		if err != nil {
+			// Token is invalid or expired - client should refresh
+			handleUnauthorized(w, r)
+			return
+		}
 
-		if err == nil && len(profile.ExternalIDs) != 0 {
+		if len(profile.ExternalIDs) != 0 {
 			ctx := context.WithValue(r.Context(), "user", profile)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		} else {
@@ -251,6 +377,11 @@ func handleUnauthorized(w http.ResponseWriter, _ *http.Request) {
 	clearCookies(w)
 
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+}
+
+// IsSuperAdmin checks if any of the provided external IDs matches a super admin
+func IsSuperAdmin(ids []string) bool {
+	return isSuperAdmin(ids)
 }
 
 func isSuperAdmin(ids []string) bool {
@@ -285,19 +416,22 @@ func sendNewUserToDiscord(r *http.Request, user *models.User) error {
 
 type Handler struct {
 	userRepository repositories.UserRepository
+	sessionService services.SessionService
 	provider       ExternalAuthProvider
 }
 
-func NewHandler(repository repositories.UserRepository, provider ExternalAuthProvider) Handler {
+func NewHandler(repository repositories.UserRepository, sessionService services.SessionService, provider ExternalAuthProvider) Handler {
 	return Handler{
 		provider:       provider,
 		userRepository: repository,
+		sessionService: sessionService,
 	}
 }
 
-func NewDefaultHandler(repository repositories.UserRepository) Handler {
+func NewDefaultHandler(repository repositories.UserRepository, sessionService services.SessionService) Handler {
 	return Handler{
 		provider:       &authProviderInstance{},
 		userRepository: repository,
+		sessionService: sessionService,
 	}
 }

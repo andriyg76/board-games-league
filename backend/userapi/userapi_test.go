@@ -16,7 +16,7 @@ import (
 
 func TestUpdateUser(t *testing.T) {
 	mockRepo := new(mocks.MockUserRepository)
-	handler := &Handler{mockRepo}
+	handler := NewHandler(mockRepo)
 
 	t.Run("Claims are null or bad", func(t *testing.T) {
 		req := httptest.NewRequest("PUT", "/update-user", nil)

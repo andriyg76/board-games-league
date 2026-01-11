@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/andriyg76/bgl/api"
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/frontendfs"
@@ -41,15 +46,24 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to initialise gameRoundRepository %v", err)
 	}
+
+	sessionRepository, err := repositories.NewSessionRepository(mongodb)
+	if err != nil {
+		log.Fatal("Failed to initialise sessionRepository %v", err)
+	}
 	log.Info("Database connector initialised")
 
 	userService := services.NewUserService(userRepository)
+	sessionService := services.NewSessionService(sessionRepository, userRepository)
+	requestService := services.NewRequestService()
+	geoIPService := services.NewGeoIPService()
 
 	log.Info("Services initialised...")
 
 	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository)
-	authHandler := auth.NewDefaultHandler(userRepository)
-	userProfileHandler := userapi.NewHandler(userRepository)
+	authHandler := auth.NewDefaultHandler(userRepository, sessionService)
+	userProfileHandler := userapi.NewHandlerWithServices(userRepository, sessionRepository, geoIPService)
+	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService)
 
 	log.Info("Handlers instances connector initialised")
 
@@ -60,17 +74,20 @@ func main() {
 		r.Get("/auth/google", authHandler.HandleBeginLoginFlow)
 		r.Post("/auth/google/callback", authHandler.GoogleCallbackHandler)
 		r.Post("/auth/logout", authHandler.LogoutHandler)
+		r.Post("/auth/refresh", authHandler.RefreshTokenHandler)
 
 		// Protected routes
 		r.Group(func(r chi.Router) {
 			r.Use(authHandler.Middleware)
 			// Add your protected endpoints here
 			r.Get("/user", userProfileHandler.GetUserHandler)
+			r.Get("/user/sessions", userProfileHandler.GetUserSessionsHandler)
 
 			r.Post("/user/alias/exist", userProfileHandler.CheckAliasUniquenessHandler)
 			r.Put("/user/update", userProfileHandler.UpdateUser)
 
 			r.Put("/admin/user/create", userProfileHandler.AdminCreateUserHandler)
+			r.Get("/admin/diagnostics", diagnosticsHandler.GetDiagnosticsHandler)
 
 			gameApiHandler.RegisterRoutes(r)
 		})
@@ -98,13 +115,60 @@ func main() {
 	}
 	log.Info("Http routers configured...")
 
-	listenAddress := ":8080"
+	// Start background cleanup task for expired sessions
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	log.Info("Listening on %s... Ctrl+C to break server processing", listenAddress)
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
 
-	if err := http.ListenAndServe(listenAddress, r); err != nil {
-		_ = log.Error("Error attaching to listen socket %v", err)
-		os.Exit(1)
+		for {
+			select {
+			case <-ticker.C:
+				if err := sessionService.CleanupExpiredSessions(ctx); err != nil {
+					_ = log.Error("Failed to cleanup expired sessions: %v", err)
+				} else {
+					log.Info("Cleaned up expired sessions")
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	// Setup graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
 	}
+
+	// Start server in goroutine
+	go func() {
+		log.Info("Listening on :8080... Ctrl+C to break server processing")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			_ = log.Error("Error attaching to listen socket %v", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Wait for interrupt signal
+	<-sigChan
+	log.Info("Shutting down server...")
+
+	// Cancel background tasks
+	cancel()
+
+	// Shutdown server with timeout
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		_ = log.Error("Server shutdown error: %v", err)
+	}
+
 	log.Info("Exiting...")
 }

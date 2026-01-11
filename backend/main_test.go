@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/repositories/mocks"
+	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/userapi"
 	"github.com/go-chi/chi/v5"
@@ -16,9 +18,22 @@ import (
 	"time"
 )
 
+type noopSessionService struct{}
+
+func (n *noopSessionService) CreateSession(ctx context.Context, userID primitive.ObjectID, userCode string, externalIDs []string, name, avatar string, ipAddress, userAgent string) (rotateToken, actionToken string, err error) {
+	return "", "", nil
+}
+func (n *noopSessionService) RefreshActionToken(ctx context.Context, rotateToken, ipAddress, userAgent string) (newRotateToken, actionToken string, err error) {
+	return "", "", nil
+}
+func (n *noopSessionService) InvalidateSession(ctx context.Context, rotateToken string) error {
+	return nil
+}
+func (n *noopSessionService) CleanupExpiredSessions(ctx context.Context) error { return nil }
+
 func setupTestRouter(mockUserRepo repositories.UserRepository, provider auth.ExternalAuthProvider) *chi.Mux {
 	r := chi.NewRouter()
-	authHandler := auth.NewHandler(mockUserRepo, provider)
+	authHandler := auth.NewHandler(mockUserRepo, services.SessionService(&noopSessionService{}), provider)
 	userProfileHandler := userapi.NewHandler(mockUserRepo)
 
 	r.Route("/api", func(r chi.Router) {

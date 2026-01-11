@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/andriyg76/bgl/asserts2"
 	"github.com/andriyg76/bgl/repositories"
+	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/gorilla/securecookie"
@@ -49,6 +50,23 @@ func (m *MockUserRepository) AliasUnique(ctx context.Context, alias string) (boo
 	args := m.Called(ctx, alias)
 	return args.Bool(0), args.Error(1)
 }
+
+type testSessionService struct{}
+
+func (s *testSessionService) CreateSession(ctx context.Context, userID primitive.ObjectID, userCode string, externalIDs []string, name, avatar string, ipAddress, userAgent string) (rotateToken, actionToken string, err error) {
+	token, err := user_profile.CreateAuthTokenWithExpiry(externalIDs, userCode, name, avatar, 1*time.Hour)
+	if err != nil {
+		return "", "", err
+	}
+	return "test-rotate-token", token, nil
+}
+func (s *testSessionService) RefreshActionToken(ctx context.Context, rotateToken, ipAddress, userAgent string) (newRotateToken, actionToken string, err error) {
+	return "", "", nil
+}
+func (s *testSessionService) InvalidateSession(ctx context.Context, rotateToken string) error {
+	return nil
+}
+func (s *testSessionService) CleanupExpiredSessions(ctx context.Context) error { return nil }
 
 func TestIsSuperAdmin(t *testing.T) {
 	// Temporarily set superAdmins for testing
@@ -137,6 +155,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 	mockProvider := new(MockExternalAuthProvider)
 	handler := Handler{
 		userRepository: mockRepo,
+		sessionService: services.SessionService(&testSessionService{}),
 		provider:       mockProvider,
 	}
 	beginFlowHandler := handler.HandleBeginLoginFlow
@@ -241,6 +260,7 @@ func TestLogoutHandler(t *testing.T) {
 	provider := new(MockExternalAuthProvider)
 	handler := Handler{
 		userRepository: mockRepo,
+		sessionService: services.SessionService(&testSessionService{}),
 		provider:       provider,
 	}
 

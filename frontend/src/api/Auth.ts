@@ -1,5 +1,7 @@
 import {User} from "@/api/UserApi";
 
+type AuthCallbackResponse = User & { rotateToken?: string };
+
 export default {
     startLoginEntrypoint(provider: string) {
         const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -12,13 +14,25 @@ export default {
     },
 
     async logout(): Promise<void> {
-        const response = await fetch('/api/auth/logout', {
-            method: 'POST',
-            credentials: 'include',
-        });
+        const rotateToken = localStorage.getItem('rotateToken');
+        try {
+            const headers: HeadersInit = {};
+            if (rotateToken) {
+                headers['Authorization'] = `Bearer ${rotateToken}`;
+            }
 
-        if (!response.ok) {
-            throw new Error('Logout failed');
+            const response = await fetch('/api/auth/logout', {
+                method: 'POST',
+                credentials: 'include',
+                headers,
+            });
+
+            if (!response.ok) {
+                throw new Error('Logout failed');
+            }
+        } finally {
+            // Ensure rotate token is removed even if request fails
+            localStorage.removeItem('rotateToken');
         }
     },
     async handleAuthCallback(params: string): Promise<User | null> {
@@ -31,6 +45,13 @@ export default {
             throw new Error('Auth callback failed');
         }
 
-        return await response.json() || {};
+        const data = (await response.json() || {}) as AuthCallbackResponse;
+        
+        // Store rotateToken in localStorage if provided
+        if (data.rotateToken) {
+            localStorage.setItem('rotateToken', data.rotateToken);
+        }
+        
+        return data;
     }
 }
