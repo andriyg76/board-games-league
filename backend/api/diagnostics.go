@@ -78,7 +78,6 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 		}
 	}
 
-	config := h.requestService.GetConfig()
 	// Get client IP
 	clientIP := h.requestService.GetClientIP(r)
 	baseURL := h.requestService.BuildBaseURL(r)

@@ -33,6 +33,11 @@ type RequestService interface {
 	ParseRequest(r *http.Request, trustedOrigins []string) RequestInfo
 	// GetConfig returns the service configuration (HOST_URL based)
 	GetConfig() *RequestConfig
+
+	// Convenience methods (use ParseRequest for multiple calls)
+	GetClientIP(r *http.Request) string
+	BuildBaseURL(r *http.Request) string
+	IsTrustedOrigin(r *http.Request, trustedOrigins []string) bool
 }
 
 // RequestConfig holds the service configuration from environment
@@ -95,6 +100,24 @@ func initConfig() *RequestConfig {
 
 func (s *requestService) GetConfig() *RequestConfig {
 	return s.config
+}
+
+// GetClientIP is a convenience method - extracts client IP from request
+func (s *requestService) GetClientIP(r *http.Request) string {
+	return s.extractClientIP(r)
+}
+
+// BuildBaseURL is a convenience method - builds base URL from request
+func (s *requestService) BuildBaseURL(r *http.Request) string {
+	if s.config.HostURL != "" {
+		return s.config.HostURL
+	}
+	return s.extractProtocol(r) + "://" + s.extractHost(r)
+}
+
+// IsTrustedOrigin is a convenience method - checks if origin is trusted
+func (s *requestService) IsTrustedOrigin(r *http.Request, trustedOrigins []string) bool {
+	return s.ParseRequest(r, trustedOrigins).IsTrustedOrigin()
 }
 
 // ParseRequest extracts all relevant information from the HTTP request
