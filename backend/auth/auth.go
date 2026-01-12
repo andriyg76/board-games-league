@@ -144,7 +144,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Parse request info
-	reqInfo := h.requestService.ParseRequest(r, nil)
+	reqInfo := h.requestService.ParseRequest(r)
 	userCode := utils.IdToCode(user.ID)
 
 	rotateToken, actionToken, err := h.sessionService.CreateSession(
@@ -206,7 +206,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	rotateToken := parts[1]
 
 	// Parse request info
-	reqInfo := h.requestService.ParseRequest(r, nil)
+	reqInfo := h.requestService.ParseRequest(r)
 
 	// Refresh action token (and rotate token if needed)
 	newRotateToken, actionToken, err := h.sessionService.RefreshActionToken(r.Context(), rotateToken, reqInfo.ClientIP(), reqInfo.UserAgent())
@@ -265,7 +265,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Clear the auth cookie
-	reqInfo := h.requestService.ParseRequest(r, nil)
+	reqInfo := h.requestService.ParseRequest(r)
 	http.SetCookie(w, reqInfo.ClearCookie(authCookieName))
 
 	w.WriteHeader(http.StatusOK)

@@ -30,7 +30,7 @@ type RequestInfo struct {
 // RequestService provides methods to parse request information
 type RequestService interface {
 	// ParseRequest parses the request and returns a RequestInfo with all extracted data
-	ParseRequest(r *http.Request, trustedOrigins []string) RequestInfo
+	ParseRequest(r *http.Request) RequestInfo
 	// GetConfig returns the service configuration (HOST_URL based)
 	GetConfig() *RequestConfig
 }
@@ -98,15 +98,9 @@ func (s *requestService) GetConfig() *RequestConfig {
 }
 
 // ParseRequest extracts all relevant information from the HTTP request
-// trustedOrigins parameter is merged with configured TRUSTED_ORIGINS from environment
-func (s *requestService) ParseRequest(r *http.Request, trustedOrigins []string) RequestInfo {
-	// Merge passed trusted origins with configured ones
-	allTrustedOrigins := make([]string, 0, len(s.config.TrustedOrigins)+len(trustedOrigins))
-	allTrustedOrigins = append(allTrustedOrigins, s.config.TrustedOrigins...)
-	allTrustedOrigins = append(allTrustedOrigins, trustedOrigins...)
-
+func (s *requestService) ParseRequest(r *http.Request) RequestInfo {
 	info := RequestInfo{
-		trustedOrigins: allTrustedOrigins,
+		trustedOrigins: s.config.TrustedOrigins,
 		configuredURL:  s.config.ConfiguredURL,
 		userAgent:      r.Header.Get("User-Agent"),
 		origin:         r.Header.Get("Origin"),

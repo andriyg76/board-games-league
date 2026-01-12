@@ -69,7 +69,7 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 	}
 
 	// Parse request info (trusted origins loaded from TRUSTED_ORIGINS env in config)
-	reqInfo := h.requestService.ParseRequest(r, nil)
+	reqInfo := h.requestService.ParseRequest(r)
 	config := h.requestService.GetConfig()
 
 	response := DiagnosticsResponse{}
