@@ -10,6 +10,7 @@ type Handler struct {
 	gameRoundRepository repositories.GameRoundRepository
 	gameTypeRepository  repositories.GameTypeRepository
 	userService         services.UserService
+	leagueService       services.LeagueService
 }
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
@@ -35,12 +36,26 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/{code}", h.getPlayer)
 		r.Get("/i_am", h.iAm)
 	})
+
+	r.Route("/leagues", func(r chi.Router) {
+		r.Post("/", h.createLeague)                       // Create league (superadmin)
+		r.Get("/", h.listLeagues)                          // List leagues
+		r.Post("/join/{token}", h.acceptInvitation)        // Accept invitation
+		r.Get("/{code}", h.getLeague)                      // Get league details
+		r.Get("/{code}/members", h.getLeagueMembers)       // Get league members
+		r.Get("/{code}/standings", h.getLeagueStandings)   // Get league standings
+		r.Post("/{code}/invitations", h.createInvitation)  // Create invitation
+		r.Post("/{code}/ban/{userCode}", h.banUserFromLeague)     // Ban user (superadmin)
+		r.Post("/{code}/archive", h.archiveLeague)         // Archive league (superadmin)
+		r.Post("/{code}/unarchive", h.unarchiveLeague)     // Unarchive league (superadmin)
+	})
 }
 
-func NewHandler(r services.UserService, r2 repositories.GameRoundRepository, r3 repositories.GameTypeRepository) *Handler {
+func NewHandler(r services.UserService, r2 repositories.GameRoundRepository, r3 repositories.GameTypeRepository, leagueService services.LeagueService) *Handler {
 	return &Handler{
 		gameRoundRepository: r2,
 		gameTypeRepository:  r3,
 		userService:         r,
+		leagueService:       leagueService,
 	}
 }

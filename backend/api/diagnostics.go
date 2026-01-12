@@ -63,7 +63,7 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if !auth.IsSuperAdmin(claims.ExternalIDs) {
+	if !auth.IsSuperAdminByExternalIDs(claims.ExternalIDs) {
 		utils.LogAndWriteHTTPError(w, http.StatusForbidden, fmt.Errorf("forbidden"), "admin access required")
 		return
 	}

@@ -379,11 +379,6 @@ func handleUnauthorized(w http.ResponseWriter, _ *http.Request) {
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
 }
 
-// IsSuperAdmin checks if any of the provided external IDs matches a super admin
-func IsSuperAdmin(ids []string) bool {
-	return isSuperAdmin(ids)
-}
-
 func isSuperAdmin(ids []string) bool {
 	for _, admin := range superAdmins {
 		for _, id := range ids {

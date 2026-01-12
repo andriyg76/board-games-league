@@ -41,7 +41,19 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/ui/leagues',
     name: 'Leagues',
-    component: () => import('@/gametypes/ListLeagues.vue')
+    component: () => import('../views/LeagueList.vue')
+  },
+  {
+    path: '/ui/leagues/:code',
+    name: 'LeagueDetails',
+    component: () => import('../views/LeagueDetails.vue'),
+    props: true
+  },
+  {
+    path: '/ui/leagues/join/:token',
+    name: 'AcceptInvitation',
+    component: () => import('../views/AcceptInvitation.vue'),
+    props: true
   },
   {
     path: '/ui/game-rounds/new',
