@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/andriyg76/board-games-league/backend/auth"
-	"github.com/andriyg76/board-games-league/backend/models"
-	"github.com/andriyg76/board-games-league/backend/services"
+	"github.com/andriyg76/bgl/auth"
+	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/bgl/services"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
