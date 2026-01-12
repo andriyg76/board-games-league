@@ -23,6 +23,7 @@ func TestStartGame(t *testing.T) {
 		gameRoundRepository: mockGameRoundRepo,
 		gameTypeRepository:  mockGameTypeRepo,
 		userService:         mockUserService,
+		leagueService:       nil, // Not needed for game round tests
 	}
 
 	router := chi.NewRouter()
@@ -104,7 +105,10 @@ func TestStartGame(t *testing.T) {
 
 func TestUpdatePlayerScore(t *testing.T) {
 	mockRepo := new(mocks.MockGameRoundRepository)
-	handler := &Handler{gameRoundRepository: mockRepo}
+	handler := &Handler{
+		gameRoundRepository: mockRepo,
+		leagueService:       nil, // Not needed for this test
+	}
 
 	router := chi.NewRouter()
 	router.Put("/games/{id}/players/{userId}", handler.updatePlayerScore)
@@ -157,7 +161,10 @@ func TestUpdatePlayerScore(t *testing.T) {
 
 func TestFinalizeGame(t *testing.T) {
 	mockRepo := new(mocks.MockGameRoundRepository)
-	handler := &Handler{gameRoundRepository: mockRepo}
+	handler := &Handler{
+		gameRoundRepository: mockRepo,
+		leagueService:       nil, // Not needed for this test
+	}
 
 	router := chi.NewRouter()
 	router.Put("/games/{id}/finalize", handler.finalizeGame)

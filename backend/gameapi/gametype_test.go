@@ -17,7 +17,10 @@ import (
 
 func setupTestRouter(repo *mocks.MockGameTypeRepository) *chi.Mux {
 	r := chi.NewRouter()
-	handler := &Handler{gameTypeRepository: repo}
+	handler := &Handler{
+		gameTypeRepository: repo,
+		leagueService:      nil, // Not needed for game type tests
+	}
 	handler.RegisterRoutes(r)
 	return r
 }
