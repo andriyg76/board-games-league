@@ -39,12 +39,12 @@ type LeagueService interface {
 }
 
 type leagueServiceInstance struct {
-	leagueRepo      repositories.LeagueRepository
-	membershipRepo  repositories.LeagueMembershipRepository
-	invitationRepo  repositories.LeagueInvitationRepository
-	userRepo        repositories.UserRepository
-	gameRoundRepo   repositories.GameRoundRepository
-	pointsConfig    PointsConfig
+	leagueRepo     repositories.LeagueRepository
+	membershipRepo repositories.LeagueMembershipRepository
+	invitationRepo repositories.LeagueInvitationRepository
+	userRepo       repositories.UserRepository
+	gameRoundRepo  repositories.GameRoundRepository
+	pointsConfig   PointsConfig
 }
 
 func NewLeagueService(
