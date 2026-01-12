@@ -16,12 +16,6 @@ export default defineConfig({
   },
   server: {
     port: 8000,
-    // hmr: {
-    //   protocol: 'wss',
-    //   host: 'localhost',
-    //   port: 2443,
-    //   path: '/ws',
-    // }
     proxy: {
       '^/api/': {
         target: 'http://localhost:8000',
@@ -32,5 +26,14 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          'vendor-vuetify': ['vuetify'],
+          'vendor-i18n': ['vue-i18n'],
+        }
+      }
+    }
   }
 })

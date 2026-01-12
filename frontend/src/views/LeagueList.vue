@@ -99,18 +99,19 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
+import { useUserStore } from '@/store/user';
 import LeagueCard from '@/components/league/LeagueCard.vue';
 
 const { t } = useI18n();
 const router = useRouter();
 const leagueStore = useLeagueStore();
+const userStore = useUserStore();
 
 const showCreateDialog = ref(false);
 const newLeagueName = ref('');
 const creating = ref(false);
 
-// TODO: Implement superadmin check when user store is available
-const canCreateLeague = ref(false);
+const canCreateLeague = computed(() => userStore.isSuperAdmin);
 
 const loading = computed(() => leagueStore.isLoading);
 const error = computed(() => leagueStore.errorMessage);

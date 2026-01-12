@@ -145,6 +145,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
+import { useUserStore } from '@/store/user';
 import LeagueStandings from '@/components/league/LeagueStandings.vue';
 import LeagueInvitation from '@/components/league/LeagueInvitation.vue';
 import type { LeagueMember } from '@/api/LeagueApi';
@@ -152,12 +153,12 @@ import type { LeagueMember } from '@/api/LeagueApi';
 const { t, locale } = useI18n();
 const route = useRoute();
 const leagueStore = useLeagueStore();
+const userStore = useUserStore();
 
 const activeTab = ref('standings');
 const showManageMenu = ref(false);
 
-// TODO: Implement superadmin check when user store is available
-const canManageLeague = ref(false);
+const canManageLeague = computed(() => userStore.isSuperAdmin);
 
 const loading = computed(() => leagueStore.isLoading);
 const error = computed(() => leagueStore.errorMessage);

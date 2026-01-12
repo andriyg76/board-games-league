@@ -7,7 +7,7 @@ interface User {
     alias: string;
     avatars?: string[];
     names?: string[];
-    is_super_admin?: boolean;
+    roles?: string[];
 }
 
 interface UserState {
@@ -48,6 +48,14 @@ export const useUserStore = defineStore('user', {
 
         currentUser(): User {
             return this.user;
+        },
+
+        isSuperAdmin(): boolean {
+            return this.user.roles?.includes('superadmin') ?? false;
+        },
+
+        hasRole(): (role: string) => boolean {
+            return (role: string) => this.user.roles?.includes(role) ?? false;
         }
     }
 });

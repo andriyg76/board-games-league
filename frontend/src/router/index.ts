@@ -1,21 +1,19 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
-import GameTypesListGameTypes from "@/gametypes/ListGameTypes.vue";
 
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    name: 'home',
-    component: HomeView
+    name: 'Home',
+    component: () => import('../views/HomeView.vue')
   },
   {
     path: '/ui/user',
-    name: 'user',
+    name: 'User',
     component: () => import('../views/UserView.vue')
   },
   {
     path: '/ui/auth-callback', // constant at backend/auth/auth.go
-    name: 'auth-callback',
+    name: 'AuthCallback',
     component: () => import('../components/AuthCallback.vue')
   },
   {
@@ -25,8 +23,8 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: '/ui/admin/game-types',
-    name: 'CreateUser',
-    component: GameTypesListGameTypes,
+    name: 'GameTypes',
+    component: () => import('@/gametypes/ListGameTypes.vue'),
   },
   {
     path: '/ui/admin/diagnostics',

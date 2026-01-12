@@ -172,14 +172,14 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 		RotateToken string `json:"rotateToken"`
 	}{
 		UserResponse: user_profile.UserResponse{
-			Code:         userCode,
-			ExternalIDs:  user.ExternalIDs,
-			Name:         user.Name,
-			Avatar:       user.Avatar,
-			Alias:        user.Alias,
-			Avatars:      user.Avatars,
-			Names:        user.Names,
-			IsSuperAdmin: IsSuperAdmin(user),
+			Code:        userCode,
+			ExternalIDs: user.ExternalIDs,
+			Name:        user.Name,
+			Avatar:      user.Avatar,
+			Alias:       user.Alias,
+			Avatars:     user.Avatars,
+			Names:       user.Names,
+			Roles:       GetUserRoles(user),
 		},
 		RotateToken: rotateToken,
 	}
