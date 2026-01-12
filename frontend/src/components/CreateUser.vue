@@ -1,13 +1,13 @@
 <template>
   <div>
-    <h1>Create User</h1>
+    <h1>{{ t('createUser.title') }}</h1>
     <p v-if="message">{{ message }}</p>
     <div v-if="externalIDs">
-      <p>Email: {{ externalIDs }}</p>
-      <v-btn @click="createUser">Create</v-btn>
+      <p>{{ t('createUser.email') }}: {{ externalIDs }}</p>
+      <v-btn @click="createUser">{{ t('createUser.create') }}</v-btn>
     </div>
     <div v-else>
-      <p>Email parameter is missing</p>
+      <p>{{ t('createUser.emailMissing') }}</p>
     </div>
   </div>
 </template>
@@ -15,8 +15,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import UserApi from '../api/UserApi';
 
+const { t } = useI18n();
 const externalIDs = ref([]);
 const message = ref('');
 const route = useRoute();
@@ -24,9 +26,9 @@ const route = useRoute();
 const createUser = async () => {
   try {
     await UserApi.adminCreateUser(externalIDs.value);
-    message.value = 'User created successfully';
+    message.value = t('createUser.userCreated');
   } catch (_error) {
-    message.value = 'Failed to create user';
+    message.value = t('createUser.createFailed');
   }
 };
 

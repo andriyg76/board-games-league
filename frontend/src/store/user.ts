@@ -7,6 +7,7 @@ interface User {
     alias: string;
     avatars?: string[];
     names?: string[];
+    is_super_admin?: boolean;
 }
 
 interface UserState {

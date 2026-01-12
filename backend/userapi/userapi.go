@@ -3,6 +3,7 @@ package userapi
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/services"
@@ -82,13 +83,14 @@ func (h *Handler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := json.NewEncoder(w).Encode(user_profile.UserResponse{
-			Code:        utils.IdToCode(user.ID),
-			ExternalIDs: user.ExternalIDs,
-			Name:        user.Name,
-			Names:       user.Names,
-			Avatar:      user.Avatar,
-			Avatars:     user.Avatars,
-			Alias:       user.Alias,
+			Code:         utils.IdToCode(user.ID),
+			ExternalIDs:  user.ExternalIDs,
+			Name:         user.Name,
+			Names:        user.Names,
+			Avatar:       user.Avatar,
+			Avatars:      user.Avatars,
+			Alias:        user.Alias,
+			IsSuperAdmin: auth.IsSuperAdmin(user),
 		}); err != nil {
 			_ = log.Error("serialising error %v", err)
 			http.Error(w, "serialising error", http.StatusInternalServerError)

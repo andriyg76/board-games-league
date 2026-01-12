@@ -1,21 +1,21 @@
 <template>
   <v-container>
     <template v-if="userStore.loggedIn">
-      <h2>Your Profile</h2>
+      <h2>{{ t('user.yourProfile') }}</h2>
       <v-form @submit.prevent="updateUserProfile">
         <v-row>
           <v-col cols="12" md="6">
             <v-card class="mb-4">
-              <v-card-title>Profile Information</v-card-title>
+              <v-card-title>{{ t('user.profileInfo') }}</v-card-title>
               <v-card-text>
                 <p>
-                  Current Name: **{{ userStore.user.name }}**
+                  {{ t('user.currentName') }}: **{{ userStore.user.name }}**
                 </p>
                 <p>
-                  Current Alias: **{{ userStore.user.alias }}**
+                  {{ t('user.currentAlias') }}: **{{ userStore.user.alias }}**
                   <span v-if="isAliasUnique !== null">
-                    <span v-if="isAliasUnique">✔️ (Unique)</span>
-                    <span v-else>❌ (Not Unique)</span>
+                    <span v-if="isAliasUnique">✔️ ({{ t('user.unique') }})</span>
+                    <span v-else>❌ ({{ t('user.notUnique') }})</span>
                   </span>
                 </p>
                 <v-img v-if="userStore.user.avatar" :src="userStore.user.avatar" :alt="`${userStore.user.name}'s avatar`" height="64" width="64" class="my-3"/>
@@ -24,11 +24,11 @@
           </v-col>
           <v-col cols="12" md="6">
             <v-card>
-              <v-card-title>Edit Profile</v-card-title>
+              <v-card-title>{{ t('user.editProfile') }}</v-card-title>
               <v-card-text>
                 <v-text-field
                     v-model="userStore.user.alias"
-                    label="Your Alias"
+                    :label="t('user.yourAlias')"
                     @input="checkAliasUniqueness"
                     :rules="[rules.required, rules.aliasUnique]"
                     clearable
@@ -37,20 +37,20 @@
                 <v-select
                     v-model="userStore.user.name"
                     :items="userStore.user.names"
-                    label="Select Name"
+                    :label="t('user.selectName')"
                     class="mt-4"
                 ></v-select>
 
                 <v-select
                     v-model="userStore.user.avatar"
                     :items="userStore.user.avatars"
-                    label="Select Avatar"
+                    :label="t('user.selectAvatar')"
                     class="mt-4"
                 >
                   <template #item="{ item }">
                     <v-list-item :key="item.raw"
                                  :prepend-avatar="item.raw"
-                    >select</v-list-item>
+                    >{{ t('common.select') }}</v-list-item>
                   </template>
                   <template #selection="{ item }">
                     <v-avatar :image="item.raw" size="24" class="mr-2"></v-avatar>
@@ -67,25 +67,25 @@
             :disabled="!isAliasUnique && userStore.user.alias !== initialAlias"
             class="mt-4"
         >
-          Save Profile
+          {{ t('user.saveProfile') }}
         </v-btn>
       </v-form>
 
       <v-row class="mt-4">
         <v-col cols="12">
           <v-card>
-            <v-card-title>Active Sessions</v-card-title>
+            <v-card-title>{{ t('user.activeSessions') }}</v-card-title>
             <v-card-text>
               <v-skeleton-loader v-if="loadingSessions" type="table"></v-skeleton-loader>
               <v-table v-else-if="sessions.length > 0">
                 <thead>
                   <tr>
-                    <th>Location</th>
-                    <th>IP Address</th>
-                    <th>User Agent</th>
-                    <th>Created</th>
-                    <th>Last Activity</th>
-                    <th>Status</th>
+                    <th>{{ t('user.location') }}</th>
+                    <th>{{ t('user.ipAddress') }}</th>
+                    <th>{{ t('user.userAgent') }}</th>
+                    <th>{{ t('user.created') }}</th>
+                    <th>{{ t('user.lastActivity') }}</th>
+                    <th>{{ t('user.status') }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -94,27 +94,27 @@
                       <span v-if="session.geo_info">
                         {{ session.geo_info.city || '' }}{{ session.geo_info.city && session.geo_info.country ? ', ' : '' }}{{ session.geo_info.country || '' }}
                       </span>
-                      <span v-else class="text-grey">Unknown</span>
+                      <span v-else class="text-grey">{{ t('common.unknown') }}</span>
                     </td>
                     <td>{{ session.ip_address }}</td>
                     <td class="text-truncate" style="max-width: 300px;">{{ session.user_agent }}</td>
                     <td>{{ formatDate(session.created_at) }}</td>
                     <td>{{ formatDate(session.updated_at) }}</td>
                     <td>
-                      <v-chip v-if="session.is_current" color="primary" size="small">Current</v-chip>
-                      <v-chip v-else color="default" size="small">Active</v-chip>
+                      <v-chip v-if="session.is_current" color="primary" size="small">{{ t('common.current') }}</v-chip>
+                      <v-chip v-else color="default" size="small">{{ t('common.active') }}</v-chip>
                     </td>
                   </tr>
                 </tbody>
               </v-table>
-              <p v-else>No active sessions found.</p>
+              <p v-else>{{ t('user.noActiveSessions') }}</p>
             </v-card-text>
           </v-card>
         </v-col>
       </v-row>
     </template>
     <template v-else>
-      <p>Please log in to view and edit your profile.</p>
+      <p>{{ t('user.pleaseLogin') }}</p>
     </template>
   </v-container>
 </template>
@@ -123,7 +123,9 @@
 import UserApi, { User, SessionInfo } from "@/api/UserApi";
 import { useUserStore } from '@/store/user';
 import { ref, onMounted, watch } from "vue";
+import { useI18n } from 'vue-i18n';
 
+const { t, locale } = useI18n();
 const userStore = useUserStore();
 const isAliasUnique = ref<boolean | null>(null);
 const initialAlias = ref<string>('');
@@ -133,8 +135,8 @@ const sessions = ref<SessionInfo[]>([]);
 const loadingSessions = ref(false);
 
 const rules = {
-  required: (value: string) => !!value || 'Required.',
-  aliasUnique: () => isAliasUnique.value || 'Alias is not unique or too short.',
+  required: (value: string) => !!value || t('user.required'),
+  aliasUnique: () => isAliasUnique.value || t('user.aliasNotUnique'),
 };
 
 async function checkAliasUniqueness() {
@@ -180,8 +182,9 @@ watch(() => userStore.user.alias, (newAlias, oldAlias) => {
 
 function formatDate(dateString: string): string {
   if (!dateString) return '';
+  const localeMap: Record<string, string> = { 'uk': 'uk-UA', 'en': 'en-US', 'et': 'et-EE' };
   const date = new Date(dateString);
-  return date.toLocaleString();
+  return date.toLocaleString(localeMap[locale.value] || 'en-US');
 }
 
 async function loadSessions() {

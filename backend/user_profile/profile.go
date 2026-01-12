@@ -106,4 +106,5 @@ type UserResponse struct {
 	Avatar      string   `json:"avatar"`
 	Avatars     []string `json:"avatars"`
 	Alias       string   `json:"alias"`
+	Roles       []string `json:"roles"`
 }

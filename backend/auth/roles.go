@@ -56,6 +56,28 @@ func GetSuperAdmins() []string {
 	return superAdminsCache
 }
 
+// Role constants
+const (
+	RoleSuperAdmin = "superadmin"
+)
+
+// GetUserRoles returns a list of roles for the user based on their external IDs
+func GetUserRoles(user *models.User) []string {
+	if user == nil {
+		return []string{}
+	}
+	return GetRolesByExternalIDs(user.ExternalIDs)
+}
+
+// GetRolesByExternalIDs returns a list of roles based on external IDs
+func GetRolesByExternalIDs(externalIDs []string) []string {
+	roles := []string{}
+	if IsSuperAdminByExternalIDs(externalIDs) {
+		roles = append(roles, RoleSuperAdmin)
+	}
+	return roles
+}
+
 // SetSuperAdminsForTesting allows tests to override the superadmins list
 // Returns a function to restore the original value
 func SetSuperAdminsForTesting(admins []string) func() {

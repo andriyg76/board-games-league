@@ -1,28 +1,28 @@
 <template>
   <v-container>
     <v-card v-if="diagnostics">
-      <v-card-title>System Diagnostics</v-card-title>
+      <v-card-title>{{ t('diagnostics.title') }}</v-card-title>
       <v-card-text>
         <v-row>
           <v-col cols="12" md="6">
             <v-card class="mb-4">
-              <v-card-title>Backend Build Information</v-card-title>
+              <v-card-title>{{ t('diagnostics.backendBuildInfo') }}</v-card-title>
               <v-card-text>
-                <p><strong>Version:</strong> {{ diagnostics.build_info.version }}</p>
-                <p><strong>Commit:</strong> {{ diagnostics.build_info.commit }}</p>
-                <p><strong>Branch:</strong> {{ diagnostics.build_info.branch }}</p>
-                <p><strong>Build Date:</strong> {{ diagnostics.build_info.date }}</p>
+                <p><strong>{{ t('diagnostics.version') }}:</strong> {{ diagnostics.build_info.version }}</p>
+                <p><strong>{{ t('diagnostics.commit') }}:</strong> {{ diagnostics.build_info.commit }}</p>
+                <p><strong>{{ t('diagnostics.branch') }}:</strong> {{ diagnostics.build_info.branch }}</p>
+                <p><strong>{{ t('diagnostics.buildDate') }}:</strong> {{ diagnostics.build_info.date }}</p>
               </v-card-text>
             </v-card>
           </v-col>
           <v-col cols="12" md="6">
             <v-card class="mb-4">
-              <v-card-title>Frontend Build Information</v-card-title>
+              <v-card-title>{{ t('diagnostics.frontendBuildInfo') }}</v-card-title>
               <v-card-text>
-                <p><strong>Version:</strong> {{ frontendBuildInfo.version }}</p>
-                <p><strong>Commit:</strong> {{ frontendBuildInfo.commit }}</p>
-                <p><strong>Branch:</strong> {{ frontendBuildInfo.branch }}</p>
-                <p><strong>Build Date:</strong> {{ frontendBuildInfo.date }}</p>
+                <p><strong>{{ t('diagnostics.version') }}:</strong> {{ frontendBuildInfo.version }}</p>
+                <p><strong>{{ t('diagnostics.commit') }}:</strong> {{ frontendBuildInfo.commit }}</p>
+                <p><strong>{{ t('diagnostics.branch') }}:</strong> {{ frontendBuildInfo.branch }}</p>
+                <p><strong>{{ t('diagnostics.buildDate') }}:</strong> {{ frontendBuildInfo.date }}</p>
               </v-card-text>
             </v-card>
           </v-col>
@@ -31,55 +31,55 @@
         <v-row>
           <v-col cols="12" md="6">
             <v-card class="mb-4">
-              <v-card-title>Server Information</v-card-title>
+              <v-card-title>{{ t('diagnostics.serverInfo') }}</v-card-title>
               <v-card-text>
-                <p><strong>Host URL:</strong> {{ diagnostics.server_info.host_url }}</p>
+                <p><strong>{{ t('diagnostics.hostUrl') }}:</strong> {{ diagnostics.server_info.host_url }}</p>
                 <div>
-                  <strong>Trusted Origins:</strong>
+                  <strong>{{ t('diagnostics.trustedOrigins') }}:</strong>
                   <ul v-if="diagnostics.server_info.trusted_origins?.length > 0">
                     <li v-for="origin in diagnostics.server_info.trusted_origins" :key="origin">
                       {{ origin }}
                     </li>
                   </ul>
-                  <p v-else class="text-grey">None configured</p>
+                  <p v-else class="text-grey">{{ t('diagnostics.noneConfigured') }}</p>
                 </div>
               </v-card-text>
             </v-card>
           </v-col>
           <v-col cols="12" md="6">
             <v-card class="mb-4">
-              <v-card-title>Request Information</v-card-title>
+              <v-card-title>{{ t('diagnostics.requestInfo') }}</v-card-title>
               <v-card-text>
-                <p><strong>IP Address:</strong> {{ diagnostics.request_info.ip_address }}</p>
-                <p><strong>Base URL:</strong> {{ diagnostics.request_info.base_url }}</p>
-                <p><strong>Origin:</strong> {{ diagnostics.request_info.origin || 'N/A' }}</p>
+                <p><strong>{{ t('diagnostics.ipAddress') }}:</strong> {{ diagnostics.request_info.ip_address }}</p>
+                <p><strong>{{ t('diagnostics.baseUrl') }}:</strong> {{ diagnostics.request_info.base_url }}</p>
+                <p><strong>{{ t('diagnostics.origin') }}:</strong> {{ diagnostics.request_info.origin || t('diagnostics.na') }}</p>
                 <p>
-                  <strong>Is Trusted:</strong>
+                  <strong>{{ t('diagnostics.isTrusted') }}:</strong>
                   <v-chip :color="diagnostics.request_info.is_trusted ? 'success' : 'error'" size="small">
-                    {{ diagnostics.request_info.is_trusted ? 'Yes' : 'No' }}
+                    {{ diagnostics.request_info.is_trusted ? t('diagnostics.yes') : t('diagnostics.no') }}
                   </v-chip>
                 </p>
-                <p><strong>User Agent:</strong> {{ diagnostics.request_info.user_agent }}</p>
+                <p><strong>{{ t('diagnostics.userAgent') }}:</strong> {{ diagnostics.request_info.user_agent }}</p>
               </v-card-text>
             </v-card>
           </v-col>
         </v-row>
 
         <v-card v-if="diagnostics.request_info.geo_info" class="mt-4">
-          <v-card-title>Geolocation Information</v-card-title>
+          <v-card-title>{{ t('diagnostics.geoInfo') }}</v-card-title>
           <v-card-text>
             <v-row>
               <v-col cols="12" md="4">
-                <p><strong>Country:</strong> {{ diagnostics.request_info.geo_info.country || 'N/A' }}</p>
-                <p><strong>Country Code:</strong> {{ diagnostics.request_info.geo_info.country_code || 'N/A' }}</p>
+                <p><strong>{{ t('diagnostics.country') }}:</strong> {{ diagnostics.request_info.geo_info.country || t('diagnostics.na') }}</p>
+                <p><strong>{{ t('diagnostics.countryCode') }}:</strong> {{ diagnostics.request_info.geo_info.country_code || t('diagnostics.na') }}</p>
               </v-col>
               <v-col cols="12" md="4">
-                <p><strong>Region:</strong> {{ diagnostics.request_info.geo_info.region_name || diagnostics.request_info.geo_info.region || 'N/A' }}</p>
-                <p><strong>City:</strong> {{ diagnostics.request_info.geo_info.city || 'N/A' }}</p>
+                <p><strong>{{ t('diagnostics.region') }}:</strong> {{ diagnostics.request_info.geo_info.region_name || diagnostics.request_info.geo_info.region || t('diagnostics.na') }}</p>
+                <p><strong>{{ t('diagnostics.city') }}:</strong> {{ diagnostics.request_info.geo_info.city || t('diagnostics.na') }}</p>
               </v-col>
               <v-col cols="12" md="4">
-                <p><strong>Timezone:</strong> {{ diagnostics.request_info.geo_info.timezone || 'N/A' }}</p>
-                <p><strong>ISP:</strong> {{ diagnostics.request_info.geo_info.isp || 'N/A' }}</p>
+                <p><strong>{{ t('diagnostics.timezone') }}:</strong> {{ diagnostics.request_info.geo_info.timezone || t('diagnostics.na') }}</p>
+                <p><strong>{{ t('diagnostics.isp') }}:</strong> {{ diagnostics.request_info.geo_info.isp || t('diagnostics.na') }}</p>
               </v-col>
             </v-row>
           </v-card-text>
@@ -93,6 +93,9 @@
 <script lang="ts" setup>
 import DiagnosticsApi, { DiagnosticsResponse, getFrontendBuildInfo, BuildInfo } from "@/api/DiagnosticsApi";
 import { ref, onMounted } from "vue";
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const diagnostics = ref<DiagnosticsResponse | null>(null);
 const frontendBuildInfo = ref<BuildInfo>({

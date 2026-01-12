@@ -6,21 +6,21 @@
            class="logout-button"
     >
       <v-img  :src="userStore.user.avatar" v-if="userStore.user.avatar" height="32" width="32" :alt="`${userStore.user.name} - ${userStore.user.alias}`"/>
-      {{ loading ? 'Logging out...' : 'Logout' }}
+      {{ loading ? t('auth.loggingOut') : t('auth.logout') }}
     </v-btn>
   </template>
   <v-menu v-else>
     <template v-slot:activator="{ props }">
       <v-btn color="primary" v-bind="props">
-        Login
+        {{ t('auth.login') }}
       </v-btn>
     </template>
     <v-list>
       <v-list-item @click="startLogin('google')">
-        <v-list-item-title>Login with Google</v-list-item-title>
+        <v-list-item-title>{{ t('auth.loginWithGoogle') }}</v-list-item-title>
       </v-list-item>
       <v-list-item @click="startLogin('discord')">
-        <v-list-item-title>Login with Discord</v-list-item-title>
+        <v-list-item-title>{{ t('auth.loginWithDiscord') }}</v-list-item-title>
       </v-list-item>
     </v-list>
   </v-menu>
@@ -29,11 +29,13 @@
 <script setup lang="ts">
 import {onMounted, ref} from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import Auth from '@/api/Auth';
 import { useUserStore } from '@/store/user';
 const userStore = useUserStore();
 import UserApi from "@/api/UserApi";
 
+const { t } = useI18n();
 const loading = ref(false);
 const router = useRouter();
 

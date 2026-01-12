@@ -2,9 +2,9 @@
   <v-container>
     <v-row>
       <v-col cols="12">
-        <h1 class="text-h3 mb-4">Board Games League</h1>
+        <h1 class="text-h3 mb-4">{{ t('home.title') }}</h1>
         <p class="text-h6 text-medium-emphasis mb-6">
-          Welcome to your board games tracking dashboard
+          {{ t('home.welcome') }}
         </p>
       </v-col>
     </v-row>
@@ -19,9 +19,9 @@
       <v-col cols="12" md="4">
         <v-card elevation="2">
           <v-card-text>
-            <div class="text-overline mb-1">Total Game Rounds</div>
+            <div class="text-overline mb-1">{{ t('home.totalGameRounds') }}</div>
             <div class="text-h4">{{ totalRounds }}</div>
-            <div class="text-caption">All time</div>
+            <div class="text-caption">{{ t('common.allTime') }}</div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -29,9 +29,9 @@
       <v-col cols="12" md="4">
         <v-card elevation="2">
           <v-card-text>
-            <div class="text-overline mb-1">Active Games</div>
+            <div class="text-overline mb-1">{{ t('home.activeGames') }}</div>
             <div class="text-h4">{{ activeRounds }}</div>
-            <div class="text-caption">In progress</div>
+            <div class="text-caption">{{ t('common.inProgress') }}</div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -39,9 +39,9 @@
       <v-col cols="12" md="4">
         <v-card elevation="2">
           <v-card-text>
-            <div class="text-overline mb-1">Game Types</div>
+            <div class="text-overline mb-1">{{ t('home.gameTypes') }}</div>
             <div class="text-h4">{{ totalGameTypes }}</div>
-            <div class="text-caption">Available</div>
+            <div class="text-caption">{{ t('common.available') }}</div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -51,21 +51,21 @@
       <v-col cols="12">
         <v-card elevation="2">
           <v-card-title>
-            <span class="text-h5">Recent Game Rounds</span>
+            <span class="text-h5">{{ t('home.recentGameRounds') }}</span>
             <v-spacer />
             <v-btn
               color="primary"
               @click="navigateToAllRounds"
               variant="text"
             >
-              View All
+              {{ t('common.viewAll') }}
             </v-btn>
           </v-card-title>
           <v-divider />
 
           <v-card-text v-if="recentRounds.length === 0">
             <v-alert type="info" variant="tonal">
-              No game rounds yet. Start by creating your first game round!
+              {{ t('home.noGameRoundsYet') }}
             </v-alert>
           </v-card-text>
 
@@ -83,8 +83,8 @@
               <v-list-item-title>{{ round.name }}</v-list-item-title>
               <v-list-item-subtitle>
                 {{ formatDate(round.start_time) }}
-                <span v-if="round.end_time"> - Completed</span>
-                <span v-else> - In Progress</span>
+                <span v-if="round.end_time"> - {{ t('common.completed') }}</span>
+                <span v-else> - {{ t('common.inProgress') }}</span>
               </v-list-item-subtitle>
             </v-list-item>
           </v-list>
@@ -95,9 +95,9 @@
     <v-row class="mt-4">
       <v-col cols="12" md="6">
         <v-card elevation="2" class="text-center pa-4" color="primary" variant="tonal">
-          <v-card-title class="text-h6">Create New Game Round</v-card-title>
+          <v-card-title class="text-h6">{{ t('home.createNewGameRound') }}</v-card-title>
           <v-card-text>
-            Start tracking a new board game session
+            {{ t('home.startTracking') }}
           </v-card-text>
           <v-btn
             color="primary"
@@ -105,16 +105,16 @@
             @click="navigateToNewRound"
           >
             <v-icon start>mdi-plus-circle</v-icon>
-            New Game Round
+            {{ t('home.newGameRound') }}
           </v-btn>
         </v-card>
       </v-col>
 
       <v-col cols="12" md="6">
         <v-card elevation="2" class="text-center pa-4" color="secondary" variant="tonal">
-          <v-card-title class="text-h6">Manage Game Types</v-card-title>
+          <v-card-title class="text-h6">{{ t('home.manageGameTypes') }}</v-card-title>
           <v-card-text>
-            Configure your board game collection
+            {{ t('home.configureCollection') }}
           </v-card-text>
           <v-btn
             color="secondary"
@@ -122,7 +122,7 @@
             @click="navigateToGameTypes"
           >
             <v-icon start>mdi-dice-multiple</v-icon>
-            Game Types
+            {{ t('gameTypes.title') }}
           </v-btn>
         </v-card>
       </v-col>
@@ -133,10 +133,12 @@
 <script lang="ts" setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import GameApi from '@/api/GameApi';
 import { GameRoundView } from '@/gametypes/types';
 import { GameType } from '@/api/GameApi';
 
+const { t, locale } = useI18n();
 const router = useRouter();
 
 const gameRounds = ref<GameRoundView[]>([]);
@@ -154,7 +156,8 @@ const activeRounds = computed(() =>
 const totalGameTypes = computed(() => gameTypes.value.length);
 
 const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString();
+  const localeMap: Record<string, string> = { 'uk': 'uk-UA', 'en': 'en-US', 'et': 'et-EE' };
+  return new Date(dateStr).toLocaleDateString(localeMap[locale.value] || 'en-US');
 };
 
 const navigateToAllRounds = () => {

@@ -9,23 +9,23 @@
 
       <!-- Desktop menu -->
       <div class="d-none d-md-flex">
-        <v-btn to="/" variant="text">Home</v-btn>
+        <v-btn to="/" variant="text">{{ t('nav.home') }}</v-btn>
         <v-btn
             to="/ui/admin/game-types"
             v-if="loggedIn"
             variant="text"
-        >Game Types</v-btn>
+        >{{ t('nav.gameTypes') }}</v-btn>
         <v-btn
             to="/ui/leagues"
             v-if="loggedIn"
             variant="text"
-        >Leagues</v-btn>
+        >{{ t('nav.leagues') }}</v-btn>
         <gameround-menu-item v-if="loggedIn" />
         <v-btn
             to="/ui/user"
             v-if="loggedIn"
             variant="text"
-        >User</v-btn>
+        >{{ t('nav.user') }}</v-btn>
       </div>
 
       <v-spacer></v-spacer>
@@ -41,16 +41,16 @@
         class="d-md-none"
     >
       <v-list>
-        <v-list-item to="/" :title="'Home'" />
+        <v-list-item to="/" :title="t('nav.home')" />
         <v-list-item
             v-if="loggedIn"
             to="/ui/admin/game-types"
-            :title="t('gameTypes.title')"
+            :title="t('nav.gameTypes')"
         />
         <v-list-item
             v-if="loggedIn"
             to="/ui/leagues"
-            title="Leagues"
+            :title="t('nav.leagues')"
         />
         <v-list-item
             v-if="loggedIn"
@@ -64,7 +64,7 @@
         <v-list-item
             v-if="loggedIn"
             to="/ui/user"
-            :title="t('admin.user')"
+            :title="t('nav.user')"
         />
       </v-list>
     </v-navigation-drawer>
