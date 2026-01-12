@@ -84,6 +84,16 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 		TeamScores: teamScores,
 	}
 
+	// Set league ID if provided
+	if req.LeagueID != "" {
+		leagueID, err := primitive.ObjectIDFromHex(req.LeagueID)
+		if err != nil {
+			http.Error(w, "Invalid league ID", http.StatusBadRequest)
+			return
+		}
+		round.LeagueID = leagueID
+	}
+
 	if err := h.gameRoundRepository.Create(r.Context(), round); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -97,7 +107,22 @@ func (h *Handler) getUserInfo(context context.Context, ID primitive.ObjectID) (*
 }
 
 func (h *Handler) listGameRounds(w http.ResponseWriter, r *http.Request) {
-	rounds, err := h.gameRoundRepository.FindAll(r.Context())
+	var rounds []*models.GameRound
+	var err error
+
+	// Check if league filter is provided in query parameters
+	leagueIDParam := r.URL.Query().Get("league_id")
+	if leagueIDParam != "" {
+		leagueID, err := primitive.ObjectIDFromHex(leagueIDParam)
+		if err != nil {
+			http.Error(w, "Invalid league ID", http.StatusBadRequest)
+			return
+		}
+		rounds, err = h.gameRoundRepository.FindByLeague(r.Context(), leagueID)
+	} else {
+		rounds, err = h.gameRoundRepository.FindAll(r.Context())
+	}
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -339,6 +364,7 @@ type updatePlayerSetup struct {
 type startGameRequest struct {
 	Name      string        `json:"name" validate:"required"`
 	Type      string        `json:"type" validate:"required"`
+	LeagueID  string        `json:"league_id,omitempty"`
 	StartTime time.Time     `json:"start_time"`
 	Players   []playerSetup `json:"players" validate:"required,min=1"`
 }

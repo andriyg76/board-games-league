@@ -44,23 +44,46 @@ func main() {
 
 	gameTypeRepository, err := repositories.NewGameTypeRepository(mongodb)
 	if err != nil {
-		log.Fatal("Failed to initialise gameRoundRepository %v", err)
+		log.Fatal("Failed to initialise gameTypeRepository %v", err)
 	}
 
 	sessionRepository, err := repositories.NewSessionRepository(mongodb)
 	if err != nil {
 		log.Fatal("Failed to initialise sessionRepository %v", err)
 	}
+
+	leagueRepository, err := repositories.NewLeagueRepository(mongodb)
+	if err != nil {
+		log.Fatal("Failed to initialise leagueRepository %v", err)
+	}
+
+	leagueMembershipRepository, err := repositories.NewLeagueMembershipRepository(mongodb)
+	if err != nil {
+		log.Fatal("Failed to initialise leagueMembershipRepository %v", err)
+	}
+
+	leagueInvitationRepository, err := repositories.NewLeagueInvitationRepository(mongodb)
+	if err != nil {
+		log.Fatal("Failed to initialise leagueInvitationRepository %v", err)
+	}
+
 	log.Info("Database connector initialised")
 
 	userService := services.NewUserService(userRepository)
 	sessionService := services.NewSessionService(sessionRepository, userRepository)
 	requestService := services.NewRequestService()
 	geoIPService := services.NewGeoIPService()
+	leagueService := services.NewLeagueService(
+		leagueRepository,
+		leagueMembershipRepository,
+		leagueInvitationRepository,
+		gameRoundRepository,
+		userRepository,
+	)
 
 	log.Info("Services initialised...")
 
-	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository)
+	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository, leagueService)
 	authHandler := auth.NewDefaultHandler(userRepository, sessionService)
 	userProfileHandler := userapi.NewHandlerWithServices(userRepository, sessionRepository, geoIPService)
 	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService)
