@@ -37,10 +37,9 @@ type RequestService interface {
 
 // RequestConfig holds the service configuration from environment
 type RequestConfig struct {
-	HostURL       string
-	CookieDomain  string
-	CookieSecure  bool
-	ConfiguredURL *url.URL
+	HostURL        string
+	ConfiguredURL  *url.URL
+	TrustedOrigins []string
 }
 
 type requestService struct {
@@ -72,23 +71,24 @@ func initConfig() *RequestConfig {
 		parsed, err := url.Parse(hostURLEnv)
 		if err == nil && parsed.Host != "" {
 			cfg.ConfiguredURL = parsed
-			cfg.CookieSecure = parsed.Scheme == "https"
-
-			// Extract domain for cookie (remove port if present)
-			host := parsed.Host
-			if h, _, err := net.SplitHostPort(host); err == nil {
-				host = h
-			}
-			cfg.CookieDomain = host
-
-			glog.Info("RequestService configured with HOST_URL: %s, domain: %s, secure: %v",
-				hostURLEnv, cfg.CookieDomain, cfg.CookieSecure)
 		} else {
 			glog.Warn("Failed to parse HOST_URL: %s, error: %v", hostURLEnv, err)
 		}
-	} else {
-		glog.Info("HOST_URL not configured, will use request-based detection")
 	}
+
+	// Load trusted origins from environment
+	trustedOriginsEnv := os.Getenv("TRUSTED_ORIGINS")
+	if trustedOriginsEnv != "" {
+		origins := strings.Split(trustedOriginsEnv, ",")
+		for _, origin := range origins {
+			origin = strings.TrimSpace(origin)
+			if origin != "" {
+				cfg.TrustedOrigins = append(cfg.TrustedOrigins, origin)
+			}
+		}
+	}
+
+	glog.Info("RequestService config: HOST_URL=%s, trusted_origins=%v", cfg.HostURL, cfg.TrustedOrigins)
 
 	return cfg
 }
@@ -98,12 +98,16 @@ func (s *requestService) GetConfig() *RequestConfig {
 }
 
 // ParseRequest extracts all relevant information from the HTTP request
+// trustedOrigins parameter is merged with configured TRUSTED_ORIGINS from environment
 func (s *requestService) ParseRequest(r *http.Request, trustedOrigins []string) RequestInfo {
+	// Merge passed trusted origins with configured ones
+	allTrustedOrigins := make([]string, 0, len(s.config.TrustedOrigins)+len(trustedOrigins))
+	allTrustedOrigins = append(allTrustedOrigins, s.config.TrustedOrigins...)
+	allTrustedOrigins = append(allTrustedOrigins, trustedOrigins...)
+
 	info := RequestInfo{
-		trustedOrigins: trustedOrigins,
+		trustedOrigins: allTrustedOrigins,
 		configuredURL:  s.config.ConfiguredURL,
-		cookieDomain:   s.config.CookieDomain,
-		cookieSecure:   s.config.CookieSecure,
 		userAgent:      r.Header.Get("User-Agent"),
 		origin:         r.Header.Get("Origin"),
 		referer:        r.Header.Get("Referer"),
@@ -124,6 +128,15 @@ func (s *requestService) ParseRequest(r *http.Request, trustedOrigins []string) 
 	} else {
 		info.baseURL = info.protocol + "://" + info.host
 	}
+
+	// Resolve cookie settings dynamically from request
+	info.cookieSecure = info.protocol == "https"
+	// Extract domain for cookie (remove port if present)
+	cookieHost := info.host
+	if h, _, err := net.SplitHostPort(cookieHost); err == nil {
+		cookieHost = h
+	}
+	info.cookieDomain = cookieHost
 
 	return info
 }

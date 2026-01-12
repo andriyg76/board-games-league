@@ -291,23 +291,16 @@ func (h *Handler) HandleBeginLoginFlow(w http.ResponseWriter, r *http.Request) {
 	h.provider.BeginUserAuthHandler(w, r)
 }
 
-// clearCookies clears the auth cookie using service config
+// clearCookies clears the auth cookie (without request context, uses safe defaults)
 func clearCookies(w http.ResponseWriter) {
-	rs := services.NewRequestService()
-	cfg := rs.GetConfig()
-	cookie := &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:     authCookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   cfg.CookieSecure,
 		SameSite: http.SameSiteLaxMode,
-	}
-	if cfg.CookieDomain != "" && cfg.CookieDomain != "localhost" {
-		cookie.Domain = cfg.CookieDomain
-	}
-	http.SetCookie(w, cookie)
+	})
 }
 
 var config = struct {

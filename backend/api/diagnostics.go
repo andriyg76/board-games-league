@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/models"
@@ -70,40 +68,31 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Get trusted origins from env
-	trustedOriginsEnv := os.Getenv("TRUSTED_ORIGINS")
-	trustedOrigins := []string{}
-	if trustedOriginsEnv != "" {
-		trustedOrigins = strings.Split(trustedOriginsEnv, ",")
-		for i := range trustedOrigins {
-			trustedOrigins[i] = strings.TrimSpace(trustedOrigins[i])
-		}
-	}
-
-	requestConfig := h.requestService.ParseRequest(r, trustedOrigins)
-	// Get client IP
-	clientIP := requestConfig.ClientIP()
-	baseURL := requestConfig.BaseURL()
-	isTrusted := requestConfig.IsTrustedOrigin()
+	// Parse request info (trusted origins loaded from TRUSTED_ORIGINS env in config)
+	reqInfo := h.requestService.ParseRequest(r, nil)
+	config := h.requestService.GetConfig()
 
 	response := DiagnosticsResponse{}
-	response.ServerInfo.HostURL = utils.GetHostUrl(r)
-	response.ServerInfo.TrustedOrigins = trustedOrigins
+	response.ServerInfo.HostURL = config.HostURL
+	if response.ServerInfo.HostURL == "" {
+		response.ServerInfo.HostURL = reqInfo.BaseURL()
+	}
+	response.ServerInfo.TrustedOrigins = config.TrustedOrigins
 	response.BuildInfo.Version = BuildVersion
 	response.BuildInfo.Commit = BuildCommit
 	response.BuildInfo.Branch = BuildBranch
 	response.BuildInfo.Date = BuildDate
-	response.RequestInfo.IPAddress = clientIP
-	response.RequestInfo.BaseURL = baseURL
-	response.RequestInfo.UserAgent = r.Header.Get("User-Agent")
-	response.RequestInfo.Origin = r.Header.Get("Origin")
-	response.RequestInfo.IsTrusted = isTrusted
+	response.RequestInfo.IPAddress = reqInfo.ClientIP()
+	response.RequestInfo.BaseURL = reqInfo.BaseURL()
+	response.RequestInfo.UserAgent = reqInfo.UserAgent()
+	response.RequestInfo.Origin = reqInfo.Origin()
+	response.RequestInfo.IsTrusted = reqInfo.IsTrustedOrigin()
 
 	// Collect resolution info - headers and request properties used for detection
 	resolutionInfo := make(map[string]string)
 	resolutionInfo["RemoteAddr"] = r.RemoteAddr
 	resolutionInfo["Host"] = r.Host
-	resolutionInfo["Protocol"] = requestConfig.Protocol()
+	resolutionInfo["Protocol"] = reqInfo.Protocol()
 	
 	// Add relevant headers if present
 	headerNames := []string{
@@ -120,8 +109,8 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 	response.RequestInfo.ResolutionInfo = resolutionInfo
 
 	// Get geo info (non-blocking)
-	if clientIP != "" {
-		if geoInfo, err := h.geoIPService.GetGeoIPInfo(clientIP); err == nil {
+	if reqInfo.ClientIP() != "" {
+		if geoInfo, err := h.geoIPService.GetGeoIPInfo(reqInfo.ClientIP()); err == nil {
 			response.RequestInfo.GeoInfo = geoInfo
 		} else {
 			glog.Warn("Failed to get geo info: %v", err)
