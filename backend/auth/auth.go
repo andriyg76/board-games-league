@@ -21,9 +21,6 @@ import (
 	"time"
 )
 
-// Load super admins from environment variable
-var superAdmins = strings.Split(os.Getenv("SUPERADMINS"), ",")
-
 func stripPort(remoteAddr string) string {
 	remoteAddr = strings.TrimSpace(remoteAddr)
 	if host, _, err := net.SplitHostPort(remoteAddr); err == nil && host != "" {
@@ -32,8 +29,9 @@ func stripPort(remoteAddr string) string {
 	return remoteAddr
 }
 
-func init() {
-	glog.Info("Registered superadmins: %v", superAdmins)
+// LogSuperAdmins logs the registered superadmins - call from main after all init() functions complete
+func LogSuperAdmins() {
+	glog.Info("Registered superadmins: %v", GetSuperAdmins())
 }
 
 var store = sessions.NewCookieStore(func() []byte {
@@ -380,14 +378,7 @@ func handleUnauthorized(w http.ResponseWriter, _ *http.Request) {
 }
 
 func isSuperAdmin(ids []string) bool {
-	for _, admin := range superAdmins {
-		for _, id := range ids {
-			if admin == id {
-				return true
-			}
-		}
-	}
-	return false
+	return IsSuperAdminByExternalIDs(ids)
 }
 
 func sendNewUserToDiscord(r *http.Request, user *models.User) error {

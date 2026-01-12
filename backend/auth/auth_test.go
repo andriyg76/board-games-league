@@ -70,9 +70,8 @@ func (s *testSessionService) CleanupExpiredSessions(ctx context.Context) error {
 
 func TestIsSuperAdmin(t *testing.T) {
 	// Temporarily set superAdmins for testing
-	originalSuperAdmins := superAdmins
-	superAdmins = []string{"admin@example.com", "super@example.com"}
-	defer func() { superAdmins = originalSuperAdmins }()
+	restore := SetSuperAdminsForTesting([]string{"admin@example.com", "super@example.com"})
+	defer restore()
 
 	tests := []struct {
 		name     string
@@ -162,7 +161,8 @@ func TestGoogleCallbackHandler(t *testing.T) {
 	finalHandler := handler.GoogleCallbackHandler
 
 	superAdminEmail := "superadmin@example.com"
-	superAdmins = []string{superAdminEmail}
+	restoreSuperAdmins := SetSuperAdminsForTesting([]string{superAdminEmail})
+	defer restoreSuperAdmins()
 
 	notExistingEmail := "notexisting@example.com"
 

@@ -55,3 +55,11 @@ func IsSuperAdminByExternalIDs(externalIDs []string) bool {
 func GetSuperAdmins() []string {
 	return superAdminsCache
 }
+
+// SetSuperAdminsForTesting allows tests to override the superadmins list
+// Returns a function to restore the original value
+func SetSuperAdminsForTesting(admins []string) func() {
+	original := superAdminsCache
+	superAdminsCache = admins
+	return func() { superAdminsCache = original }
+}
