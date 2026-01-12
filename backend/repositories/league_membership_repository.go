@@ -39,17 +39,17 @@ func NewLeagueMembershipRepository(mongodb *db.MongoDB) (LeagueMembershipReposit
 func ensureLeagueMembershipIndexes(r *LeagueMembershipRepositoryInstance) error {
 	_, err := r.collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
 		{
-			Keys:    bson.M{"league_id": 1, "user_id": 1},
+			Keys:    bson.D{{"league_id", 1}, {"user_id", 1}},
 			Options: options.Index().SetUnique(true),
 		},
 		{
-			Keys: bson.M{"league_id": 1},
+			Keys: bson.D{{"league_id", 1}},
 		},
 		{
-			Keys: bson.M{"user_id": 1},
+			Keys: bson.D{{"user_id", 1}},
 		},
 		{
-			Keys: bson.M{"league_id": 1, "status": 1},
+			Keys: bson.D{{"league_id", 1}, {"status", 1}},
 		},
 	})
 	return err
