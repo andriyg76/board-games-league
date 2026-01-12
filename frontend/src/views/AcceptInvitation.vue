@@ -5,7 +5,7 @@
         <v-card elevation="4">
           <v-card-title class="text-h5 text-center bg-primary pa-6">
             <v-icon size="large" class="mr-2">mdi-email-open</v-icon>
-            Запрошення до ліги
+            {{ t('leagues.invitation') }}
           </v-card-title>
 
           <!-- Loading State -->
@@ -16,7 +16,7 @@
               size="64"
               class="mb-4"
             />
-            <div class="text-h6">Обробка запрошення...</div>
+            <div class="text-h6">{{ t('leagues.acceptingInvitation') }}</div>
           </v-card-text>
 
           <!-- Error State -->
@@ -28,7 +28,7 @@
             >
               mdi-alert-circle
             </v-icon>
-            <div class="text-h6 mb-2">Помилка</div>
+            <div class="text-h6 mb-2">{{ t('leagues.error') }}</div>
             <v-alert type="error" variant="tonal">
               {{ error }}
             </v-alert>
@@ -38,7 +38,7 @@
               class="mt-4"
               @click="goToHome"
             >
-              На головну
+              {{ t('leagues.goToHome') }}
             </v-btn>
           </v-card-text>
 
@@ -51,34 +51,34 @@
             >
               mdi-check-circle
             </v-icon>
-            <div class="text-h6 mb-2">Вітаємо!</div>
+            <div class="text-h6 mb-2">{{ t('leagues.congratulations') }}</div>
             <div class="text-body-1 mb-4">
-              Ви успішно приєдналися до ліги <strong>{{ league.name }}</strong>
+              {{ t('leagues.joinedLeague') }} <strong>{{ league.name }}</strong>
             </div>
 
             <v-divider class="my-4" />
 
             <v-card variant="tonal" color="primary" class="mb-4">
               <v-card-text>
-                <div class="text-subtitle-2 mb-2">Що далі?</div>
+                <div class="text-subtitle-2 mb-2">{{ t('leagues.whatsNext') }}</div>
                 <v-list density="compact" bg-color="transparent">
                   <v-list-item>
                     <template v-slot:prepend>
                       <v-icon>mdi-trophy</v-icon>
                     </template>
-                    <v-list-item-title>Переглядайте рейтинг ліги</v-list-item-title>
+                    <v-list-item-title>{{ t('leagues.viewStandings') }}</v-list-item-title>
                   </v-list-item>
                   <v-list-item>
                     <template v-slot:prepend>
                       <v-icon>mdi-gamepad-variant</v-icon>
                     </template>
-                    <v-list-item-title>Грайте ігри та набирайте очки</v-list-item-title>
+                    <v-list-item-title>{{ t('leagues.playGames') }}</v-list-item-title>
                   </v-list-item>
                   <v-list-item>
                     <template v-slot:prepend>
                       <v-icon>mdi-account-group</v-icon>
                     </template>
-                    <v-list-item-title>Запрошуйте інших гравців</v-list-item-title>
+                    <v-list-item-title>{{ t('leagues.inviteOthers') }}</v-list-item-title>
                   </v-list-item>
                 </v-list>
               </v-card-text>
@@ -91,13 +91,13 @@
                 @click="goToLeague"
               >
                 <v-icon start>mdi-arrow-right</v-icon>
-                Перейти до ліги
+                {{ t('leagues.goToLeague') }}
               </v-btn>
               <v-btn
                 variant="outlined"
                 @click="goToHome"
               >
-                На головну
+                {{ t('leagues.goToHome') }}
               </v-btn>
             </div>
           </v-card-text>
@@ -111,16 +111,16 @@
             >
               mdi-help-circle
             </v-icon>
-            <div class="text-h6 mb-2">Невірне запрошення</div>
+            <div class="text-h6 mb-2">{{ t('leagues.invalidInvitation') }}</div>
             <div class="text-body-1 mb-4">
-              Не знайдено токену запрошення. Переконайтесь, що ви перейшли за правильним посиланням.
+              {{ t('leagues.noToken') }}
             </div>
 
             <v-btn
               color="primary"
               @click="goToHome"
             >
-              На головну
+              {{ t('leagues.goToHome') }}
             </v-btn>
           </v-card-text>
         </v-card>
@@ -132,9 +132,11 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
 import type { League } from '@/api/LeagueApi';
 
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const leagueStore = useLeagueStore();
@@ -155,14 +157,14 @@ const acceptInvitation = async (token: string) => {
   } catch (err) {
     if (err instanceof Error) {
       if (err.message.includes('404')) {
-        error.value = 'Запрошення не знайдено або вже використано';
+        error.value = t('leagues.invitationNotFound');
       } else if (err.message.includes('expired')) {
-        error.value = 'Запрошення прострочено (дійсне 7 днів)';
+        error.value = t('leagues.invitationExpired');
       } else {
         error.value = err.message;
       }
     } else {
-      error.value = 'Не вдалося прийняти запрошення';
+      error.value = t('leagues.error');
     }
     console.error('Error accepting invitation:', err);
   } finally {

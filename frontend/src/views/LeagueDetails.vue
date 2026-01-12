@@ -30,7 +30,7 @@
                         size="small"
                         class="mt-2"
                       >
-                        {{ currentLeague.status === 'active' ? 'Активна' : 'Архівна' }}
+                        {{ currentLeague.status === 'active' ? t('leagues.active') : t('leagues.archived') }}
                       </v-chip>
                     </div>
                   </div>
@@ -55,7 +55,7 @@
                         <template v-slot:prepend>
                           <v-icon>mdi-archive</v-icon>
                         </template>
-                        <v-list-item-title>Архівувати</v-list-item-title>
+                        <v-list-item-title>{{ t('leagues.archive') }}</v-list-item-title>
                       </v-list-item>
                       <v-list-item
                         v-else
@@ -64,7 +64,7 @@
                         <template v-slot:prepend>
                           <v-icon>mdi-archive-arrow-up</v-icon>
                         </template>
-                        <v-list-item-title>Розархівувати</v-list-item-title>
+                        <v-list-item-title>{{ t('leagues.unarchive') }}</v-list-item-title>
                       </v-list-item>
                     </v-list>
                   </v-menu>
@@ -76,15 +76,15 @@
             <v-tabs v-model="activeTab" bg-color="transparent">
               <v-tab value="standings">
                 <v-icon start>mdi-chart-line</v-icon>
-                Рейтинг
+                {{ t('leagues.standings') }}
               </v-tab>
               <v-tab value="members">
                 <v-icon start>mdi-account-group</v-icon>
-                Учасники ({{ members.length }})
+                {{ t('leagues.members') }} ({{ members.length }})
               </v-tab>
               <v-tab value="invitation">
                 <v-icon start>mdi-account-plus</v-icon>
-                Запрошення
+                {{ t('leagues.invitation') }}
               </v-tab>
             </v-tabs>
 
@@ -106,7 +106,7 @@
 
                       <v-list-item-title>{{ member.user_name }}</v-list-item-title>
                       <v-list-item-subtitle>
-                        Приєднався {{ formatDate(member.joined_at) }}
+                        {{ t('leagues.joined') }} {{ formatDate(member.joined_at) }}
                       </v-list-item-subtitle>
 
                       <template v-slot:append>
@@ -114,7 +114,7 @@
                           :color="member.status === 'active' ? 'success' : 'error'"
                           size="small"
                         >
-                          {{ member.status === 'active' ? 'Активний' : 'Заблокований' }}
+                          {{ member.status === 'active' ? t('leagues.memberActive') : t('leagues.memberBanned') }}
                         </v-chip>
                         <v-btn
                           v-if="canManageLeague && member.status === 'active'"
@@ -143,11 +143,13 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
 import LeagueStandings from '@/components/league/LeagueStandings.vue';
 import LeagueInvitation from '@/components/league/LeagueInvitation.vue';
 import type { LeagueMember } from '@/api/LeagueApi';
 
+const { t, locale } = useI18n();
 const route = useRoute();
 const leagueStore = useLeagueStore();
 
@@ -164,7 +166,8 @@ const members = computed(() => leagueStore.currentLeagueMembers);
 const standings = computed(() => leagueStore.currentLeagueStandings);
 
 const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString('uk-UA', {
+  const localeMap: Record<string, string> = { 'uk': 'uk-UA', 'en': 'en-US', 'et': 'et-EE' };
+  return new Date(dateStr).toLocaleDateString(localeMap[locale.value] || 'en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
@@ -194,7 +197,7 @@ const unarchiveLeague = async () => {
 const banMember = async (member: LeagueMember) => {
   if (!currentLeague.value) return;
 
-  const confirmed = confirm(`Ви впевнені, що хочете заблокувати ${member.user_name}?`);
+  const confirmed = confirm(`${t('leagues.confirmBan')} ${member.user_name}?`);
   if (!confirmed) return;
 
   try {

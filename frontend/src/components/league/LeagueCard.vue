@@ -17,7 +17,7 @@
       >
         {{ statusText }}
       </v-chip>
-      Створено {{ formatDate(league.created_at) }}
+      {{ t('leagues.createdOn') }} {{ formatDate(league.created_at) }}
     </v-list-item-subtitle>
 
     <template v-slot:append>
@@ -28,12 +28,14 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { League } from '@/api/LeagueApi';
 
 interface Props {
   league: League;
 }
 
+const { t, locale } = useI18n();
 const props = defineProps<Props>();
 
 const statusColor = computed(() => {
@@ -45,11 +47,12 @@ const statusIcon = computed(() => {
 });
 
 const statusText = computed(() => {
-  return props.league.status === 'active' ? 'Активна' : 'Архівна';
+  return props.league.status === 'active' ? t('leagues.active') : t('leagues.archived');
 });
 
 const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString('uk-UA', {
+  const localeMap: Record<string, string> = { 'uk': 'uk-UA', 'en': 'en-US', 'et': 'et-EE' };
+  return new Date(dateStr).toLocaleDateString(localeMap[locale.value] || 'en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'

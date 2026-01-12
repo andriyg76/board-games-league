@@ -1,7 +1,7 @@
 <template>
   <div>
     <v-alert v-if="standings.length === 0" type="info" variant="tonal">
-      Поки що немає даних для рейтингу. Зіграйте перші ігри в цій лізі!
+      {{ t('leagues.noLeagueData') }}
     </v-alert>
 
     <v-data-table
@@ -113,7 +113,7 @@
             <div>
               <div>{{ selectedPlayer.user_name }}</div>
               <div class="text-caption text-medium-emphasis">
-                Детальна статистика
+                {{ t('leagues.detailedStats') }}
               </div>
             </div>
           </div>
@@ -125,7 +125,7 @@
               <v-card variant="tonal" color="primary">
                 <v-card-text class="text-center">
                   <div class="text-h4">{{ selectedPlayer.total_points }}</div>
-                  <div class="text-caption">Всього очок</div>
+                  <div class="text-caption">{{ t('leagues.totalPoints') }}</div>
                 </v-card-text>
               </v-card>
             </v-col>
@@ -133,7 +133,7 @@
               <v-card variant="tonal" color="secondary">
                 <v-card-text class="text-center">
                   <div class="text-h4">{{ selectedPlayer.games_played }}</div>
-                  <div class="text-caption">Зіграно ігор</div>
+                  <div class="text-caption">{{ t('leagues.gamesPlayed') }}</div>
                 </v-card-text>
               </v-card>
             </v-col>
@@ -141,13 +141,13 @@
 
           <v-divider class="my-4" />
 
-          <div class="text-subtitle-2 mb-2">Розподіл очок:</div>
+          <div class="text-subtitle-2 mb-2">{{ t('leagues.pointsBreakdown') }}</div>
           <v-list density="compact">
             <v-list-item>
               <template v-slot:prepend>
                 <v-icon color="success">mdi-account-check</v-icon>
               </template>
-              <v-list-item-title>Очки за участь</v-list-item-title>
+              <v-list-item-title>{{ t('leagues.participationPoints') }}</v-list-item-title>
               <template v-slot:append>
                 <v-chip size="small">{{ selectedPlayer.participation_points }}</v-chip>
               </template>
@@ -156,7 +156,7 @@
               <template v-slot:prepend>
                 <v-icon color="warning">mdi-trophy</v-icon>
               </template>
-              <v-list-item-title>Очки за позиції</v-list-item-title>
+              <v-list-item-title>{{ t('leagues.positionPoints') }}</v-list-item-title>
               <template v-slot:append>
                 <v-chip size="small">{{ selectedPlayer.position_points }}</v-chip>
               </template>
@@ -165,7 +165,7 @@
               <template v-slot:prepend>
                 <v-icon color="info">mdi-gavel</v-icon>
               </template>
-              <v-list-item-title>Очки за модерацію</v-list-item-title>
+              <v-list-item-title>{{ t('leagues.moderationPoints') }}</v-list-item-title>
               <template v-slot:append>
                 <v-chip size="small">{{ selectedPlayer.moderation_points }}</v-chip>
               </template>
@@ -174,14 +174,14 @@
 
           <v-divider class="my-4" />
 
-          <div class="text-subtitle-2 mb-2">Подіуми:</div>
+          <div class="text-subtitle-2 mb-2">{{ t('leagues.podiums') }}:</div>
           <v-row dense>
             <v-col cols="4">
               <v-card variant="tonal" color="gold">
                 <v-card-text class="text-center">
                   <v-icon size="large">mdi-trophy</v-icon>
                   <div class="text-h6">{{ selectedPlayer.first_place_count }}</div>
-                  <div class="text-caption">1-е місце</div>
+                  <div class="text-caption">{{ t('leagues.firstPlace') }}</div>
                 </v-card-text>
               </v-card>
             </v-col>
@@ -190,7 +190,7 @@
                 <v-card-text class="text-center">
                   <v-icon size="large">mdi-trophy</v-icon>
                   <div class="text-h6">{{ selectedPlayer.second_place_count }}</div>
-                  <div class="text-caption">2-е місце</div>
+                  <div class="text-caption">{{ t('leagues.secondPlace') }}</div>
                 </v-card-text>
               </v-card>
             </v-col>
@@ -199,7 +199,7 @@
                 <v-card-text class="text-center">
                   <v-icon size="large">mdi-trophy</v-icon>
                   <div class="text-h6">{{ selectedPlayer.third_place_count }}</div>
-                  <div class="text-caption">3-є місце</div>
+                  <div class="text-caption">{{ t('leagues.thirdPlace') }}</div>
                 </v-card-text>
               </v-card>
             </v-col>
@@ -209,7 +209,7 @@
 
           <v-list density="compact">
             <v-list-item>
-              <v-list-item-title>Ігор як модератор</v-list-item-title>
+              <v-list-item-title>{{ t('leagues.gamesAsModerator') }}</v-list-item-title>
               <template v-slot:append>
                 <v-chip size="small">{{ selectedPlayer.games_moderated }}</v-chip>
               </template>
@@ -218,7 +218,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="detailsDialog = false">Закрити</v-btn>
+          <v-btn @click="detailsDialog = false">{{ t('leagues.close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -226,23 +226,25 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { LeagueStanding } from '@/api/LeagueApi';
 
 interface Props {
   standings: LeagueStanding[];
 }
 
+const { t } = useI18n();
 defineProps<Props>();
 
-const headers = [
+const headers = computed(() => [
   { title: '#', key: 'position', sortable: false, width: 80 },
-  { title: 'Гравець', key: 'user', sortable: false },
-  { title: 'Очки', key: 'total_points', align: 'center' as const },
-  { title: 'Ігор', key: 'games_played', align: 'center' as const },
-  { title: 'Подіуми', key: 'podiums', sortable: false, align: 'center' as const },
+  { title: t('leagues.player'), key: 'user', sortable: false },
+  { title: t('leagues.points'), key: 'total_points', align: 'center' as const },
+  { title: t('leagues.games'), key: 'games_played', align: 'center' as const },
+  { title: t('leagues.podiums'), key: 'podiums', sortable: false, align: 'center' as const },
   { title: '', key: 'details', sortable: false, width: 60 },
-];
+]);
 
 const detailsDialog = ref(false);
 const selectedPlayer = ref<LeagueStanding | null>(null);

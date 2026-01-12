@@ -5,10 +5,9 @@
         <div class="d-flex align-center">
           <v-icon start size="large">mdi-information</v-icon>
           <div>
-            <div class="text-subtitle-1">Як запросити гравця</div>
+            <div class="text-subtitle-1">{{ t('leagues.howToInvite') }}</div>
             <div class="text-caption">
-              Створіть одноразове запрошення і відправте посилання гравцеві.
-              Запрошення дійсне протягом 7 днів.
+              {{ t('leagues.invitationInfo') }}
             </div>
           </div>
         </div>
@@ -25,7 +24,7 @@
             @click="generateInvitation"
           >
             <v-icon start>mdi-link-plus</v-icon>
-            Створити запрошення
+            {{ t('leagues.createInvitation') }}
           </v-btn>
         </div>
 
@@ -44,7 +43,7 @@
           <div v-if="invitationLink" class="mt-4">
             <v-divider class="mb-4" />
 
-            <div class="text-subtitle-2 mb-2">Посилання для запрошення:</div>
+            <div class="text-subtitle-2 mb-2">{{ t('leagues.invitationLink') }}</div>
 
             <v-card variant="outlined">
               <v-card-text>
@@ -72,7 +71,7 @@
               class="mt-2"
             >
               <v-icon start>mdi-check-circle</v-icon>
-              Посилання скопійовано до буферу обміну!
+              {{ t('leagues.linkCopied') }}
             </v-alert>
 
             <div class="mt-4">
@@ -81,7 +80,7 @@
                   <div class="d-flex align-center">
                     <v-icon start>mdi-clock-alert</v-icon>
                     <div class="text-caption">
-                      Запрошення дійсне до {{ formatExpiryDate(invitation?.expires_at) }}
+                      {{ t('leagues.validUntil') }} {{ formatExpiryDate(invitation?.expires_at) }}
                     </div>
                   </div>
                 </v-card-text>
@@ -93,7 +92,7 @@
                 variant="text"
                 @click="resetInvitation"
               >
-                Створити нове запрошення
+                {{ t('leagues.createNewInvitation') }}
               </v-btn>
             </div>
           </div>
@@ -105,6 +104,7 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
 import type { LeagueInvitation } from '@/api/LeagueApi';
 
@@ -112,6 +112,7 @@ interface Props {
   leagueCode: string;
 }
 
+const { t, locale } = useI18n();
 defineProps<Props>();
 
 const leagueStore = useLeagueStore();
@@ -131,7 +132,7 @@ const generateInvitation = async () => {
     invitation.value = result.invitation;
     invitationLink.value = result.invitation_link;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Помилка створення запрошення';
+    error.value = err instanceof Error ? err.message : t('leagues.error');
     console.error('Error generating invitation:', err);
   } finally {
     generating.value = false;
@@ -151,7 +152,7 @@ const copyToClipboard = async () => {
     }, 3000);
   } catch (err) {
     console.error('Error copying to clipboard:', err);
-    error.value = 'Не вдалося скопіювати посилання';
+    error.value = t('leagues.copyError');
   }
 };
 
@@ -165,7 +166,8 @@ const resetInvitation = () => {
 const formatExpiryDate = (dateStr: string | undefined) => {
   if (!dateStr) return '';
 
-  return new Date(dateStr).toLocaleString('uk-UA', {
+  const localeMap: Record<string, string> = { 'uk': 'uk-UA', 'en': 'en-US', 'et': 'et-EE' };
+  return new Date(dateStr).toLocaleString(localeMap[locale.value] || 'en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

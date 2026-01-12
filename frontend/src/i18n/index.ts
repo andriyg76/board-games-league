@@ -97,7 +97,11 @@ const messages = {
             invitationNotFound: 'Invitation not found or already used',
             invitationExpired: 'Invitation expired (valid for 7 days)',
             noLeagueData: 'No standings data yet. Play your first games in this league!',
-            confirmBan: 'Are you sure you want to ban'
+            confirmBan: 'Are you sure you want to ban',
+            nameRequired: 'Name is required',
+            memberActive: 'Active',
+            memberBanned: 'Banned',
+            copyError: 'Failed to copy link'
         }
     },
     uk: {
@@ -193,7 +197,11 @@ const messages = {
             invitationNotFound: 'Запрошення не знайдено або вже використано',
             invitationExpired: 'Запрошення прострочено (дійсне 7 днів)',
             noLeagueData: 'Поки що немає даних для рейтингу. Зіграйте перші ігри в цій лізі!',
-            confirmBan: 'Ви впевнені, що хочете заблокувати'
+            confirmBan: 'Ви впевнені, що хочете заблокувати',
+            nameRequired: 'Назва обов\'язкова',
+            memberActive: 'Активний',
+            memberBanned: 'Заблокований',
+            copyError: 'Не вдалося скопіювати посилання'
         }
     },
     et: {
@@ -289,7 +297,11 @@ const messages = {
             invitationNotFound: 'Kutset ei leitud või on juba kasutatud',
             invitationExpired: 'Kutse aegunud (kehtib 7 päeva)',
             noLeagueData: 'Edetabeli andmed puuduvad. Mängi esimesed mängud selles liigas!',
-            confirmBan: 'Kas oled kindel, et tahad keelata'
+            confirmBan: 'Kas oled kindel, et tahad keelata',
+            nameRequired: 'Nimi on kohustuslik',
+            memberActive: 'Aktiivne',
+            memberBanned: 'Keelatud',
+            copyError: 'Lingi kopeerimine ebaõnnestus'
         }
     }
 }

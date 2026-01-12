@@ -4,7 +4,7 @@
       <v-col cols="12">
         <v-card elevation="2">
           <v-card-title>
-            <span class="text-h5">Ліги</span>
+            <span class="text-h5">{{ t('leagues.title') }}</span>
             <v-spacer />
             <v-btn
               v-if="canCreateLeague"
@@ -12,7 +12,7 @@
               @click="showCreateDialog = true"
             >
               <v-icon start>mdi-plus</v-icon>
-              Створити лігу
+              {{ t('leagues.createLeague') }}
             </v-btn>
           </v-card-title>
           <v-divider />
@@ -29,7 +29,7 @@
 
           <v-card-text v-else-if="activeLeagues.length === 0">
             <v-alert type="info" variant="tonal">
-              Немає активних ліг. Створіть нову лігу або приєднайтесь через запрошення.
+              {{ t('leagues.noActiveLeagues') }}
             </v-alert>
           </v-card-text>
 
@@ -47,7 +47,7 @@
           <v-expansion-panels v-if="archivedLeagues.length > 0">
             <v-expansion-panel>
               <v-expansion-panel-title>
-                Архівні ліги ({{ archivedLeagues.length }})
+                {{ t('leagues.archivedLeagues') }} ({{ archivedLeagues.length }})
               </v-expansion-panel-title>
               <v-expansion-panel-text>
                 <v-list>
@@ -68,25 +68,25 @@
     <!-- Create League Dialog -->
     <v-dialog v-model="showCreateDialog" max-width="500">
       <v-card>
-        <v-card-title>Створити нову лігу</v-card-title>
+        <v-card-title>{{ t('leagues.createLeague') }}</v-card-title>
         <v-card-text>
           <v-text-field
             v-model="newLeagueName"
-            label="Назва ліги"
-            :rules="[v => !!v || 'Назва обов\'язкова']"
+            :label="t('leagues.leagueName')"
+            :rules="[v => !!v || t('leagues.nameRequired')]"
             required
           />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="showCreateDialog = false">Скасувати</v-btn>
+          <v-btn @click="showCreateDialog = false">{{ t('leagues.cancel') }}</v-btn>
           <v-btn
             color="primary"
             :disabled="!newLeagueName"
             :loading="creating"
             @click="createLeague"
           >
-            Створити
+            {{ t('leagues.create') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -97,9 +97,11 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
 import LeagueCard from '@/components/league/LeagueCard.vue';
 
+const { t } = useI18n();
 const router = useRouter();
 const leagueStore = useLeagueStore();
 
