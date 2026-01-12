@@ -27,7 +27,8 @@ const messages = {
             home: 'Home',
             gameTypes: 'Game Types',
             leagues: 'Leagues',
-            user: 'User'
+            user: 'User',
+            diagnostics: 'Diagnostics'
         },
         home: {
             title: 'Board Games League',
@@ -94,7 +95,10 @@ const messages = {
             city: 'City',
             timezone: 'Timezone',
             isp: 'ISP',
-            na: 'N/A'
+            na: 'N/A',
+            resolutionInfo: 'Request Resolution Details',
+            headerName: 'Header / Property',
+            headerValue: 'Value'
         },
         createUser: {
             title: 'Create User',
@@ -234,7 +238,8 @@ const messages = {
             home: 'Головна',
             gameTypes: 'Типи ігор',
             leagues: 'Ліги',
-            user: 'Користувач'
+            user: 'Користувач',
+            diagnostics: 'Діагностика'
         },
         home: {
             title: 'Ліга настільних ігор',
@@ -301,7 +306,10 @@ const messages = {
             city: 'Місто',
             timezone: 'Часовий пояс',
             isp: 'Провайдер',
-            na: 'Н/Д'
+            na: 'Н/Д',
+            resolutionInfo: 'Деталі визначення запиту',
+            headerName: 'Заголовок / Властивість',
+            headerValue: 'Значення'
         },
         createUser: {
             title: 'Створити користувача',
@@ -441,7 +449,8 @@ const messages = {
             home: 'Avaleht',
             gameTypes: 'Mängutüübid',
             leagues: 'Liigad',
-            user: 'Kasutaja'
+            user: 'Kasutaja',
+            diagnostics: 'Diagnostika'
         },
         home: {
             title: 'Lauamängude liiga',
@@ -508,7 +517,10 @@ const messages = {
             city: 'Linn',
             timezone: 'Ajavöönd',
             isp: 'ISP',
-            na: 'Puudub'
+            na: 'Puudub',
+            resolutionInfo: 'Päringu lahenduse üksikasjad',
+            headerName: 'Päis / Omadus',
+            headerValue: 'Väärtus'
         },
         createUser: {
             title: 'Loo kasutaja',

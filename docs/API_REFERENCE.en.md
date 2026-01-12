@@ -765,7 +765,7 @@ Gets the current authenticated player's information.
 
 ## Rate Limits
 
-- Geolocation API (ipapi.co): Check ipapi.co documentation for rate limits
+- Geolocation API (ipinfo.io): Check ipinfo.io documentation for rate limits
 - No built-in rate limiting on application endpoints (can be added via middleware)
 
 ## CORS

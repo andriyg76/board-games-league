@@ -4,7 +4,7 @@ FROM --platform=$BUILDPLATFORM node:22 AS frontend-builder
 ARG BUILD_VERSION=unknown
 ARG BUILD_COMMIT=unknown
 ARG BUILD_BRANCH=unknown
-ARG BUILD_DATE
+ARG BUILD_DATE=unknown
 
 WORKDIR /app/frontend
 
@@ -24,7 +24,7 @@ FROM --platform=$BUILDPLATFORM golang:1.24 AS backend-builder
 ARG BUILD_VERSION=unknown
 ARG BUILD_COMMIT=unknown
 ARG BUILD_BRANCH=unknown
-ARG BUILD_DATE
+ARG BUILD_DATE=unknown
 
 WORKDIR /app
 

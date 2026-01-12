@@ -84,6 +84,26 @@
             </v-row>
           </v-card-text>
         </v-card>
+
+        <v-card v-if="diagnostics.request_info.resolution_info && Object.keys(diagnostics.request_info.resolution_info).length > 0" class="mt-4">
+          <v-card-title>{{ t('diagnostics.resolutionInfo') }}</v-card-title>
+          <v-card-text>
+            <v-table density="compact">
+              <thead>
+                <tr>
+                  <th class="text-left">{{ t('diagnostics.headerName') }}</th>
+                  <th class="text-left">{{ t('diagnostics.headerValue') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(value, key) in diagnostics.request_info.resolution_info" :key="key">
+                  <td><code>{{ key }}</code></td>
+                  <td><code>{{ value }}</code></td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card-text>
+        </v-card>
       </v-card-text>
     </v-card>
     <v-skeleton-loader v-else type="card"></v-skeleton-loader>

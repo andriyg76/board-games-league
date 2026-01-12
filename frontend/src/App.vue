@@ -26,6 +26,11 @@
             v-if="loggedIn"
             variant="text"
         >{{ t('nav.user') }}</v-btn>
+        <v-btn
+            to="/ui/admin/diagnostics"
+            v-if="isSuperAdmin"
+            variant="text"
+        >{{ t('nav.diagnostics') }}</v-btn>
       </div>
 
       <v-spacer></v-spacer>
@@ -66,6 +71,11 @@
             to="/ui/user"
             :title="t('nav.user')"
         />
+        <v-list-item
+            v-if="isSuperAdmin"
+            to="/ui/admin/diagnostics"
+            :title="t('nav.diagnostics')"
+        />
       </v-list>
     </v-navigation-drawer>
 
@@ -90,6 +100,7 @@ const { t } = useI18n();
 
 const drawer = ref(false);
 const loggedIn = computed(() => userStore.$state.loggedIn);
+const isSuperAdmin = computed(() => userStore.isSuperAdmin);
 
 defineComponent({
   components: {

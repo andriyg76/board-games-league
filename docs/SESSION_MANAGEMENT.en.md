@@ -111,7 +111,7 @@ The system uses a two-token approach:
 
 **GeoIPService** (`backend/services/geoip_service.go`)
 - `GetGeoIPInfo()`: Resolves IP address to geographic information
-- Uses ipapi.co API (free tier, no API key required)
+- Uses ipinfo.io API (requires API token)
 - Returns country, region, city, timezone, ISP information
 
 #### Repositories
@@ -199,6 +199,7 @@ The system uses a two-token approach:
 - `JWT_SECRET`: Secret key for signing JWT tokens
 - `SESSION_SECRET`: Secret key for session cookies
 - `SUPERADMINS`: Comma-separated list of external IDs (emails) for super admins
+- `IPINFO_TOKEN`: API token for ipinfo.io (for geolocation)
 
 **Optional**
 - `TRUSTED_ORIGINS`: Comma-separated list of trusted origins for CORS validation
@@ -305,9 +306,9 @@ if !auth.IsSuperAdmin(profile.ExternalIDs) {
 
 ## Geolocation
 
-The system uses ipapi.co API for geolocation (free tier):
-- No API key required
-- Rate limits apply (check ipapi.co documentation)
+The system uses ipinfo.io API for geolocation:
+- Requires API token (`IPINFO_TOKEN`)
+- Rate limits apply (check ipinfo.io documentation)
 - Falls back gracefully if service unavailable
 - Geo information is optional and non-blocking
 
@@ -323,8 +324,9 @@ The system uses ipapi.co API for geolocation (free tier):
 ### Geolocation Not Showing
 
 1. Check internet connectivity (service uses external API)
-2. Verify ipapi.co service is accessible
-3. Check rate limits on ipapi.co
+2. Verify `IPINFO_TOKEN` is configured
+3. Verify ipinfo.io service is accessible
+4. Check rate limits on ipinfo.io
 4. Geo info is optional - sessions work without it
 
 ### Admin Access Denied

@@ -29,6 +29,7 @@ export interface DiagnosticsResponse {
         origin: string;
         is_trusted: boolean;
         geo_info?: GeoIPInfo;
+        resolution_info?: Record<string, string>;
     };
 }
 
