@@ -36,7 +36,7 @@
                 <p><strong>Host URL:</strong> {{ diagnostics.server_info.host_url }}</p>
                 <div>
                   <strong>Trusted Origins:</strong>
-                  <ul v-if="diagnostics.server_info.trusted_origins.length > 0">
+                  <ul v-if="diagnostics.server_info.trusted_origins?.length > 0">
                     <li v-for="origin in diagnostics.server_info.trusted_origins" :key="origin">
                       {{ origin }}
                     </li>
