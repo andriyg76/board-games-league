@@ -3,15 +3,16 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/andriyg76/glog"
-	"net/http"
-	"os"
-	"strings"
 )
 
 // BuildInfo holds build-time information injected via ldflags
@@ -46,12 +47,13 @@ type DiagnosticsResponse struct {
 		Date    string `json:"date"`
 	} `json:"build_info"`
 	RequestInfo struct {
-		IPAddress string            `json:"ip_address"`
-		BaseURL   string            `json:"base_url"`
-		UserAgent string            `json:"user_agent"`
-		Origin    string            `json:"origin"`
-		IsTrusted bool              `json:"is_trusted"`
-		GeoInfo   *models.GeoIPInfo `json:"geo_info,omitempty"`
+		IPAddress       string            `json:"ip_address"`
+		BaseURL         string            `json:"base_url"`
+		UserAgent       string            `json:"user_agent"`
+		Origin          string            `json:"origin"`
+		IsTrusted       bool              `json:"is_trusted"`
+		GeoInfo         *models.GeoIPInfo `json:"geo_info,omitempty"`
+		ResolutionInfo  map[string]string `json:"resolution_info"`
 	} `json:"request_info"`
 }
 
@@ -78,10 +80,11 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 		}
 	}
 
+	requestConfig := h.requestService.ParseRequest(r, trustedOrigins)
 	// Get client IP
-	clientIP := h.requestService.GetClientIP(r)
-	baseURL := h.requestService.BuildBaseURL(r)
-	isTrusted := h.requestService.IsTrustedOrigin(r, trustedOrigins)
+	clientIP := requestConfig.ClientIP()
+	baseURL := requestConfig.BaseURL()
+	isTrusted := requestConfig.IsTrustedOrigin()
 
 	response := DiagnosticsResponse{}
 	response.ServerInfo.HostURL = utils.GetHostUrl(r)
@@ -95,6 +98,26 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 	response.RequestInfo.UserAgent = r.Header.Get("User-Agent")
 	response.RequestInfo.Origin = r.Header.Get("Origin")
 	response.RequestInfo.IsTrusted = isTrusted
+
+	// Collect resolution info - headers and request properties used for detection
+	resolutionInfo := make(map[string]string)
+	resolutionInfo["RemoteAddr"] = r.RemoteAddr
+	resolutionInfo["Host"] = r.Host
+	resolutionInfo["Protocol"] = requestConfig.Protocol()
+	
+	// Add relevant headers if present
+	headerNames := []string{
+		"CF-Connecting-IP", "CF-Visitor", "CF-Ray", "CF-IPCountry",
+		"X-Forwarded-For", "X-Forwarded-Proto", "X-Forwarded-Host",
+		"X-Forwarded-Scheme", "X-Real-IP", "X-Scheme", "X-Original-Host",
+		"True-Client-IP", "Origin", "Referer",
+	}
+	for _, name := range headerNames {
+		if value := r.Header.Get(name); value != "" {
+			resolutionInfo[name] = value
+		}
+	}
+	response.RequestInfo.ResolutionInfo = resolutionInfo
 
 	// Get geo info (non-blocking)
 	if clientIP != "" {
