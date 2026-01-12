@@ -10,7 +10,7 @@ type Handler struct {
 	gameRoundRepository repositories.GameRoundRepository
 	gameTypeRepository  repositories.GameTypeRepository
 	userService         services.UserService
-	leagueService       *services.LeagueService
+	leagueService       services.LeagueService
 }
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
@@ -51,7 +51,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	})
 }
 
-func NewHandler(r services.UserService, r2 repositories.GameRoundRepository, r3 repositories.GameTypeRepository, leagueService *services.LeagueService) *Handler {
+func NewHandler(r services.UserService, r2 repositories.GameRoundRepository, r3 repositories.GameTypeRepository, leagueService services.LeagueService) *Handler {
 	return &Handler{
 		gameRoundRepository: r2,
 		gameTypeRepository:  r3,

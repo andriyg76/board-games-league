@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/models"
-	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
@@ -16,13 +15,13 @@ import (
 // POST /api/leagues - Create league (superadmin only)
 func (h *Handler) createLeague(w http.ResponseWriter, r *http.Request) {
 	// Check if user is superadmin
-	profile := user_profile.GetUserProfile(r)
-	if profile == nil {
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	user, err := h.userService.FindByID(r.Context(), profile.UserID)
+	user, err := h.userService.FindByCode(r.Context(), profile.Code)
 	if err != nil || user == nil {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
@@ -154,14 +153,20 @@ func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get current user
-	profile := user_profile.GetUserProfile(r)
-	if profile == nil {
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
+	userID, err := utils.CodeToID(profile.Code)
+	if err != nil {
+		http.Error(w, "Invalid user code", http.StatusBadRequest)
+		return
+	}
+
 	// Check if user is a member of the league
-	isMember, err := h.leagueService.IsUserMember(r.Context(), leagueID, profile.UserID)
+	isMember, err := h.leagueService.IsUserMember(r.Context(), leagueID, userID)
 	if err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to check membership")
 		return
@@ -172,7 +177,7 @@ func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create invitation
-	invitation, err := h.leagueService.CreateInvitation(r.Context(), leagueID, profile.UserID)
+	invitation, err := h.leagueService.CreateInvitation(r.Context(), leagueID, userID)
 	if err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to create invitation")
 		return
@@ -190,14 +195,20 @@ func (h *Handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get current user
-	profile := user_profile.GetUserProfile(r)
-	if profile == nil {
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
+	userID, err := utils.CodeToID(profile.Code)
+	if err != nil {
+		http.Error(w, "Invalid user code", http.StatusBadRequest)
+		return
+	}
+
 	// Accept invitation
-	league, err := h.leagueService.AcceptInvitation(r.Context(), token, profile.UserID)
+	league, err := h.leagueService.AcceptInvitation(r.Context(), token, userID)
 	if err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to accept invitation")
 		return
@@ -209,13 +220,13 @@ func (h *Handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 // POST /api/leagues/:code/ban/:userCode - Ban user from league (superadmin only)
 func (h *Handler) banUserFromLeague(w http.ResponseWriter, r *http.Request) {
 	// Check if user is superadmin
-	profile := user_profile.GetUserProfile(r)
-	if profile == nil {
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	user, err := h.userService.FindByID(r.Context(), profile.UserID)
+	user, err := h.userService.FindByCode(r.Context(), profile.Code)
 	if err != nil || user == nil {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
@@ -251,13 +262,13 @@ func (h *Handler) banUserFromLeague(w http.ResponseWriter, r *http.Request) {
 // POST /api/leagues/:code/archive - Archive league (superadmin only)
 func (h *Handler) archiveLeague(w http.ResponseWriter, r *http.Request) {
 	// Check if user is superadmin
-	profile := user_profile.GetUserProfile(r)
-	if profile == nil {
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	user, err := h.userService.FindByID(r.Context(), profile.UserID)
+	user, err := h.userService.FindByCode(r.Context(), profile.Code)
 	if err != nil || user == nil {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
@@ -287,13 +298,13 @@ func (h *Handler) archiveLeague(w http.ResponseWriter, r *http.Request) {
 // POST /api/leagues/:code/unarchive - Unarchive league (superadmin only)
 func (h *Handler) unarchiveLeague(w http.ResponseWriter, r *http.Request) {
 	// Check if user is superadmin
-	profile := user_profile.GetUserProfile(r)
-	if profile == nil {
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	user, err := h.userService.FindByID(r.Context(), profile.UserID)
+	user, err := h.userService.FindByCode(r.Context(), profile.Code)
 	if err != nil || user == nil {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		return

@@ -77,8 +77,8 @@ func main() {
 		leagueRepository,
 		leagueMembershipRepository,
 		leagueInvitationRepository,
-		gameRoundRepository,
 		userRepository,
+		gameRoundRepository,
 	)
 
 	log.Info("Services initialised...")

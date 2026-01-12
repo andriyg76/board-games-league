@@ -11,7 +11,7 @@
       :items-per-page="10"
       class="elevation-1"
     >
-      <template v-slot:item.position="{ index }">
+      <template #[`item.position`]="{ index }">
         <div class="d-flex align-center">
           <v-icon
             v-if="index === 0"
@@ -41,7 +41,7 @@
         </div>
       </template>
 
-      <template v-slot:item.user="{ item }">
+      <template #[`item.user`]="{ item }">
         <div class="d-flex align-center py-2">
           <v-avatar
             :image="item.user_avatar"
@@ -52,13 +52,13 @@
         </div>
       </template>
 
-      <template v-slot:item.total_points="{ item }">
+      <template #[`item.total_points`]="{ item }">
         <v-chip color="primary" variant="flat">
           {{ item.total_points }}
         </v-chip>
       </template>
 
-      <template v-slot:item.podiums="{ item }">
+      <template #[`item.podiums`]="{ item }">
         <div class="d-flex gap-1">
           <v-chip
             v-if="item.first_place_count > 0"
@@ -90,7 +90,7 @@
         </div>
       </template>
 
-      <template v-slot:item.details="{ item }">
+      <template #[`item.details`]="{ item }">
         <v-btn
           icon="mdi-information"
           size="small"

@@ -98,7 +98,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useLeagueStore } from '@/store/league';
-import LeagueCard from './LeagueCard.vue';
+import LeagueCard from '@/components/league/LeagueCard.vue';
 
 const router = useRouter();
 const leagueStore = useLeagueStore();

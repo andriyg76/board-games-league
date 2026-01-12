@@ -33,6 +33,7 @@ type LeagueService interface {
 	// Запрошення
 	CreateInvitation(ctx context.Context, leagueID, createdBy primitive.ObjectID) (*models.LeagueInvitation, error)
 	AcceptInvitation(ctx context.Context, token string, userID primitive.ObjectID) (*models.League, error)
+	GetInvitationByToken(ctx context.Context, token string) (*models.LeagueInvitation, error)
 
 	// Рейтинг
 	GetLeagueStandings(ctx context.Context, leagueID primitive.ObjectID) ([]*LeagueStanding, error)
@@ -295,6 +296,17 @@ func (s *leagueServiceInstance) GetLeagueStandings(ctx context.Context, leagueID
 	standings := CalculateStandings(ctx, rounds, memberships, usersMap, s.pointsConfig)
 
 	return standings, nil
+}
+
+func (s *leagueServiceInstance) GetInvitationByToken(ctx context.Context, token string) (*models.LeagueInvitation, error) {
+	invitation, err := s.invitationRepo.FindByToken(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find invitation: %w", err)
+	}
+	if invitation == nil {
+		return nil, errors.New("invitation not found")
+	}
+	return invitation, nil
 }
 
 // generateInvitationToken generates a cryptographically secure random token

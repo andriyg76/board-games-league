@@ -41,3 +41,11 @@ func (m *MockGameRoundRepository) Delete(ctx context.Context, id primitive.Objec
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
+
+func (m *MockGameRoundRepository) FindByLeague(ctx context.Context, leagueID primitive.ObjectID) ([]*models.GameRound, error) {
+	args := m.Called(ctx, leagueID)
+	if rounds := args.Get(0); rounds != nil {
+		return rounds.([]*models.GameRound), args.Error(1)
+	}
+	return nil, args.Error(1)
+}

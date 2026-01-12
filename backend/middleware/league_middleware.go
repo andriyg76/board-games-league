@@ -13,11 +13,11 @@ import (
 
 // LeagueMiddleware provides middleware functions for league access control
 type LeagueMiddleware struct {
-	leagueService *services.LeagueService
+	leagueService services.LeagueService
 }
 
 // NewLeagueMiddleware creates a new league middleware instance
-func NewLeagueMiddleware(leagueService *services.LeagueService) *LeagueMiddleware {
+func NewLeagueMiddleware(leagueService services.LeagueService) *LeagueMiddleware {
 	return &LeagueMiddleware{
 		leagueService: leagueService,
 	}
