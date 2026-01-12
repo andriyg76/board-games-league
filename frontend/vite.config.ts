@@ -16,11 +16,18 @@ export default defineConfig({
   },
   server: {
     port: 8000,
-    hmr: {
-      protocol: 'wss',
-      host: 'localhost',
-      port: 2443,
-      path: '/ws',
+    // hmr: {
+    //   protocol: 'wss',
+    //   host: 'localhost',
+    //   port: 2443,
+    //   path: '/ws',
+    // }
+    proxy: {
+      '^/api/': {
+        target: 'http://localhost:8000',
+        ws: true,
+        changeOrigin: true,
+      }
     }
   },
   build: {

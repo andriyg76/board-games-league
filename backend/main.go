@@ -85,7 +85,7 @@ func main() {
 	log.Info("Services initialised...")
 
 	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository, leagueService)
-	authHandler := auth.NewDefaultHandler(userRepository, sessionService)
+	authHandler := auth.NewDefaultHandler(userRepository, sessionService, requestService)
 	userProfileHandler := userapi.NewHandlerWithServices(userRepository, sessionRepository, geoIPService)
 	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService)
 

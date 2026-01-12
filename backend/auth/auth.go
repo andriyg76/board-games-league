@@ -4,6 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+	"runtime"
+	"slices"
+	"strings"
+	"time"
+
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/services"
@@ -12,22 +19,7 @@ import (
 	"github.com/andriyg76/glog"
 	"github.com/gorilla/sessions"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"net"
-	"net/http"
-	"os"
-	"runtime"
-	"slices"
-	"strings"
-	"time"
 )
-
-func stripPort(remoteAddr string) string {
-	remoteAddr = strings.TrimSpace(remoteAddr)
-	if host, _, err := net.SplitHostPort(remoteAddr); err == nil && host != "" {
-		return host
-	}
-	return remoteAddr
-}
 
 // LogSuperAdmins logs the registered superadmins - call from main after all init() functions complete
 func LogSuperAdmins() {
@@ -151,12 +143,8 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// Create session with rotate token and action token
-	ipAddress := stripPort(r.RemoteAddr)
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		ipAddress = strings.TrimSpace(strings.Split(forwarded, ",")[0])
-	}
-	userAgent := r.Header.Get("User-Agent")
+	// Parse request info
+	reqInfo := h.requestService.ParseRequest(r, nil)
 	userCode := utils.IdToCode(user.ID)
 
 	rotateToken, actionToken, err := h.sessionService.CreateSession(
@@ -166,8 +154,8 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 		user.ExternalIDs,
 		user.Name,
 		user.Avatar,
-		ipAddress,
-		userAgent,
+		reqInfo.ClientIP(),
+		reqInfo.UserAgent(),
 	)
 	if err != nil {
 		_ = glog.Error("Session creation failed: %v", err)
@@ -176,15 +164,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Set action token cookie (1 hour expiry)
-	http.SetCookie(w, &http.Cookie{
-		Name:     "auth_token",
-		Value:    actionToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   60 * 60, // 1 hour
-	})
+	http.SetCookie(w, reqInfo.NewCookie(authCookieName, actionToken, 60*60))
 
 	// Return user data with rotate token (for client to store in localStorage)
 	response := struct {
@@ -225,15 +205,11 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	rotateToken := parts[1]
 
-	// Get IP and user agent for session tracking
-	ipAddress := stripPort(r.RemoteAddr)
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		ipAddress = strings.TrimSpace(strings.Split(forwarded, ",")[0])
-	}
-	userAgent := r.Header.Get("User-Agent")
+	// Parse request info
+	reqInfo := h.requestService.ParseRequest(r, nil)
 
 	// Refresh action token (and rotate token if needed)
-	newRotateToken, actionToken, err := h.sessionService.RefreshActionToken(r.Context(), rotateToken, ipAddress, userAgent)
+	newRotateToken, actionToken, err := h.sessionService.RefreshActionToken(r.Context(), rotateToken, reqInfo.ClientIP(), reqInfo.UserAgent())
 	if err != nil {
 		_ = glog.Error("Token refresh failed: %v", err)
 		http.Error(w, "Token refresh failed", http.StatusUnauthorized)
@@ -241,15 +217,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set new action token cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "auth_token",
-		Value:    actionToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   60 * 60, // 1 hour
-	})
+	http.SetCookie(w, reqInfo.NewCookie(authCookieName, actionToken, 60*60))
 
 	// Return new rotate token if it was rotated
 	response := make(map[string]interface{})
@@ -297,7 +265,8 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Clear the auth cookie
-	clearCookies(w)
+	reqInfo := h.requestService.ParseRequest(r, nil)
+	http.SetCookie(w, reqInfo.ClearCookie(authCookieName))
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -322,16 +291,23 @@ func (h *Handler) HandleBeginLoginFlow(w http.ResponseWriter, r *http.Request) {
 	h.provider.BeginUserAuthHandler(w, r)
 }
 
+// clearCookies clears the auth cookie using service config
 func clearCookies(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "auth_token",
+	rs := services.NewRequestService()
+	cfg := rs.GetConfig()
+	cookie := &http.Cookie{
+		Name:     authCookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-	})
+		Secure:   cfg.CookieSecure,
+		SameSite: http.SameSiteLaxMode,
+	}
+	if cfg.CookieDomain != "" && cfg.CookieDomain != "localhost" {
+		cookie.Domain = cfg.CookieDomain
+	}
+	http.SetCookie(w, cookie)
 }
 
 var config = struct {
@@ -346,9 +322,11 @@ var config = struct {
 	DiscordClientSecret: os.Getenv("DISCORD_CLIENT_SECRET"),
 }
 
+const authCookieName = "auth_token"
+
 func (h *Handler) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("auth_token")
+		cookie, err := r.Cookie(authCookieName)
 		if err != nil {
 			handleUnauthorized(w, r)
 			return
@@ -403,21 +381,24 @@ func sendNewUserToDiscord(r *http.Request, user *models.User) error {
 type Handler struct {
 	userRepository repositories.UserRepository
 	sessionService services.SessionService
+	requestService services.RequestService
 	provider       ExternalAuthProvider
 }
 
-func NewHandler(repository repositories.UserRepository, sessionService services.SessionService, provider ExternalAuthProvider) Handler {
+func NewHandler(repository repositories.UserRepository, sessionService services.SessionService, requestService services.RequestService, provider ExternalAuthProvider) Handler {
 	return Handler{
 		provider:       provider,
 		userRepository: repository,
 		sessionService: sessionService,
+		requestService: requestService,
 	}
 }
 
-func NewDefaultHandler(repository repositories.UserRepository, sessionService services.SessionService) Handler {
+func NewDefaultHandler(repository repositories.UserRepository, sessionService services.SessionService, requestService services.RequestService) Handler {
 	return Handler{
 		provider:       &authProviderInstance{},
 		userRepository: repository,
 		sessionService: sessionService,
+		requestService: requestService,
 	}
 }

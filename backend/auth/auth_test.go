@@ -100,6 +100,7 @@ func TestMiddleware(t *testing.T) {
 	middleware := (&Handler{
 		userRepository: mockRepo,
 		provider:       new(MockExternalAuthProvider),
+		requestService: services.NewRequestService(),
 	}).Middleware
 
 	tests := []struct {
@@ -155,6 +156,7 @@ func TestGoogleCallbackHandler(t *testing.T) {
 	handler := Handler{
 		userRepository: mockRepo,
 		sessionService: services.SessionService(&testSessionService{}),
+		requestService: services.NewRequestService(),
 		provider:       mockProvider,
 	}
 	beginFlowHandler := handler.HandleBeginLoginFlow
@@ -261,6 +263,7 @@ func TestLogoutHandler(t *testing.T) {
 	handler := Handler{
 		userRepository: mockRepo,
 		sessionService: services.SessionService(&testSessionService{}),
+		requestService: services.NewRequestService(),
 		provider:       provider,
 	}
 

@@ -16,10 +16,10 @@ import (
 
 // BuildInfo holds build-time information injected via ldflags
 var (
-	BuildVersion  = "unknown"
-	BuildCommit   = "unknown"
-	BuildBranch   = "unknown"
-	BuildDate     = "unknown"
+	BuildVersion = "unknown"
+	BuildCommit  = "unknown"
+	BuildBranch  = "unknown"
+	BuildDate    = "unknown"
 )
 
 type DiagnosticsHandler struct {
@@ -36,7 +36,7 @@ func NewDiagnosticsHandler(requestService services.RequestService, geoIPService 
 
 type DiagnosticsResponse struct {
 	ServerInfo struct {
-		HostURL      string   `json:"host_url"`
+		HostURL        string   `json:"host_url"`
 		TrustedOrigins []string `json:"trusted_origins"`
 	} `json:"server_info"`
 	BuildInfo struct {
@@ -46,12 +46,12 @@ type DiagnosticsResponse struct {
 		Date    string `json:"date"`
 	} `json:"build_info"`
 	RequestInfo struct {
-		IPAddress  string             `json:"ip_address"`
-		BaseURL    string             `json:"base_url"`
-		UserAgent  string             `json:"user_agent"`
-		Origin     string             `json:"origin"`
-		IsTrusted  bool               `json:"is_trusted"`
-		GeoInfo    *models.GeoIPInfo  `json:"geo_info,omitempty"`
+		IPAddress string            `json:"ip_address"`
+		BaseURL   string            `json:"base_url"`
+		UserAgent string            `json:"user_agent"`
+		Origin    string            `json:"origin"`
+		IsTrusted bool              `json:"is_trusted"`
+		GeoInfo   *models.GeoIPInfo `json:"geo_info,omitempty"`
 	} `json:"request_info"`
 }
 
@@ -78,6 +78,7 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 		}
 	}
 
+	config := h.requestService.GetConfig()
 	// Get client IP
 	clientIP := h.requestService.GetClientIP(r)
 	baseURL := h.requestService.BuildBaseURL(r)

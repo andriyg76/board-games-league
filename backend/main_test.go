@@ -33,7 +33,7 @@ func (n *noopSessionService) CleanupExpiredSessions(ctx context.Context) error {
 
 func setupTestRouter(mockUserRepo repositories.UserRepository, provider auth.ExternalAuthProvider) *chi.Mux {
 	r := chi.NewRouter()
-	authHandler := auth.NewHandler(mockUserRepo, services.SessionService(&noopSessionService{}), provider)
+	authHandler := auth.NewHandler(mockUserRepo, services.SessionService(&noopSessionService{}), services.NewRequestService(), provider)
 	userProfileHandler := userapi.NewHandler(mockUserRepo)
 
 	r.Route("/api", func(r chi.Router) {
