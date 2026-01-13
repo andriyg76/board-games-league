@@ -2,6 +2,7 @@
 
 ## Overview
 Додавання повноцінного інтерфейсу для гри Wizard в Board Games League систему.
+Wizard інтегрується як спеціалізований інтерфейс для звичайної гри - результати автоматично відображаються в league standings.
 
 ## Аналіз з скріншотів
 
@@ -9,20 +10,22 @@
 
 #### 1. Game Setup (Налаштування гри)
 - **Players**: 3-6 гравців
-- **First Dealer**:
-  - Randomize toggle
-  - Manual selection
+- **First Dealer**: Manual selection (index 0-N)
 - **Bid Restrictions**:
   - `NO_RESTRICTIONS` - ставки не обмежені
   - `CANNOT_MATCH_CARDS` - сума ставок не може дорівнювати кількості карт
   - `MUST_MATCH_CARDS` - сума ставок повинна дорівнювати кількості карт
 - **Game Variant**:
-  - Standard/Fantasy
-  - Anniversary (Bomb, Cloud)
+  - Standard (поки що)
+  - Anniversary (майбутнє розширення)
 
 #### 2. Game Flow (Ігровий процес)
-- **12 rounds** (раундів)
-- **Round number** = **Cards dealt** (1 карта в раунді 1, 12 карт у раунді 12)
+- **Динамічна кількість раундів**: `60 / кількість_гравців`
+  - 3 гравці → 20 раундів
+  - 4 гравці → 15 раундів
+  - 5 гравців → 12 раундів
+  - 6 гравців → 10 раундів
+- **Round number** = **Cards dealt** (1 карта в раунді 1, N карт у раунді N)
 - **Dealer rotation** (дилер змінюється кожен раунд)
 
 **Кожен раунд складається з:**
@@ -84,68 +87,96 @@ IF bid ≠ actual:
 
 ### Phase 1: Database Schema
 
-#### New Collections
+#### Інтеграція з існуючою системою
 
-**1. `wizard_games`**
+**Wizard використовує існуючі таблиці:**
+- `game_types` - тип гри "Wizard" (scoring_type: "classic")
+- `game_rounds` - основний запис гри для league standings
+
+**Нова колекція для деталей гри:**
+
+**1. `wizard_games` - детальний стан Wizard гри**
 ```go
 type WizardGame struct {
-    ID                primitive.ObjectID   `bson:"_id,omitempty"`
-    LeagueID          primitive.ObjectID   `bson:"league_id,omitempty"`
-    GameRoundID       primitive.ObjectID   `bson:"game_round_id,omitempty"` // Link to main game_rounds
+    ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+    Code         string             `bson:"code" json:"code"` // Унікальний код для URL
 
-    // Configuration
-    BidRestriction    string               `bson:"bid_restriction"` // NO_RESTRICTIONS, CANNOT_MATCH_CARDS, MUST_MATCH_CARDS
-    GameVariant       string               `bson:"game_variant"`    // STANDARD, ANNIVERSARY
-    RandomizeDealer   bool                 `bson:"randomize_dealer"`
-    FirstDealerID     primitive.ObjectID   `bson:"first_dealer_id,omitempty"`
+    // Прив'язка до основного game_round
+    GameRoundID  primitive.ObjectID `bson:"game_round_id" json:"game_round_id"` // ОБОВ'ЯЗКОВО
 
-    // Players
-    Players           []WizardPlayer       `bson:"players"`
+    // Конфігурація гри
+    Config struct {
+        BidRestriction   string `bson:"bid_restriction" json:"bid_restriction"` // NO_RESTRICTIONS, CANNOT_MATCH_CARDS, MUST_MATCH_CARDS
+        GameVariant      string `bson:"game_variant" json:"game_variant"`       // STANDARD (поки що)
+        FirstDealerIndex int    `bson:"first_dealer_index" json:"first_dealer_index"` // 0-based індекс у масиві Players
+    } `bson:"config" json:"config"`
 
-    // Game state
-    CurrentRound      int                  `bson:"current_round"` // 1-12
-    Status            string               `bson:"status"`        // SETUP, IN_PROGRESS, COMPLETED
+    // Гравці (фіксований порядок, індекс відповідає GameRound.Players)
+    Players []struct {
+        MembershipID primitive.ObjectID `bson:"membership_id" json:"membership_id"`
+        PlayerName   string             `bson:"player_name" json:"player_name"`
+        TotalScore   int                `bson:"total_score" json:"total_score"` // Кумулятивний рахунок
+    } `bson:"players" json:"players"`
 
-    // Rounds data
-    Rounds            []WizardRound        `bson:"rounds"`
+    // Раунди (масив, length = 60 / len(Players))
+    Rounds []struct {
+        RoundNumber int `bson:"round_number" json:"round_number"` // 1 до MaxRounds
+        DealerIndex int `bson:"dealer_index" json:"dealer_index"` // Індекс у Players
+        CardsCount  int `bson:"cards_count" json:"cards_count"`   // = RoundNumber
 
-    CreatedAt         time.Time            `bson:"created_at"`
-    UpdatedAt         time.Time            `bson:"updated_at"`
-}
+        // Результати гравців (індекс відповідає індексу в Players)
+        PlayerResults []struct {
+            Bid        int `bson:"bid" json:"bid"`              // -1 = не встановлено
+            Actual     int `bson:"actual" json:"actual"`        // -1 = не встановлено
+            Score      int `bson:"score" json:"score"`          // Очки за раунд
+            Delta      int `bson:"delta" json:"delta"`          // Зміна від попереднього раунду
+            TotalScore int `bson:"total_score" json:"total_score"` // Кумулятивний рахунок після цього раунду
+        } `bson:"player_results" json:"player_results"`
 
-type WizardPlayer struct {
-    MembershipID      primitive.ObjectID   `bson:"membership_id"`
-    PlayerName        string               `bson:"player_name"`
-    TotalScore        int64                `bson:"total_score"`
-    Position          int                  `bson:"position"` // Final position (1-6)
-}
+        Status      string    `bson:"status" json:"status"` // BIDDING, PLAYING, COMPLETED
+        CompletedAt time.Time `bson:"completed_at,omitempty" json:"completed_at,omitempty"`
+    } `bson:"rounds" json:"rounds"`
 
-type WizardRound struct {
-    RoundNumber       int                  `bson:"round_number"` // 1-12
-    DealerID          primitive.ObjectID   `bson:"dealer_id"`
-    CardsCount        int                  `bson:"cards_count"`  // == round_number
+    // Стан гри
+    CurrentRound int    `bson:"current_round" json:"current_round"` // 1 до MaxRounds
+    MaxRounds    int    `bson:"max_rounds" json:"max_rounds"`       // 60 / len(Players)
+    Status       string `bson:"status" json:"status"`               // SETUP, IN_PROGRESS, COMPLETED
 
-    PlayerRounds      []WizardPlayerRound  `bson:"player_rounds"`
-
-    Status            string               `bson:"status"` // BIDDING, PLAYING, COMPLETED
-    CompletedAt       time.Time            `bson:"completed_at,omitempty"`
-}
-
-type WizardPlayerRound struct {
-    MembershipID      primitive.ObjectID   `bson:"membership_id"`
-    Bid               int                  `bson:"bid"`           // -1 if not set
-    Actual            int                  `bson:"actual"`        // -1 if not set
-    Score             int64                `bson:"score"`         // Round score
-    TotalScore        int64                `bson:"total_score"`   // Cumulative score
-    Delta             int64                `bson:"delta"`         // Change from previous round
+    // Метадані
+    CreatedAt time.Time `bson:"created_at" json:"created_at"`
+    UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
 ```
 
 **Indexes:**
 ```go
-- wizard_games.league_id
-- wizard_games.game_round_id
+- wizard_games.code (unique)
+- wizard_games.game_round_id (unique) // Одна wizard_game на один game_round
 - wizard_games.status
+```
+
+#### Життєвий цикл гри:
+
+**1. Створення гри:**
+```
+1. Створюємо GameRound (status: in progress, без scores)
+2. Створюємо WizardGame (прив'язаний до GameRound)
+3. Ініціалізуємо всі раунди з порожніми bid/actual (-1)
+```
+
+**2. Процес гри:**
+```
+- Всі bid/actual зберігаються в WizardGame.Rounds
+- GameRound залишається без змін
+```
+
+**3. Завершення гри:**
+```
+1. Розраховуємо фінальні scores в WizardGame
+2. Записуємо scores назад в GameRound.Players[].Score
+3. Розраховуємо positions в GameRound.Players[].Position
+4. Встановлюємо GameRound.EndTime
+5. League standings автоматично оновлюються
 ```
 
 ---
@@ -156,31 +187,30 @@ type WizardPlayerRound struct {
 
 **Files:**
 - `handlers.go` - Route registration
-- `game.go` - Game CRUD operations
-- `round.go` - Round management
-- `scoring.go` - Scoring logic
+- `game.go` - Game lifecycle (create, get, finalize)
+- `round.go` - Round management (bids, results, complete)
+- `scoring.go` - Scoring calculation logic
 
 #### API Endpoints:
 
 ```
-POST   /api/wizard/games                          - Create new Wizard game
-GET    /api/wizard/games/:id                      - Get game details
-PUT    /api/wizard/games/:id/config               - Update game configuration
-DELETE /api/wizard/games/:id                      - Delete game
+# Game Management
+POST   /api/wizard/games                          - Create new Wizard game + GameRound
+GET    /api/wizard/games/:code                    - Get game details by code
+GET    /api/wizard/games/by-round/:game_round_id  - Get game by GameRound ID
+DELETE /api/wizard/games/:code                    - Delete game (also deletes GameRound)
 
-POST   /api/wizard/games/:id/start                - Start game (move to IN_PROGRESS)
-GET    /api/wizard/games/:id/current-round        - Get current round details
+# Round Operations
+PUT    /api/wizard/games/:code/rounds/:round/bids     - Submit bids for round (bulk)
+PUT    /api/wizard/games/:code/rounds/:round/results  - Submit results for round (bulk)
+POST   /api/wizard/games/:code/rounds/:round/complete - Complete round & calculate scores
+POST   /api/wizard/games/:code/rounds/:round/restart  - Restart round (clear bids/results)
 
-PUT    /api/wizard/games/:id/rounds/:round/bids   - Submit all bids for round
-PUT    /api/wizard/games/:id/rounds/:round/bid    - Submit single player bid
-PUT    /api/wizard/games/:id/rounds/:round/results - Submit all results for round
-PUT    /api/wizard/games/:id/rounds/:round/result  - Submit single player result
-
-POST   /api/wizard/games/:id/rounds/:round/complete - Complete round & calculate scores
-POST   /api/wizard/games/:id/rounds/:round/restart  - Restart round (clear bids/results)
-
-GET    /api/wizard/games/:id/scoreboard           - Get full scoreboard
-POST   /api/wizard/games/:id/finalize             - Finalize game & update league standings
+# Game State
+GET    /api/wizard/games/:code/scoreboard         - Get full scoreboard (all rounds)
+POST   /api/wizard/games/:code/finalize           - Finalize game → update GameRound scores
+POST   /api/wizard/games/:code/next-round         - Move to next round
+POST   /api/wizard/games/:code/prev-round         - Move to previous round (view only)
 ```
 
 #### Request/Response Examples:
@@ -189,65 +219,108 @@ POST   /api/wizard/games/:id/finalize             - Finalize game & update leagu
 ```json
 POST /api/wizard/games
 {
-  "league_id": "...",
-  "bid_restriction": "NO_RESTRICTIONS",
+  "league_id": "67abc123...",           // League ID (required)
+  "game_name": "Friday Wizard Night",   // GameRound name
+  "bid_restriction": "NO_RESTRICTIONS", // or CANNOT_MATCH_CARDS, MUST_MATCH_CARDS
   "game_variant": "STANDARD",
-  "randomize_dealer": true,
-  "first_dealer_id": null,
-  "players": [
-    {"membership_id": "..."},
-    {"membership_id": "..."},
-    {"membership_id": "..."}
+  "first_dealer_index": 0,              // 0-based index in players array
+  "player_membership_ids": [
+    "67def456...",
+    "67def789...",
+    "67defabc...",
+    "67defdef..."
   ]
 }
 
 Response:
 {
-  "id": "...",
+  "code": "abc123xyz",                  // Wizard game code (for URL)
+  "game_round_id": "67ghi123...",       // Created GameRound ID
   "current_round": 1,
-  "status": "SETUP",
-  ...
+  "max_rounds": 15,                     // 60/4 = 15
+  "status": "IN_PROGRESS",
+  "players": [
+    {
+      "membership_id": "67def456...",
+      "player_name": "Andrij",
+      "total_score": 0
+    },
+    ...
+  ]
 }
 ```
 
-**Submit Bids:**
+**Submit Bids (by index):**
 ```json
-PUT /api/wizard/games/:id/rounds/1/bids
+PUT /api/wizard/games/abc123xyz/rounds/1/bids
 {
-  "bids": {
-    "membership_id_1": 0,
-    "membership_id_2": 1,
-    "membership_id_3": 0,
-    "membership_id_4": 0
-  }
+  "bids": [0, 1, 0, 0]  // Array indices correspond to Players array
+}
+
+Response: 200 OK
+```
+
+**Submit Results (by index):**
+```json
+PUT /api/wizard/games/abc123xyz/rounds/1/results
+{
+  "results": [0, 0, 1, 0]  // Array indices correspond to Players array
+}
+
+Response: 200 OK
+```
+
+**Complete Round:**
+```json
+POST /api/wizard/games/abc123xyz/rounds/1/complete
+
+Response:
+{
+  "round_number": 1,
+  "player_results": [
+    {
+      "bid": 0,
+      "actual": 0,
+      "score": 20,        // +20 (matched bid)
+      "delta": 20,
+      "total_score": 20
+    },
+    {
+      "bid": 1,
+      "actual": 0,
+      "score": -10,       // -10 (missed by 1)
+      "delta": -10,
+      "total_score": -10
+    },
+    ...
+  ]
 }
 ```
 
-**Submit Results:**
+**Scoreboard:**
 ```json
-PUT /api/wizard/games/:id/rounds/1/results
-{
-  "results": {
-    "membership_id_1": 0,
-    "membership_id_2": 0,
-    "membership_id_3": 1,
-    "membership_id_4": 0
-  }
-}
-```
+GET /api/wizard/games/abc123xyz/scoreboard
 
-**Scoreboard Response:**
-```json
-GET /api/wizard/games/:id/scoreboard
+Response:
 {
+  "game_code": "abc123xyz",
+  "current_round": 5,
+  "max_rounds": 15,
+  "players": [
+    {
+      "player_name": "Andrij",
+      "total_score": 120
+    },
+    ...
+  ],
   "rounds": [
     {
       "round_number": 1,
-      "dealer_id": "...",
-      "player_rounds": [
+      "dealer_index": 0,
+      "cards_count": 1,
+      "status": "COMPLETED",
+      "player_results": [
         {
-          "membership_id": "...",
-          "player_name": "Andrij",
           "bid": 0,
           "actual": 0,
           "score": 20,
@@ -258,28 +331,49 @@ GET /api/wizard/games/:id/scoreboard
       ]
     },
     ...
-  ],
+  ]
+}
+```
+
+**Finalize Game:**
+```json
+POST /api/wizard/games/abc123xyz/finalize
+
+Response:
+{
+  "wizard_game_code": "abc123xyz",
+  "game_round_id": "67ghi123...",
   "final_standings": [
     {
-      "membership_id": "...",
       "player_name": "Lena",
       "total_score": 320,
       "position": 1
     },
+    {
+      "player_name": "Andrij",
+      "total_score": 280,
+      "position": 2
+    },
     ...
   ]
 }
+
+// При цьому автоматично оновлюється GameRound:
+// - Players[].Score = final scores
+// - Players[].Position = 1, 2, 3, ...
+// - EndTime = now()
 ```
 
 #### Scoring Logic (`scoring.go`):
 
 ```go
-func CalculateRoundScore(bid int, actual int) int64 {
+// CalculateRoundScore обчислює очки за раунд
+func CalculateRoundScore(bid int, actual int) int {
     if bid == actual {
-        return 20 + (10 * int64(actual))
+        return 20 + (10 * actual)
     }
 
-    difference := int64(bid - actual)
+    difference := bid - actual
     if difference < 0 {
         difference = -difference
     }
@@ -287,19 +381,23 @@ func CalculateRoundScore(bid int, actual int) int64 {
     return -10 * difference
 }
 
-func ValidateBids(game *WizardGame, round *WizardRound, bids map[string]int) error {
-    if game.BidRestriction == "NO_RESTRICTIONS" {
+// ValidateBids перевіряє чи ставки відповідають правилам
+func ValidateBids(game *WizardGame, roundNumber int, bids []int) error {
+    if game.Config.BidRestriction == "NO_RESTRICTIONS" {
         return nil
     }
 
     totalBids := 0
     for _, bid := range bids {
+        if bid < 0 {
+            return errors.New("bid cannot be negative")
+        }
         totalBids += bid
     }
 
-    cardsCount := round.RoundNumber
+    cardsCount := roundNumber
 
-    switch game.BidRestriction {
+    switch game.Config.BidRestriction {
     case "CANNOT_MATCH_CARDS":
         if totalBids == cardsCount {
             return errors.New("total bids cannot equal cards count")
@@ -313,27 +411,93 @@ func ValidateBids(game *WizardGame, round *WizardRound, bids map[string]int) err
     return nil
 }
 
-func CalculateDealerRotation(game *WizardGame, roundNumber int) primitive.ObjectID {
-    dealerIndex := (roundNumber - 1) % len(game.Players)
+// CalculateDealerIndex обчислює індекс дилера для раунду
+func CalculateDealerIndex(firstDealerIndex int, roundNumber int, playerCount int) int {
+    // Дилер ротується: (firstDealer + roundNumber - 1) % playerCount
+    return (firstDealerIndex + roundNumber - 1) % playerCount
+}
 
-    if game.RandomizeDealer && roundNumber == 1 {
-        dealerIndex = rand.Intn(len(game.Players))
-    } else if !game.FirstDealerID.IsZero() && roundNumber == 1 {
-        // Find first dealer
-        for i, p := range game.Players {
-            if p.MembershipID == game.FirstDealerID {
-                dealerIndex = i
-                break
-            }
+// CompleteRound розраховує очки для всіх гравців після завершення раунду
+func CompleteRound(game *WizardGame, roundIndex int) error {
+    if roundIndex < 0 || roundIndex >= len(game.Rounds) {
+        return errors.New("invalid round index")
+    }
+
+    round := &game.Rounds[roundIndex]
+
+    // Перевіряємо чи всі bid/actual встановлені
+    for i, pr := range round.PlayerResults {
+        if pr.Bid < 0 || pr.Actual < 0 {
+            return fmt.Errorf("player %d has missing bid or actual", i)
         }
     }
 
-    // Rotate for subsequent rounds
-    if roundNumber > 1 {
-        dealerIndex = (dealerIndex + roundNumber - 1) % len(game.Players)
+    // Обчислюємо очки для кожного гравця
+    for i := range round.PlayerResults {
+        pr := &round.PlayerResults[i]
+
+        // Очки за раунд
+        pr.Score = CalculateRoundScore(pr.Bid, pr.Actual)
+
+        // Попередній total score
+        prevTotalScore := 0
+        if roundIndex > 0 {
+            prevTotalScore = game.Rounds[roundIndex-1].PlayerResults[i].TotalScore
+        }
+
+        // Кумулятивний рахунок
+        pr.TotalScore = prevTotalScore + pr.Score
+
+        // Delta (зміна)
+        pr.Delta = pr.Score
+
+        // Оновлюємо загальний рахунок гравця
+        game.Players[i].TotalScore = pr.TotalScore
     }
 
-    return game.Players[dealerIndex].MembershipID
+    round.Status = "COMPLETED"
+    round.CompletedAt = time.Now()
+
+    return nil
+}
+
+// FinalizeGame завершує гру і записує результати в GameRound
+func FinalizeGame(wizardGame *WizardGame, gameRound *GameRound) error {
+    // Перевіряємо чи всі раунди завершені
+    for _, round := range wizardGame.Rounds {
+        if round.Status != "COMPLETED" {
+            return errors.New("not all rounds are completed")
+        }
+    }
+
+    // Сортуємо гравців за очками (від більшого до меншого)
+    type PlayerResult struct {
+        Index      int
+        TotalScore int
+    }
+
+    results := make([]PlayerResult, len(wizardGame.Players))
+    for i, player := range wizardGame.Players {
+        results[i] = PlayerResult{
+            Index:      i,
+            TotalScore: player.TotalScore,
+        }
+    }
+
+    sort.Slice(results, func(i, j int) bool {
+        return results[i].TotalScore > results[j].TotalScore
+    })
+
+    // Оновлюємо GameRound з фінальними результатами
+    for position, result := range results {
+        gameRound.Players[result.Index].Score = int64(result.TotalScore)
+        gameRound.Players[result.Index].Position = position + 1
+    }
+
+    gameRound.EndTime = time.Now()
+    wizardGame.Status = "COMPLETED"
+
+    return nil
 }
 ```
 
