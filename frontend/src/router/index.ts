@@ -64,6 +64,17 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/gametypes/GameroundEdit.vue'),
     props: true
   },
+  {
+    path: '/ui/wizard/new',
+    name: 'NewWizardGame',
+    component: () => import('@/wizard/WizardGameSetup.vue')
+  },
+  {
+    path: '/ui/wizard/:code',
+    name: 'WizardGame',
+    component: () => import('@/wizard/WizardGamePlay.vue'),
+    props: true
+  },
 ]
 
 const router = createRouter({

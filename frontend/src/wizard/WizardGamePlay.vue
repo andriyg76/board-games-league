@@ -275,7 +275,7 @@ async function finalizeGame() {
   try {
     await wizardStore.finalizeGame()
     // Redirect to game rounds list or league page
-    router.push('/games')
+    router.push('/ui/game-rounds')
   } catch (error) {
     console.error('Error finalizing game:', error)
   } finally {
