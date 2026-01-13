@@ -205,6 +205,7 @@ PUT    /api/wizard/games/:code/rounds/:round/bids     - Submit bids for round (b
 PUT    /api/wizard/games/:code/rounds/:round/results  - Submit results for round (bulk)
 POST   /api/wizard/games/:code/rounds/:round/complete - Complete round & calculate scores
 POST   /api/wizard/games/:code/rounds/:round/restart  - Restart round (clear bids/results)
+PUT    /api/wizard/games/:code/rounds/:round/edit     - Edit bid/actual after completion (recalculates all subsequent rounds)
 
 # Game State
 GET    /api/wizard/games/:code/scoreboard         - Get full scoreboard (all rounds)
@@ -295,6 +296,27 @@ Response:
     ...
   ]
 }
+```
+
+**Edit Round (fix mistakes):**
+```json
+PUT /api/wizard/games/abc123xyz/rounds/3/edit
+{
+  "bids": [1, 2, 1, 0],      // New bids (optional)
+  "results": [1, 1, 1, 0]    // New results (optional)
+}
+
+Response:
+{
+  "round_number": 3,
+  "recalculated_rounds": [3, 4, 5, ...],  // All rounds that were recalculated
+  "message": "Round 3 updated, recalculated 7 subsequent rounds"
+}
+
+// При редагуванні:
+// 1. Оновлюємо bid/actual в раунді 3
+// 2. Перераховуємо scores для раунду 3
+// 3. Перераховуємо total_score для всіх наступних раундів (4, 5, 6...)
 ```
 
 **Scoreboard:**
@@ -496,6 +518,47 @@ func FinalizeGame(wizardGame *WizardGame, gameRound *GameRound) error {
 
     gameRound.EndTime = time.Now()
     wizardGame.Status = "COMPLETED"
+
+    return nil
+}
+
+// RecalculateFromRound перераховує scores починаючи з вказаного раунду
+// Використовується при редагуванні помилок
+func RecalculateFromRound(game *WizardGame, fromRoundIndex int) error {
+    if fromRoundIndex < 0 || fromRoundIndex >= len(game.Rounds) {
+        return errors.New("invalid round index")
+    }
+
+    // Перераховуємо всі раунди починаючи з fromRoundIndex
+    for roundIdx := fromRoundIndex; roundIdx < len(game.Rounds); roundIdx++ {
+        round := &game.Rounds[roundIdx]
+
+        // Перевіряємо чи є bid/actual для всіх гравців
+        for i, pr := range round.PlayerResults {
+            if pr.Bid < 0 || pr.Actual < 0 {
+                // Якщо раунд не завершений - пропускаємо
+                continue
+            }
+
+            pr := &round.PlayerResults[i]
+
+            // Перераховуємо score для раунду
+            pr.Score = CalculateRoundScore(pr.Bid, pr.Actual)
+
+            // Попередній total score
+            prevTotalScore := 0
+            if roundIdx > 0 {
+                prevTotalScore = game.Rounds[roundIdx-1].PlayerResults[i].TotalScore
+            }
+
+            // Кумулятивний рахунок
+            pr.TotalScore = prevTotalScore + pr.Score
+            pr.Delta = pr.Score
+
+            // Оновлюємо загальний рахунок гравця
+            game.Players[i].TotalScore = pr.TotalScore
+        }
+    }
 
     return nil
 }
