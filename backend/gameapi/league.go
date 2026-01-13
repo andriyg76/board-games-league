@@ -186,6 +186,72 @@ func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, invitationToResponse(invitation), http.StatusCreated)
 }
 
+// GET /api/leagues/:code/invitations - List my active invitations
+func (h *Handler) listMyInvitations(w http.ResponseWriter, r *http.Request) {
+	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	if err != nil {
+		http.Error(w, "Invalid league code", http.StatusBadRequest)
+		return
+	}
+
+	// Get current user
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := utils.CodeToID(profile.Code)
+	if err != nil {
+		http.Error(w, "Invalid user code", http.StatusBadRequest)
+		return
+	}
+
+	// Get my invitations
+	invitations, err := h.leagueService.ListMyInvitations(r.Context(), leagueID, userID)
+	if err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to list invitations")
+		return
+	}
+
+	response := make([]invitationResponse, 0, len(invitations))
+	for _, inv := range invitations {
+		response = append(response, invitationToResponse(inv))
+	}
+
+	utils.WriteJSON(w, response, http.StatusOK)
+}
+
+// POST /api/leagues/:code/invitations/:token/cancel - Cancel invitation by token
+func (h *Handler) cancelInvitation(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		http.Error(w, "Invalid invitation token", http.StatusBadRequest)
+		return
+	}
+
+	// Get current user
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := utils.CodeToID(profile.Code)
+	if err != nil {
+		http.Error(w, "Invalid user code", http.StatusBadRequest)
+		return
+	}
+
+	// Cancel the invitation
+	if err := h.leagueService.CancelInvitation(r.Context(), token, userID); err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to cancel invitation")
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 // POST /api/leagues/join/:token - Accept invitation
 func (h *Handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
@@ -368,7 +434,6 @@ type standingResponse struct {
 }
 
 type invitationResponse struct {
-	Code      string `json:"code"`
 	Token     string `json:"token"`
 	LeagueID  string `json:"league_id"`
 	ExpiresAt string `json:"expires_at"`
@@ -389,7 +454,6 @@ func leagueToResponse(league *models.League) leagueResponse {
 
 func invitationToResponse(inv *models.LeagueInvitation) invitationResponse {
 	return invitationResponse{
-		Code:      utils.IdToCode(inv.ID),
 		Token:     inv.Token,
 		LeagueID:  utils.IdToCode(inv.LeagueID),
 		ExpiresAt: inv.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),

@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia';
 import LeagueApi, {
     League,
+    LeagueInvitation,
     LeagueMember,
     LeagueStanding,
     CreateInvitationResponse
@@ -134,6 +135,36 @@ export const useLeagueStore = defineStore('league', {
                 throw error;
             } finally {
                 this.loading = false;
+            }
+        },
+
+        /**
+         * List my active invitations for the current league
+         */
+        async listMyInvitations(): Promise<LeagueInvitation[]> {
+            if (!this.currentLeague) {
+                throw new Error('No current league set');
+            }
+            try {
+                return await LeagueApi.listMyInvitations(this.currentLeague.code);
+            } catch (error) {
+                console.error('Error listing invitations:', error);
+                throw error;
+            }
+        },
+
+        /**
+         * Cancel an invitation by token
+         */
+        async cancelInvitation(token: string): Promise<void> {
+            if (!this.currentLeague) {
+                throw new Error('No current league set');
+            }
+            try {
+                await LeagueApi.cancelInvitation(this.currentLeague.code, token);
+            } catch (error) {
+                console.error('Error cancelling invitation:', error);
+                throw error;
             }
         },
 

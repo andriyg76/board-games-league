@@ -22,11 +22,8 @@ export interface LeagueMember {
 }
 
 export interface LeagueInvitation {
-    code: string;
-    league_id: string;
     token: string;
-    created_by: string;
-    is_used: boolean;
+    league_id: string;
     expires_at: string;
     created_at: string;
 }
@@ -136,6 +133,32 @@ export default {
             throw new Error('Failed to create invitation');
         }
         return await response.json();
+    },
+
+    /**
+     * List my active invitations for a league
+     */
+    async listMyInvitations(leagueCode: string): Promise<LeagueInvitation[]> {
+        const response = await fetch(`/api/leagues/${leagueCode}/invitations`);
+        if (!response.ok) {
+            throw new Error('Failed to list invitations');
+        }
+        return await response.json();
+    },
+
+    /**
+     * Cancel an invitation by token
+     */
+    async cancelInvitation(leagueCode: string, token: string): Promise<void> {
+        const response = await fetch(`/api/leagues/${leagueCode}/invitations/${encodeURIComponent(token)}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            throw new Error('Failed to cancel invitation');
+        }
     },
 
     /**

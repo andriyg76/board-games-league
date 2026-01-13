@@ -45,6 +45,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/{code}/members", h.getLeagueMembers)       // Get league members
 		r.Get("/{code}/standings", h.getLeagueStandings)   // Get league standings
 		r.Post("/{code}/invitations", h.createInvitation)  // Create invitation
+		r.Get("/{code}/invitations", h.listMyInvitations)  // List my active invitations
+		r.Post("/{code}/invitations/{token}/cancel", h.cancelInvitation)  // Cancel invitation by token
 		r.Post("/{code}/ban/{userCode}", h.banUserFromLeague)     // Ban user (superadmin)
 		r.Post("/{code}/archive", h.archiveLeague)         // Archive league (superadmin)
 		r.Post("/{code}/unarchive", h.unarchiveLeague)     // Unarchive league (superadmin)

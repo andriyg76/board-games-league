@@ -234,7 +234,12 @@ const messages = {
             nameRequired: 'Name is required',
             memberActive: 'Active',
             memberBanned: 'Banned',
-            copyError: 'Failed to copy link'
+            copyError: 'Failed to copy link',
+            invitationDetails: 'Invitation Details',
+            qrCode: 'QR Code',
+            cancelInvitation: 'Cancel Invitation',
+            activeInvitations: 'Active Invitations',
+            invitationCreated: 'Created'
         }
     },
     uk: {
@@ -470,7 +475,12 @@ const messages = {
             nameRequired: 'Назва обов\'язкова',
             memberActive: 'Активний',
             memberBanned: 'Заблокований',
-            copyError: 'Не вдалося скопіювати посилання'
+            copyError: 'Не вдалося скопіювати посилання',
+            invitationDetails: 'Деталі запрошення',
+            qrCode: 'QR-код',
+            cancelInvitation: 'Скасувати запрошення',
+            activeInvitations: 'Активні запрошення',
+            invitationCreated: 'Створено'
         }
     },
     et: {
@@ -706,7 +716,12 @@ const messages = {
             nameRequired: 'Nimi on kohustuslik',
             memberActive: 'Aktiivne',
             memberBanned: 'Keelatud',
-            copyError: 'Lingi kopeerimine ebaõnnestus'
+            copyError: 'Lingi kopeerimine ebaõnnestus',
+            invitationDetails: 'Kutse üksikasjad',
+            qrCode: 'QR-kood',
+            cancelInvitation: 'Tühista kutse',
+            activeInvitations: 'Aktiivsed kutsed',
+            invitationCreated: 'Loodud'
         }
     }
 }

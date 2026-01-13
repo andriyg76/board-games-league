@@ -38,74 +38,62 @@
         >
           {{ error }}
         </v-alert>
-
-        <v-expand-transition>
-          <div v-if="invitationLink" class="mt-4">
-            <v-divider class="mb-4" />
-
-            <div class="text-subtitle-2 mb-2">{{ t('leagues.invitationLink') }}</div>
-
-            <v-card variant="outlined">
-              <v-card-text>
-                <div class="d-flex align-center gap-2">
-                  <v-text-field
-                    :model-value="invitationLink"
-                    readonly
-                    hide-details
-                    variant="plain"
-                    density="compact"
-                  />
-                  <v-btn
-                    icon="mdi-content-copy"
-                    variant="tonal"
-                    @click="copyToClipboard"
-                  />
-                </div>
-              </v-card-text>
-            </v-card>
-
-            <v-alert
-              v-if="copied"
-              type="success"
-              variant="tonal"
-              class="mt-2"
-            >
-              <v-icon start>mdi-check-circle</v-icon>
-              {{ t('leagues.linkCopied') }}
-            </v-alert>
-
-            <div class="mt-4">
-              <v-card variant="tonal" color="warning">
-                <v-card-text>
-                  <div class="d-flex align-center">
-                    <v-icon start>mdi-clock-alert</v-icon>
-                    <div class="text-caption">
-                      {{ t('leagues.validUntil') }} {{ formatExpiryDate(invitation?.expires_at) }}
-                    </div>
-                  </div>
-                </v-card-text>
-              </v-card>
-            </div>
-
-            <div class="text-center mt-4">
-              <v-btn
-                variant="text"
-                @click="resetInvitation"
-              >
-                {{ t('leagues.createNewInvitation') }}
-              </v-btn>
-            </div>
-          </div>
-        </v-expand-transition>
       </v-card-text>
     </v-card>
+
+    <!-- Active Invitations List -->
+    <v-card elevation="2" class="mt-4" v-if="invitations.length > 0">
+      <v-card-title class="d-flex align-center">
+        <v-icon start>mdi-link-variant</v-icon>
+        {{ t('leagues.activeInvitations') }}
+      </v-card-title>
+      <v-divider />
+      <v-list>
+        <v-list-item
+          v-for="invitation in invitations"
+          :key="invitation.token"
+          @click="openInvitationDetails(invitation)"
+          class="cursor-pointer"
+        >
+          <template v-slot:prepend>
+            <v-icon>mdi-email-outline</v-icon>
+          </template>
+
+          <v-list-item-title>
+            {{ t('leagues.invitationCreated') }} {{ formatDate(invitation.created_at) }}
+          </v-list-item-title>
+          <v-list-item-subtitle>
+            {{ t('leagues.validUntil') }} {{ formatDate(invitation.expires_at) }}
+          </v-list-item-subtitle>
+
+          <template v-slot:append>
+            <v-icon>mdi-chevron-right</v-icon>
+          </template>
+        </v-list-item>
+      </v-list>
+    </v-card>
+
+    <!-- Loading indicator for invitations list -->
+    <v-card elevation="2" class="mt-4" v-if="loadingList">
+      <v-card-text class="text-center py-4">
+        <v-progress-circular indeterminate color="primary" size="24" />
+      </v-card-text>
+    </v-card>
+
+    <!-- Invitation Details Dialog -->
+    <invitation-details-dialog
+      v-model="showDialog"
+      :invitation="selectedInvitation"
+      @cancel="handleCancelInvitation"
+    />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
+import InvitationDetailsDialog from './InvitationDetailsDialog.vue';
 import type { LeagueInvitation } from '@/api/LeagueApi';
 
 interface Props {
@@ -118,10 +106,22 @@ defineProps<Props>();
 const leagueStore = useLeagueStore();
 
 const generating = ref(false);
-const invitation = ref<LeagueInvitation | null>(null);
-const invitationLink = ref('');
-const copied = ref(false);
+const loadingList = ref(false);
+const invitations = ref<LeagueInvitation[]>([]);
+const selectedInvitation = ref<LeagueInvitation | null>(null);
+const showDialog = ref(false);
 const error = ref<string | null>(null);
+
+const loadInvitations = async () => {
+  loadingList.value = true;
+  try {
+    invitations.value = await leagueStore.listMyInvitations();
+  } catch (err) {
+    console.error('Error loading invitations:', err);
+  } finally {
+    loadingList.value = false;
+  }
+};
 
 const generateInvitation = async () => {
   generating.value = true;
@@ -129,8 +129,11 @@ const generateInvitation = async () => {
 
   try {
     const result = await leagueStore.createInvitation();
-    invitation.value = result.invitation;
-    invitationLink.value = result.invitation_link;
+    // Add new invitation to the list
+    invitations.value.unshift(result.invitation);
+    // Open the dialog to show the new invitation
+    selectedInvitation.value = result.invitation;
+    showDialog.value = true;
   } catch (err) {
     error.value = err instanceof Error ? err.message : t('leagues.error');
     console.error('Error generating invitation:', err);
@@ -139,46 +142,42 @@ const generateInvitation = async () => {
   }
 };
 
-const copyToClipboard = async () => {
-  if (!invitationLink.value) return;
+const openInvitationDetails = (invitation: LeagueInvitation) => {
+  selectedInvitation.value = invitation;
+  showDialog.value = true;
+};
 
+const handleCancelInvitation = async (token: string) => {
   try {
-    await navigator.clipboard.writeText(invitationLink.value);
-    copied.value = true;
-
-    // Reset copied state after 3 seconds
-    setTimeout(() => {
-      copied.value = false;
-    }, 3000);
+    await leagueStore.cancelInvitation(token);
+    // Remove from list
+    invitations.value = invitations.value.filter(inv => inv.token !== token);
+    showDialog.value = false;
+    selectedInvitation.value = null;
   } catch (err) {
-    console.error('Error copying to clipboard:', err);
-    error.value = t('leagues.copyError');
+    error.value = err instanceof Error ? err.message : t('leagues.error');
+    console.error('Error cancelling invitation:', err);
   }
 };
 
-const resetInvitation = () => {
-  invitation.value = null;
-  invitationLink.value = '';
-  copied.value = false;
-  error.value = null;
-};
-
-const formatExpiryDate = (dateStr: string | undefined) => {
-  if (!dateStr) return '';
-
+const formatDate = (dateStr: string) => {
   const localeMap: Record<string, string> = { 'uk': 'uk-UA', 'en': 'en-US', 'et': 'et-EE' };
   return new Date(dateStr).toLocaleString(localeMap[locale.value] || 'en-US', {
     year: 'numeric',
-    month: 'long',
+    month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
   });
 };
+
+onMounted(() => {
+  loadInvitations();
+});
 </script>
 
 <style scoped>
-.gap-2 {
-  gap: 8px;
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

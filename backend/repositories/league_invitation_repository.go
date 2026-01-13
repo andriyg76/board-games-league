@@ -14,8 +14,11 @@ import (
 
 type LeagueInvitationRepository interface {
 	Create(ctx context.Context, invitation *models.LeagueInvitation) error
+	FindByID(ctx context.Context, id primitive.ObjectID) (*models.LeagueInvitation, error)
 	FindByToken(ctx context.Context, token string) (*models.LeagueInvitation, error)
+	FindActiveByCreator(ctx context.Context, leagueID, createdBy primitive.ObjectID) ([]*models.LeagueInvitation, error)
 	MarkAsUsed(ctx context.Context, id primitive.ObjectID, usedBy primitive.ObjectID) error
+	Cancel(ctx context.Context, id primitive.ObjectID) error
 }
 
 type LeagueInvitationRepositoryInstance struct {
@@ -72,6 +75,20 @@ func (r *LeagueInvitationRepositoryInstance) Create(ctx context.Context, invitat
 	return nil
 }
 
+func (r *LeagueInvitationRepositoryInstance) FindByID(ctx context.Context, id primitive.ObjectID) (*models.LeagueInvitation, error) {
+	var invitation models.LeagueInvitation
+	filter := bson.M{"_id": id}
+
+	if err := r.collection.FindOne(ctx, filter).Decode(&invitation); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &invitation, nil
+}
+
 func (r *LeagueInvitationRepositoryInstance) FindByToken(ctx context.Context, token string) (*models.LeagueInvitation, error) {
 	var invitation models.LeagueInvitation
 	filter := bson.M{"token": token}
@@ -84,6 +101,28 @@ func (r *LeagueInvitationRepositoryInstance) FindByToken(ctx context.Context, to
 	}
 
 	return &invitation, nil
+}
+
+func (r *LeagueInvitationRepositoryInstance) FindActiveByCreator(ctx context.Context, leagueID, createdBy primitive.ObjectID) ([]*models.LeagueInvitation, error) {
+	filter := bson.M{
+		"league_id":  leagueID,
+		"created_by": createdBy,
+		"is_used":    false,
+		"expires_at": bson.M{"$gt": time.Now()},
+	}
+
+	cursor, err := r.collection.Find(ctx, filter, options.Find().SetSort(bson.M{"created_at": -1}))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var invitations []*models.LeagueInvitation
+	if err := cursor.All(ctx, &invitations); err != nil {
+		return nil, err
+	}
+
+	return invitations, nil
 }
 
 func (r *LeagueInvitationRepositoryInstance) MarkAsUsed(ctx context.Context, id primitive.ObjectID, usedBy primitive.ObjectID) error {
@@ -111,6 +150,36 @@ func (r *LeagueInvitationRepositoryInstance) MarkAsUsed(ctx context.Context, id 
 
 	if result.MatchedCount == 0 {
 		return errors.New("invitation not found or already used")
+	}
+
+	return nil
+}
+
+func (r *LeagueInvitationRepositoryInstance) Cancel(ctx context.Context, id primitive.ObjectID) error {
+	filter := bson.M{
+		"_id":        id,
+		"is_used":    false,
+		"expires_at": bson.M{"$gt": time.Now()},
+	}
+
+	// Cancel by setting expires_at to now
+	update := bson.M{
+		"$set": bson.M{
+			"expires_at": time.Now(),
+			"updated_at": time.Now(),
+		},
+		"$inc": bson.M{
+			"version": 1,
+		},
+	}
+
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("invitation not found or already expired/used")
 	}
 
 	return nil

@@ -34,6 +34,8 @@ type LeagueService interface {
 	CreateInvitation(ctx context.Context, leagueID, createdBy primitive.ObjectID) (*models.LeagueInvitation, error)
 	AcceptInvitation(ctx context.Context, token string, userID primitive.ObjectID) (*models.League, error)
 	GetInvitationByToken(ctx context.Context, token string) (*models.LeagueInvitation, error)
+	ListMyInvitations(ctx context.Context, leagueID, userID primitive.ObjectID) ([]*models.LeagueInvitation, error)
+	CancelInvitation(ctx context.Context, token string, userID primitive.ObjectID) error
 
 	// Рейтинг
 	GetLeagueStandings(ctx context.Context, leagueID primitive.ObjectID) ([]*LeagueStanding, error)
@@ -307,6 +309,37 @@ func (s *leagueServiceInstance) GetInvitationByToken(ctx context.Context, token 
 		return nil, errors.New("invitation not found")
 	}
 	return invitation, nil
+}
+
+func (s *leagueServiceInstance) ListMyInvitations(ctx context.Context, leagueID, userID primitive.ObjectID) ([]*models.LeagueInvitation, error) {
+	invitations, err := s.invitationRepo.FindActiveByCreator(ctx, leagueID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list invitations: %w", err)
+	}
+	return invitations, nil
+}
+
+func (s *leagueServiceInstance) CancelInvitation(ctx context.Context, token string, userID primitive.ObjectID) error {
+	// Get invitation by token to verify ownership
+	invitation, err := s.invitationRepo.FindByToken(ctx, token)
+	if err != nil {
+		return fmt.Errorf("failed to find invitation: %w", err)
+	}
+	if invitation == nil {
+		return errors.New("invitation not found")
+	}
+
+	// Verify the user is the creator
+	if invitation.CreatedBy != userID {
+		return errors.New("you can only cancel your own invitations")
+	}
+
+	// Cancel the invitation
+	if err := s.invitationRepo.Cancel(ctx, invitation.ID); err != nil {
+		return fmt.Errorf("failed to cancel invitation: %w", err)
+	}
+
+	return nil
 }
 
 // generateInvitationToken generates a cryptographically secure random token
