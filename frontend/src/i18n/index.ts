@@ -98,7 +98,32 @@ const messages = {
             na: 'N/A',
             resolutionInfo: 'Request Resolution Details',
             headerName: 'Header / Property',
-            headerValue: 'Value'
+            headerValue: 'Value',
+            // Runtime info
+            runtimeInfo: 'Go Runtime Information',
+            goVersion: 'Go Version',
+            platform: 'Platform',
+            numCpu: 'CPUs Available',
+            numGoroutine: 'Active Goroutines',
+            uptime: 'Uptime',
+            startTime: 'Start Time',
+            gcCycles: 'GC Cycles',
+            // Memory stats
+            memoryStats: 'Memory Statistics',
+            metric: 'Metric',
+            value: 'Value',
+            heapAlloc: 'Heap Allocated',
+            heapInuse: 'Heap In Use',
+            heapSys: 'Heap System',
+            alloc: 'Current Allocated',
+            totalAlloc: 'Total Allocated (cumulative)',
+            sysMem: 'System Memory',
+            // Environment variables
+            environmentVars: 'Environment Variables',
+            filterEnvVars: 'Filter environment variables...',
+            envName: 'Name',
+            envValue: 'Value',
+            envMasked: 'Masked'
         },
         createUser: {
             title: 'Create User',
@@ -309,7 +334,32 @@ const messages = {
             na: 'Н/Д',
             resolutionInfo: 'Деталі визначення запиту',
             headerName: 'Заголовок / Властивість',
-            headerValue: 'Значення'
+            headerValue: 'Значення',
+            // Runtime info
+            runtimeInfo: 'Інформація про Go Runtime',
+            goVersion: 'Версія Go',
+            platform: 'Платформа',
+            numCpu: 'Доступно CPU',
+            numGoroutine: 'Активні горутини',
+            uptime: 'Час роботи',
+            startTime: 'Час запуску',
+            gcCycles: 'Цикли GC',
+            // Memory stats
+            memoryStats: 'Статистика пам\'яті',
+            metric: 'Метрика',
+            value: 'Значення',
+            heapAlloc: 'Виділено в купі',
+            heapInuse: 'Використовується в купі',
+            heapSys: 'Системна купа',
+            alloc: 'Поточно виділено',
+            totalAlloc: 'Загалом виділено (накопичено)',
+            sysMem: 'Системна пам\'ять',
+            // Environment variables
+            environmentVars: 'Змінні середовища',
+            filterEnvVars: 'Фільтрувати змінні середовища...',
+            envName: 'Назва',
+            envValue: 'Значення',
+            envMasked: 'Приховано'
         },
         createUser: {
             title: 'Створити користувача',
@@ -520,7 +570,32 @@ const messages = {
             na: 'Puudub',
             resolutionInfo: 'Päringu lahenduse üksikasjad',
             headerName: 'Päis / Omadus',
-            headerValue: 'Väärtus'
+            headerValue: 'Väärtus',
+            // Runtime info
+            runtimeInfo: 'Go käituskeskkonna teave',
+            goVersion: 'Go versioon',
+            platform: 'Platvorm',
+            numCpu: 'Saadaval CPU-d',
+            numGoroutine: 'Aktiivsed gorutiinid',
+            uptime: 'Tööaeg',
+            startTime: 'Käivitusaeg',
+            gcCycles: 'GC tsüklid',
+            // Memory stats
+            memoryStats: 'Mälu statistika',
+            metric: 'Mõõdik',
+            value: 'Väärtus',
+            heapAlloc: 'Kuhjale eraldatud',
+            heapInuse: 'Kuhjas kasutusel',
+            heapSys: 'Süsteemi kuhi',
+            alloc: 'Praegu eraldatud',
+            totalAlloc: 'Kokku eraldatud (kumulatiivne)',
+            sysMem: 'Süsteemimälu',
+            // Environment variables
+            environmentVars: 'Keskkonnamuutujad',
+            filterEnvVars: 'Filtreeri keskkonnamuutujaid...',
+            envName: 'Nimi',
+            envValue: 'Väärtus',
+            envMasked: 'Maskeeritud'
         },
         createUser: {
             title: 'Loo kasutaja',

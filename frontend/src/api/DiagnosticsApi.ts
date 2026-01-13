@@ -16,6 +16,34 @@ export interface BuildInfo {
     date: string;
 }
 
+export interface MemoryInfo {
+    alloc_bytes: number;
+    total_alloc_bytes: number;
+    sys_bytes: number;
+    heap_alloc_bytes: number;
+    heap_sys_bytes: number;
+    heap_inuse_bytes: number;
+    num_gc: number;
+}
+
+export interface RuntimeInfo {
+    go_version: string;
+    goos: string;
+    goarch: string;
+    num_cpu: number;
+    num_goroutine: number;
+    uptime: string;
+    uptime_seconds: number;
+    start_time: string;
+    memory: MemoryInfo;
+}
+
+export interface EnvVarInfo {
+    name: string;
+    value: string;
+    masked: boolean;
+}
+
 export interface DiagnosticsResponse {
     server_info: {
         host_url: string;
@@ -31,6 +59,8 @@ export interface DiagnosticsResponse {
         geo_info?: GeoIPInfo;
         resolution_info?: Record<string, string>;
     };
+    runtime_info: RuntimeInfo;
+    environment_vars: EnvVarInfo[];
 }
 
 export async function getFrontendBuildInfo(): Promise<BuildInfo> {

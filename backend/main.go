@@ -24,8 +24,8 @@ import (
 )
 
 func main() {
-	auth.LogSuperAdmins()
 	log.Info("Starting...")
+	auth.LogSuperAdmins()
 
 	mongourl := os.Getenv("MONGODB_URI")
 	mongodb, err := db.NewMongoDB(mongourl)
