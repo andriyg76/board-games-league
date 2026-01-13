@@ -54,7 +54,7 @@ func (m *LeagueMiddleware) RequireLeagueMembership(next http.Handler) http.Handl
 			return
 		}
 
-		if !isMember {
+		if !isMember && !auth.IsSuperAdmin(user) {
 			http.Error(w, "You are not a member of this league", http.StatusForbidden)
 			return
 		}
