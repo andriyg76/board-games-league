@@ -165,15 +165,24 @@ func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is a member of the league
-	isMember, err := h.leagueService.IsUserMember(r.Context(), leagueID, userID)
-	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to check membership")
+	// Check if user is a member of the league or superadmin
+	user, err := h.userService.FindByCode(r.Context(), profile.Code)
+	if err != nil || user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
-	if !isMember {
-		http.Error(w, "Forbidden: not a member of this league", http.StatusForbidden)
-		return
+
+	isSuperAdmin := auth.IsSuperAdmin(user)
+	if !isSuperAdmin {
+		isMember, err := h.leagueService.IsUserMember(r.Context(), leagueID, userID)
+		if err != nil {
+			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to check membership")
+			return
+		}
+		if !isMember {
+			http.Error(w, "Forbidden: not a member of this league", http.StatusForbidden)
+			return
+		}
 	}
 
 	// Create invitation
