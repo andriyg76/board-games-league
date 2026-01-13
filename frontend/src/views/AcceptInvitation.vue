@@ -19,6 +19,40 @@
             <div class="text-h6">{{ t('leagues.acceptingInvitation') }}</div>
           </v-card-text>
 
+          <!-- Login Required State -->
+          <v-card-text v-else-if="needsLogin" class="text-center py-8">
+            <v-icon
+              size="80"
+              color="info"
+              class="mb-4"
+            >
+              mdi-login
+            </v-icon>
+            <div class="text-h6 mb-2">{{ t('leagues.pleaseLoginFirst') }}</div>
+            <div class="text-body-1 mb-4">
+              {{ t('leagues.loginToAcceptInvitation') }}
+            </div>
+
+            <div class="d-flex gap-2 justify-center flex-wrap">
+              <v-btn
+                color="primary"
+                variant="flat"
+                href="/oauth/login/google"
+              >
+                <v-icon start>mdi-google</v-icon>
+                {{ t('auth.loginWithGoogle') }}
+              </v-btn>
+              <v-btn
+                color="indigo"
+                variant="flat"
+                href="/oauth/login/discord"
+              >
+                <v-icon start>mdi-discord</v-icon>
+                {{ t('auth.loginWithDiscord') }}
+              </v-btn>
+            </div>
+          </v-card-text>
+
           <!-- Error State -->
           <v-card-text v-else-if="error" class="text-center py-8">
             <v-icon
@@ -134,15 +168,18 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
+import { useUserStore } from '@/store/user';
 import type { League } from '@/api/LeagueApi';
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const leagueStore = useLeagueStore();
+const userStore = useUserStore();
 
 const loading = ref(false);
 const success = ref(false);
+const needsLogin = ref(false);
 const error = ref<string | null>(null);
 const league = ref<League | null>(null);
 
@@ -160,6 +197,8 @@ const acceptInvitation = async (token: string) => {
         error.value = t('leagues.invitationNotFound');
       } else if (err.message.includes('expired')) {
         error.value = t('leagues.invitationExpired');
+      } else if (err.message.includes('own invitation')) {
+        error.value = t('leagues.cannotAcceptOwnInvitation');
       } else {
         error.value = err.message;
       }
@@ -184,9 +223,19 @@ const goToHome = () => {
 
 onMounted(async () => {
   const token = route.params.token as string;
-  if (token) {
-    await acceptInvitation(token);
+  if (!token) {
+    return;
   }
+
+  // Check if user is authenticated
+  if (!userStore.isAuthenticated) {
+    // Store the invitation URL in session storage so we can redirect back after login
+    sessionStorage.setItem('invitation_return_url', route.fullPath);
+    needsLogin.value = true;
+    return;
+  }
+
+  await acceptInvitation(token);
 });
 </script>
 

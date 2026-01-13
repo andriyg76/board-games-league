@@ -24,6 +24,15 @@ try {
         }
       })
       .finally(() => {
+        // Check for invitation return URL first (from invitation flow)
+        const invitationUrl = sessionStorage.getItem('invitation_return_url');
+        if (invitationUrl) {
+          sessionStorage.removeItem('invitation_return_url');
+          console.info("Redirecting to invitation: ", invitationUrl);
+          router.push(invitationUrl);
+          return;
+        }
+
         const redirectPath = localStorage.getItem('auth_redirect') || '/';
         localStorage.removeItem('auth_redirect'); // Clean up
         console.info("Redirecting to: ", redirectPath);

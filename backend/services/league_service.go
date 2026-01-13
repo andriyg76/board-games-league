@@ -31,11 +31,14 @@ type LeagueService interface {
 	BanUserFromLeague(ctx context.Context, leagueID, userID primitive.ObjectID) error
 
 	// Запрошення
-	CreateInvitation(ctx context.Context, leagueID, createdBy primitive.ObjectID) (*models.LeagueInvitation, error)
+	CreateInvitation(ctx context.Context, leagueID, createdBy primitive.ObjectID, playerAlias string) (*models.LeagueInvitation, error)
 	AcceptInvitation(ctx context.Context, token string, userID primitive.ObjectID) (*models.League, error)
 	GetInvitationByToken(ctx context.Context, token string) (*models.LeagueInvitation, error)
 	ListMyInvitations(ctx context.Context, leagueID, userID primitive.ObjectID) ([]*models.LeagueInvitation, error)
+	ListMyExpiredInvitations(ctx context.Context, leagueID, userID primitive.ObjectID) ([]*models.LeagueInvitation, error)
 	CancelInvitation(ctx context.Context, token string, userID primitive.ObjectID) error
+	ExtendInvitation(ctx context.Context, token string, userID primitive.ObjectID) (*models.LeagueInvitation, error)
+	UpdatePendingMemberAlias(ctx context.Context, membershipID primitive.ObjectID, userID primitive.ObjectID, newAlias string) error
 
 	// Рейтинг
 	GetLeagueStandings(ctx context.Context, leagueID primitive.ObjectID) ([]*LeagueStanding, error)
@@ -196,10 +199,15 @@ func (s *leagueServiceInstance) BanUserFromLeague(ctx context.Context, leagueID,
 	return nil
 }
 
-func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, createdBy primitive.ObjectID) (*models.LeagueInvitation, error) {
+func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, createdBy primitive.ObjectID, playerAlias string) (*models.LeagueInvitation, error) {
 	// Verify league exists
 	if _, err := s.GetLeague(ctx, leagueID); err != nil {
 		return nil, err
+	}
+
+	// Validate alias
+	if playerAlias == "" {
+		return nil, errors.New("player alias is required")
 	}
 
 	// Generate cryptographically secure token
@@ -208,15 +216,35 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
+	// Create pending membership first
+	membership := &models.LeagueMembership{
+		LeagueID: leagueID,
+		Alias:    playerAlias,
+		Status:   models.MembershipPending,
+		JoinedAt: time.Now(),
+	}
+
+	if err := s.membershipRepo.Create(ctx, membership); err != nil {
+		return nil, fmt.Errorf("failed to create pending membership: %w", err)
+	}
+
 	invitation := &models.LeagueInvitation{
-		LeagueID:  leagueID,
-		CreatedBy: createdBy,
-		Token:     token,
-		ExpiresAt: time.Now().Add(7 * 24 * time.Hour), // 7 days
+		LeagueID:     leagueID,
+		CreatedBy:    createdBy,
+		Token:        token,
+		PlayerAlias:  playerAlias,
+		MembershipID: membership.ID,
+		ExpiresAt:    time.Now().Add(7 * 24 * time.Hour), // 7 days
 	}
 
 	if err := s.invitationRepo.Create(ctx, invitation); err != nil {
 		return nil, fmt.Errorf("failed to create invitation: %w", err)
+	}
+
+	// Update membership with invitation ID
+	membership.InvitationID = invitation.ID
+	if err := s.membershipRepo.Update(ctx, membership); err != nil {
+		return nil, fmt.Errorf("failed to link membership to invitation: %w", err)
 	}
 
 	return invitation, nil
@@ -239,25 +267,36 @@ func (s *leagueServiceInstance) AcceptInvitation(ctx context.Context, token stri
 		return nil, errors.New("invitation has expired")
 	}
 
-	// Check if user is already a member
+	// Check self-use: creator cannot use their own invitation
+	if invitation.CreatedBy == userID {
+		return nil, errors.New("you cannot accept your own invitation")
+	}
+
+	// Check if user is already an active member
 	existing, err := s.membershipRepo.FindByLeagueAndUser(ctx, invitation.LeagueID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check membership: %w", err)
 	}
-	if existing != nil {
+	if existing != nil && existing.Status == models.MembershipActive {
 		return nil, errors.New("user is already a member of this league")
 	}
 
-	// Create membership
-	membership := &models.LeagueMembership{
-		LeagueID: invitation.LeagueID,
-		UserID:   userID,
-		Status:   models.MembershipActive,
-		JoinedAt: time.Now(),
+	// Get the pending membership created with the invitation
+	membership, err := s.membershipRepo.FindByID(ctx, invitation.MembershipID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find pending membership: %w", err)
+	}
+	if membership == nil {
+		return nil, errors.New("pending membership not found")
 	}
 
-	if err := s.membershipRepo.Create(ctx, membership); err != nil {
-		return nil, fmt.Errorf("failed to create membership: %w", err)
+	// Update pending membership to active
+	membership.UserID = userID
+	membership.Status = models.MembershipActive
+	membership.JoinedAt = time.Now()
+
+	if err := s.membershipRepo.Update(ctx, membership); err != nil {
+		return nil, fmt.Errorf("failed to activate membership: %w", err)
 	}
 
 	// Mark invitation as used
@@ -337,6 +376,83 @@ func (s *leagueServiceInstance) CancelInvitation(ctx context.Context, token stri
 	// Cancel the invitation
 	if err := s.invitationRepo.Cancel(ctx, invitation.ID); err != nil {
 		return fmt.Errorf("failed to cancel invitation: %w", err)
+	}
+
+	return nil
+}
+
+func (s *leagueServiceInstance) ListMyExpiredInvitations(ctx context.Context, leagueID, userID primitive.ObjectID) ([]*models.LeagueInvitation, error) {
+	invitations, err := s.invitationRepo.FindExpiredByCreator(ctx, leagueID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list expired invitations: %w", err)
+	}
+	return invitations, nil
+}
+
+func (s *leagueServiceInstance) ExtendInvitation(ctx context.Context, token string, userID primitive.ObjectID) (*models.LeagueInvitation, error) {
+	// Get invitation by token to verify ownership
+	invitation, err := s.invitationRepo.FindByToken(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find invitation: %w", err)
+	}
+	if invitation == nil {
+		return nil, errors.New("invitation not found")
+	}
+
+	// Verify the user is the creator
+	if invitation.CreatedBy != userID {
+		return nil, errors.New("you can only extend your own invitations")
+	}
+
+	// Can only extend if not used
+	if invitation.IsUsed {
+		return nil, errors.New("cannot extend used invitation")
+	}
+
+	// Extend by 7 days
+	if err := s.invitationRepo.Extend(ctx, invitation.ID, 7*24*time.Hour); err != nil {
+		return nil, fmt.Errorf("failed to extend invitation: %w", err)
+	}
+
+	// Return updated invitation
+	return s.invitationRepo.FindByToken(ctx, token)
+}
+
+func (s *leagueServiceInstance) UpdatePendingMemberAlias(ctx context.Context, membershipID primitive.ObjectID, userID primitive.ObjectID, newAlias string) error {
+	membership, err := s.membershipRepo.FindByID(ctx, membershipID)
+	if err != nil {
+		return fmt.Errorf("failed to find membership: %w", err)
+	}
+	if membership == nil {
+		return errors.New("membership not found")
+	}
+
+	// Only pending memberships can have their alias edited
+	if membership.Status != models.MembershipPending {
+		return errors.New("can only edit alias of pending members")
+	}
+
+	// Get the invitation to verify ownership
+	invitation, err := s.invitationRepo.FindByID(ctx, membership.InvitationID)
+	if err != nil {
+		return fmt.Errorf("failed to find invitation: %w", err)
+	}
+	if invitation == nil {
+		return errors.New("associated invitation not found")
+	}
+
+	// Verify the user is the creator of the invitation
+	if invitation.CreatedBy != userID {
+		return errors.New("you can only edit aliases for invitations you created")
+	}
+
+	if newAlias == "" {
+		return errors.New("alias cannot be empty")
+	}
+
+	membership.Alias = newAlias
+	if err := s.membershipRepo.Update(ctx, membership); err != nil {
+		return fmt.Errorf("failed to update membership alias: %w", err)
 	}
 
 	return nil

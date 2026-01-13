@@ -239,7 +239,17 @@ const messages = {
             qrCode: 'QR Code',
             cancelInvitation: 'Cancel Invitation',
             activeInvitations: 'Active Invitations',
-            invitationCreated: 'Created'
+            expiredInvitations: 'Expired Invitations',
+            invitationCreated: 'Created',
+            extendInvitation: 'Extend',
+            expiredAt: 'Expired at',
+            playerAlias: 'Player Alias',
+            playerAliasHint: 'Enter a nickname for the player you are inviting',
+            pendingMember: 'Waiting to join',
+            memberPending: 'Pending',
+            pleaseLoginFirst: 'Please log in first',
+            loginToAcceptInvitation: 'You need to log in or create an account to accept this invitation.',
+            cannotAcceptOwnInvitation: 'You cannot accept your own invitation'
         }
     },
     uk: {
@@ -480,7 +490,17 @@ const messages = {
             qrCode: 'QR-код',
             cancelInvitation: 'Скасувати запрошення',
             activeInvitations: 'Активні запрошення',
-            invitationCreated: 'Створено'
+            expiredInvitations: 'Прострочені запрошення',
+            invitationCreated: 'Створено',
+            extendInvitation: 'Продовжити',
+            expiredAt: 'Закінчилось',
+            playerAlias: 'Псевдонім гравця',
+            playerAliasHint: 'Введіть нікнейм гравця, якого запрошуєте',
+            pendingMember: 'Очікує приєднання',
+            memberPending: 'Очікує',
+            pleaseLoginFirst: 'Спочатку увійдіть',
+            loginToAcceptInvitation: 'Вам потрібно увійти або створити акаунт, щоб прийняти це запрошення.',
+            cannotAcceptOwnInvitation: 'Ви не можете прийняти власне запрошення'
         }
     },
     et: {
@@ -721,7 +741,17 @@ const messages = {
             qrCode: 'QR-kood',
             cancelInvitation: 'Tühista kutse',
             activeInvitations: 'Aktiivsed kutsed',
-            invitationCreated: 'Loodud'
+            expiredInvitations: 'Aegunud kutsed',
+            invitationCreated: 'Loodud',
+            extendInvitation: 'Pikenda',
+            expiredAt: 'Aegus',
+            playerAlias: 'Mängija hüüdnimi',
+            playerAliasHint: 'Sisesta kutsutatava mängija hüüdnimi',
+            pendingMember: 'Ootab liitumist',
+            memberPending: 'Ootel',
+            pleaseLoginFirst: 'Palun logi sisse',
+            loginToAcceptInvitation: 'Selle kutse vastuvõtmiseks pead sisse logima või konto looma.',
+            cannotAcceptOwnInvitation: 'Sa ei saa vastu võtta enda kutset'
         }
     }
 }

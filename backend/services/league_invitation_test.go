@@ -192,7 +192,45 @@ func TestCancelInvitation(t *testing.T) {
 func TestCreateInvitation(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("Successfully create invitation", func(t *testing.T) {
+	t.Run("Successfully create invitation with alias", func(t *testing.T) {
+		mockInvitationRepo := new(mocks.MockLeagueInvitationRepository)
+		mockLeagueRepo := new(mocks.MockLeagueRepository)
+		mockMembershipRepo := new(mocks.MockLeagueMembershipRepository)
+		mockUserRepo := new(mocks.MockUserRepository)
+		mockGameRoundRepo := new(mocks.MockGameRoundRepository)
+
+		service := NewLeagueService(mockLeagueRepo, mockMembershipRepo, mockInvitationRepo, mockUserRepo, mockGameRoundRepo)
+
+		leagueID := primitive.NewObjectID()
+		userID := primitive.NewObjectID()
+		playerAlias := "Петро"
+
+		league := &models.League{
+			ID:     leagueID,
+			Name:   "Test League",
+			Status: models.LeagueActive,
+		}
+
+		mockLeagueRepo.On("FindByID", ctx, leagueID).Return(league, nil)
+		mockMembershipRepo.On("Create", ctx, mock.AnythingOfType("*models.LeagueMembership")).Return(nil)
+		mockInvitationRepo.On("Create", ctx, mock.AnythingOfType("*models.LeagueInvitation")).Return(nil)
+		mockMembershipRepo.On("Update", ctx, mock.AnythingOfType("*models.LeagueMembership")).Return(nil)
+
+		invitation, err := service.CreateInvitation(ctx, leagueID, userID, playerAlias)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, invitation)
+		assert.Equal(t, leagueID, invitation.LeagueID)
+		assert.Equal(t, userID, invitation.CreatedBy)
+		assert.Equal(t, playerAlias, invitation.PlayerAlias)
+		assert.NotEmpty(t, invitation.Token)
+		assert.False(t, invitation.IsUsed)
+		mockLeagueRepo.AssertExpectations(t)
+		mockMembershipRepo.AssertExpectations(t)
+		mockInvitationRepo.AssertExpectations(t)
+	})
+
+	t.Run("Fail when alias is empty", func(t *testing.T) {
 		mockInvitationRepo := new(mocks.MockLeagueInvitationRepository)
 		mockLeagueRepo := new(mocks.MockLeagueRepository)
 		mockMembershipRepo := new(mocks.MockLeagueMembershipRepository)
@@ -211,18 +249,13 @@ func TestCreateInvitation(t *testing.T) {
 		}
 
 		mockLeagueRepo.On("FindByID", ctx, leagueID).Return(league, nil)
-		mockInvitationRepo.On("Create", ctx, mock.AnythingOfType("*models.LeagueInvitation")).Return(nil)
 
-		invitation, err := service.CreateInvitation(ctx, leagueID, userID)
+		invitation, err := service.CreateInvitation(ctx, leagueID, userID, "")
 
-		assert.NoError(t, err)
-		assert.NotNil(t, invitation)
-		assert.Equal(t, leagueID, invitation.LeagueID)
-		assert.Equal(t, userID, invitation.CreatedBy)
-		assert.NotEmpty(t, invitation.Token)
-		assert.False(t, invitation.IsUsed)
+		assert.Error(t, err)
+		assert.Nil(t, invitation)
+		assert.Contains(t, err.Error(), "player alias is required")
 		mockLeagueRepo.AssertExpectations(t)
-		mockInvitationRepo.AssertExpectations(t)
 	})
 
 	t.Run("Fail when league not found", func(t *testing.T) {
@@ -239,7 +272,7 @@ func TestCreateInvitation(t *testing.T) {
 
 		mockLeagueRepo.On("FindByID", ctx, leagueID).Return(nil, nil)
 
-		invitation, err := service.CreateInvitation(ctx, leagueID, userID)
+		invitation, err := service.CreateInvitation(ctx, leagueID, userID, "Петро")
 
 		assert.Error(t, err)
 		assert.Nil(t, invitation)
@@ -247,4 +280,5 @@ func TestCreateInvitation(t *testing.T) {
 		mockLeagueRepo.AssertExpectations(t)
 	})
 }
+
 

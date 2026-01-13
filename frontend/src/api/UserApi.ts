@@ -1,3 +1,5 @@
+import { apiFetch } from './apiClient';
+
 export interface User {
     external_ids?: string[];
     name?: string;
@@ -32,9 +34,7 @@ export interface SessionInfo {
 
 export default {
     async getUser(): Promise<User | null> {
-        const response = await fetch('/api/user', {
-            credentials: 'include',
-        });
+        const response = await apiFetch('/api/user');
 
         if (response.status == 401) {
             return null;
@@ -47,8 +47,7 @@ export default {
         return await response.json();
     },
     async checkAlias(alias: string | null): Promise<{ isUnique: boolean }> {
-        const response = await fetch(`/api/user/alias/exist?alias=${alias}`, {
-            credentials: 'include',
+        const response = await apiFetch(`/api/user/alias/exist?alias=${alias}`, {
             method: "POST"
         });
 
@@ -59,12 +58,11 @@ export default {
         return await response.json();
     },
     async updateUser(user: User): Promise<void> {
-        const response = await fetch('/api/user/update', {
+        const response = await apiFetch('/api/user/update', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
             },
-            credentials: 'include',
             body: JSON.stringify(user),
         });
 
@@ -74,7 +72,7 @@ export default {
     },
     async adminCreateUser(external_ids: string[]): Promise<void> {
         try {
-            const response = await fetch('/api/admin/user/create', {
+            const response = await apiFetch('/api/admin/user/create', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -99,8 +97,7 @@ export default {
             headers['Authorization'] = `Bearer ${currentRotateToken}`;
         }
 
-        const response = await fetch('/api/user/sessions', {
-            credentials: 'include',
+        const response = await apiFetch('/api/user/sessions', {
             headers,
         });
 

@@ -55,3 +55,4 @@ func (s *NoopAuditService) LogAction(ctx context.Context, userID primitive.Objec
 	return nil
 }
 
+

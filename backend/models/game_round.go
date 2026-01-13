@@ -6,12 +6,14 @@ import (
 )
 
 type GameRoundPlayer struct {
-	IsModerator bool               `bson:"is_moderator"`
-	TeamName    string             `bson:"team_name,omitempty"`
-	LabelName   string             `bson:"label_name,omitempty"`
-	Score       int64              `bson:"cooperative_score,omitempty"`
-	Position    int                `bson:"position,omitempty"`
-	PlayerID    primitive.ObjectID `bson:"player_id,omitempty"`
+	IsModerator  bool               `bson:"is_moderator"`
+	TeamName     string             `bson:"team_name,omitempty"`
+	LabelName    string             `bson:"label_name,omitempty"`
+	Score        int64              `bson:"cooperative_score,omitempty"`
+	Position     int                `bson:"position,omitempty"`
+	MembershipID primitive.ObjectID `bson:"membership_id,omitempty"`
+	// Deprecated: use MembershipID instead. Kept for backward compatibility during migration.
+	PlayerID primitive.ObjectID `bson:"player_id,omitempty"`
 }
 
 type TeamScore struct {

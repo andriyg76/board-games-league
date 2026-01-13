@@ -1,3 +1,5 @@
+import { apiFetch } from './apiClient';
+
 export type ScoringType =
     | 'classic'
     | 'mafia'
@@ -36,7 +38,7 @@ export interface GameType {
 export default {
     async getGameTypes() {
         try {
-            const response = await fetch(`/api/game_types`);
+            const response = await apiFetch(`/api/game_types`);
             if (!response.ok) {
                 throw new Error('Error fetching game types');
             }
@@ -49,7 +51,7 @@ export default {
 
     async createGameType(gameType: GameType) {
         try {
-            const response = await fetch(`/api/game_types`, {
+            const response = await apiFetch(`/api/game_types`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -69,7 +71,7 @@ export default {
     async updateGameType(code: string, gameType: GameType) {
         try {
             console.debug("Storing gametype", gameType)
-            const response = await fetch(`/api/game_types/${code}`, {
+            const response = await apiFetch(`/api/game_types/${code}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -88,7 +90,7 @@ export default {
 
     async deleteGameType(code: string) {
         try {
-            const response = await fetch(`/api/game_types/${code}`, {
+            const response = await apiFetch(`/api/game_types/${code}`, {
                 method: 'DELETE',
             });
             if (!response.ok) {
@@ -101,7 +103,7 @@ export default {
     },
 
     async listGameRounds(): Promise<GameRound[]> {
-        const response = await fetch('/api/game_rounds');
+        const response = await apiFetch('/api/game_rounds');
         if (!response.ok) {
             throw new Error('Failed to load game rounds');
         }
@@ -109,7 +111,7 @@ export default {
     },
 
     async createGameRound(round: GameRound): Promise<GameRound> {
-        const response = await fetch('/api/game_rounds', {
+        const response = await apiFetch('/api/game_rounds', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -123,7 +125,7 @@ export default {
     },
 
     async updateGameRound(round: GameRound): Promise<GameRound> {
-        const response = await fetch(`/api/game_rounds/${round.code}`, {
+        const response = await apiFetch(`/api/game_rounds/${round.code}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -137,7 +139,7 @@ export default {
     },
 
     async finalizeGameRound(code: string, finalizationData: FinalizeGameRoundRequest): Promise<void> {
-        const response = await fetch(`/api/game_rounds/${code}/finalize`, {
+        const response = await apiFetch(`/api/game_rounds/${code}/finalize`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -150,7 +152,7 @@ export default {
     },
 
     async getGameRound(code: string): Promise<GameRound> {
-        const response = await fetch(`/api/game_rounds/${code}`);
+        const response = await apiFetch(`/api/game_rounds/${code}`);
         if (!response.ok) {
             throw new Error('Failed to get game round');
         }
@@ -158,7 +160,7 @@ export default {
     },
 
     async listPlayers(): Promise<Player[]> {
-        const response = await fetch('/api/players');
+        const response = await apiFetch('/api/players');
         if (!response.ok) {
             throw new Error('Failed to load players');
         }
@@ -166,7 +168,7 @@ export default {
     },
 
     async getPlayer(code: string): Promise<Player> {
-        const response = await fetch(`/api/players/${code}`);
+        const response = await apiFetch(`/api/players/${code}`);
         if (!response.ok) {
             throw new Error('Failed to get player');
         }
@@ -174,7 +176,7 @@ export default {
     },
 
     async getCurrentPlayer(): Promise<Player> {
-        const response = await fetch('/api/players/i_am');
+        const response = await apiFetch('/api/players/i_am');
         if (!response.ok) {
             throw new Error('Failed to get current player');
         }

@@ -1,3 +1,5 @@
+import { apiFetch } from './apiClient';
+
 export interface GeoIPInfo {
     country?: string;
     country_code?: string;
@@ -65,6 +67,7 @@ export interface DiagnosticsResponse {
 
 export async function getFrontendBuildInfo(): Promise<BuildInfo> {
     try {
+        // Note: version.json is a static file that doesn't require auth
         const response = await fetch('/version.json', {
             credentials: 'include',
         });
@@ -84,9 +87,7 @@ export async function getFrontendBuildInfo(): Promise<BuildInfo> {
 
 export default {
     async getDiagnostics(): Promise<DiagnosticsResponse> {
-        const response = await fetch('/api/admin/diagnostics', {
-            credentials: 'include',
-        });
+        const response = await apiFetch('/api/admin/diagnostics');
 
         if (!response.ok) {
             throw new Error('Failed to get diagnostics');

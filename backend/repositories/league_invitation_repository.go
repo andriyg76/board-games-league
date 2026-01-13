@@ -17,8 +17,10 @@ type LeagueInvitationRepository interface {
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.LeagueInvitation, error)
 	FindByToken(ctx context.Context, token string) (*models.LeagueInvitation, error)
 	FindActiveByCreator(ctx context.Context, leagueID, createdBy primitive.ObjectID) ([]*models.LeagueInvitation, error)
+	FindExpiredByCreator(ctx context.Context, leagueID, createdBy primitive.ObjectID) ([]*models.LeagueInvitation, error)
 	MarkAsUsed(ctx context.Context, id primitive.ObjectID, usedBy primitive.ObjectID) error
 	Cancel(ctx context.Context, id primitive.ObjectID) error
+	Extend(ctx context.Context, id primitive.ObjectID, duration time.Duration) error
 }
 
 type LeagueInvitationRepositoryInstance struct {
@@ -180,6 +182,57 @@ func (r *LeagueInvitationRepositoryInstance) Cancel(ctx context.Context, id prim
 
 	if result.MatchedCount == 0 {
 		return errors.New("invitation not found or already expired/used")
+	}
+
+	return nil
+}
+
+func (r *LeagueInvitationRepositoryInstance) FindExpiredByCreator(ctx context.Context, leagueID, createdBy primitive.ObjectID) ([]*models.LeagueInvitation, error) {
+	filter := bson.M{
+		"league_id":  leagueID,
+		"created_by": createdBy,
+		"is_used":    false,
+		"expires_at": bson.M{"$lte": time.Now()},
+	}
+
+	cursor, err := r.collection.Find(ctx, filter, options.Find().SetSort(bson.M{"created_at": -1}))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var invitations []*models.LeagueInvitation
+	if err := cursor.All(ctx, &invitations); err != nil {
+		return nil, err
+	}
+
+	return invitations, nil
+}
+
+func (r *LeagueInvitationRepositoryInstance) Extend(ctx context.Context, id primitive.ObjectID, duration time.Duration) error {
+	filter := bson.M{
+		"_id":     id,
+		"is_used": false,
+	}
+
+	// Extend by setting expires_at to now + duration
+	update := bson.M{
+		"$set": bson.M{
+			"expires_at": time.Now().Add(duration),
+			"updated_at": time.Now(),
+		},
+		"$inc": bson.M{
+			"version": 1,
+		},
+	}
+
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("invitation not found or already used")
 	}
 
 	return nil

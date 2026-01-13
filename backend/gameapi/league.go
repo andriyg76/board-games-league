@@ -144,11 +144,28 @@ func (h *Handler) getLeagueStandings(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, response, http.StatusOK)
 }
 
+// CreateInvitationRequest represents the request body for creating an invitation
+type CreateInvitationRequest struct {
+	Alias string `json:"alias"`
+}
+
 // POST /api/leagues/:code/invitations - Create invitation
 func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 	leagueID, err := utils.GetIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
+		return
+	}
+
+	// Parse request body
+	var req CreateInvitationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Alias == "" {
+		http.Error(w, "Alias is required", http.StatusBadRequest)
 		return
 	}
 
@@ -185,8 +202,8 @@ func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Create invitation
-	invitation, err := h.leagueService.CreateInvitation(r.Context(), leagueID, userID)
+	// Create invitation with alias
+	invitation, err := h.leagueService.CreateInvitation(r.Context(), leagueID, userID, req.Alias)
 	if err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to create invitation")
 		return
@@ -255,6 +272,123 @@ func (h *Handler) cancelInvitation(w http.ResponseWriter, r *http.Request) {
 	// Cancel the invitation
 	if err := h.leagueService.CancelInvitation(r.Context(), token, userID); err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to cancel invitation")
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// GET /api/leagues/:code/invitations/expired - List my expired invitations
+func (h *Handler) listMyExpiredInvitations(w http.ResponseWriter, r *http.Request) {
+	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	if err != nil {
+		http.Error(w, "Invalid league code", http.StatusBadRequest)
+		return
+	}
+
+	// Get current user
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := utils.CodeToID(profile.Code)
+	if err != nil {
+		http.Error(w, "Invalid user code", http.StatusBadRequest)
+		return
+	}
+
+	invitations, err := h.leagueService.ListMyExpiredInvitations(r.Context(), leagueID, userID)
+	if err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to list expired invitations")
+		return
+	}
+
+	response := make([]invitationResponse, 0, len(invitations))
+	for _, inv := range invitations {
+		response = append(response, invitationToResponse(inv))
+	}
+
+	utils.WriteJSON(w, response, http.StatusOK)
+}
+
+// POST /api/leagues/:code/invitations/:token/extend - Extend invitation by 7 days
+func (h *Handler) extendInvitation(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		http.Error(w, "Invalid invitation token", http.StatusBadRequest)
+		return
+	}
+
+	// Get current user
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := utils.CodeToID(profile.Code)
+	if err != nil {
+		http.Error(w, "Invalid user code", http.StatusBadRequest)
+		return
+	}
+
+	invitation, err := h.leagueService.ExtendInvitation(r.Context(), token, userID)
+	if err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to extend invitation")
+		return
+	}
+
+	utils.WriteJSON(w, invitationToResponse(invitation), http.StatusOK)
+}
+
+// UpdatePendingMemberAliasRequest represents the request body for updating a pending member's alias
+type UpdatePendingMemberAliasRequest struct {
+	Alias string `json:"alias"`
+}
+
+// PUT /api/leagues/:code/members/:memberCode/alias - Edit pending member alias
+func (h *Handler) updatePendingMemberAlias(w http.ResponseWriter, r *http.Request) {
+	memberCode := chi.URLParam(r, "memberCode")
+	if memberCode == "" {
+		http.Error(w, "Invalid member code", http.StatusBadRequest)
+		return
+	}
+
+	membershipID, err := utils.CodeToID(memberCode)
+	if err != nil {
+		http.Error(w, "Invalid member code", http.StatusBadRequest)
+		return
+	}
+
+	// Parse request body
+	var req UpdatePendingMemberAliasRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Alias == "" {
+		http.Error(w, "Alias is required", http.StatusBadRequest)
+		return
+	}
+
+	// Get current user
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := utils.CodeToID(profile.Code)
+	if err != nil {
+		http.Error(w, "Invalid user code", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.leagueService.UpdatePendingMemberAlias(r.Context(), membershipID, userID, req.Alias); err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to update alias")
 		return
 	}
 
@@ -443,10 +577,12 @@ type standingResponse struct {
 }
 
 type invitationResponse struct {
-	Token     string `json:"token"`
-	LeagueID  string `json:"league_id"`
-	ExpiresAt string `json:"expires_at"`
-	CreatedAt string `json:"created_at"`
+	Token        string `json:"token"`
+	LeagueID     string `json:"league_id"`
+	PlayerAlias  string `json:"player_alias"`
+	MembershipID string `json:"membership_id,omitempty"`
+	ExpiresAt    string `json:"expires_at"`
+	CreatedAt    string `json:"created_at"`
 }
 
 // Helper functions
@@ -462,12 +598,17 @@ func leagueToResponse(league *models.League) leagueResponse {
 }
 
 func invitationToResponse(inv *models.LeagueInvitation) invitationResponse {
-	return invitationResponse{
-		Token:     inv.Token,
-		LeagueID:  utils.IdToCode(inv.LeagueID),
-		ExpiresAt: inv.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
-		CreatedAt: inv.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	resp := invitationResponse{
+		Token:       inv.Token,
+		LeagueID:    utils.IdToCode(inv.LeagueID),
+		PlayerAlias: inv.PlayerAlias,
+		ExpiresAt:   inv.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:   inv.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
+	if !inv.MembershipID.IsZero() {
+		resp.MembershipID = utils.IdToCode(inv.MembershipID)
+	}
+	return resp
 }
 
 // getIDFromURL extracts and validates ObjectID from URL parameter

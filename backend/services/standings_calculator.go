@@ -29,9 +29,12 @@ var DefaultPointsConfig = PointsConfig{
 
 // LeagueStanding represents a player's standing in a league
 type LeagueStanding struct {
+	MembershipID        primitive.ObjectID
 	UserID              primitive.ObjectID
 	UserName            string
+	UserAlias           string
 	UserAvatar          string
+	IsPending           bool
 	TotalPoints         int64
 	GamesPlayed         int
 	GamesModerated      int
@@ -64,24 +67,45 @@ func CalculateStandings(
 	users map[primitive.ObjectID]*models.User,
 	config PointsConfig,
 ) []*LeagueStanding {
-	// Create a map of user standings
-	standingsMap := make(map[primitive.ObjectID]*LeagueStanding)
+	// Create maps for standings lookup
+	// Key by MembershipID for new format, and by UserID for backward compatibility
+	standingsByMembership := make(map[primitive.ObjectID]*LeagueStanding)
+	standingsByUser := make(map[primitive.ObjectID]*LeagueStanding)
 
-	// Initialize standings for all active members
+	// Initialize standings for all active and pending members
 	for _, member := range members {
-		if member.Status != models.MembershipActive {
+		if member.Status != models.MembershipActive && member.Status != models.MembershipPending {
 			continue
 		}
 
-		user, ok := users[member.UserID]
-		if !ok {
-			continue
+		isPending := member.Status == models.MembershipPending
+		var userName, userAvatar string
+
+		if !member.UserID.IsZero() {
+			user, ok := users[member.UserID]
+			if ok && user != nil {
+				userName = user.Name
+				userAvatar = user.Avatar
+			}
 		}
 
-		standingsMap[member.UserID] = &LeagueStanding{
-			UserID:     member.UserID,
-			UserName:   user.Name,
-			UserAvatar: user.Avatar,
+		// Use alias if available (especially for pending members)
+		if member.Alias != "" {
+			userName = member.Alias
+		}
+
+		standing := &LeagueStanding{
+			MembershipID: member.ID,
+			UserID:       member.UserID,
+			UserName:     userName,
+			UserAlias:    member.Alias,
+			UserAvatar:   userAvatar,
+			IsPending:    isPending,
+		}
+
+		standingsByMembership[member.ID] = standing
+		if !member.UserID.IsZero() {
+			standingsByUser[member.UserID] = standing
 		}
 	}
 
@@ -94,9 +118,20 @@ func CalculateStandings(
 
 		// Process each player in the round
 		for _, player := range round.Players {
-			standing, ok := standingsMap[player.PlayerID]
+			var standing *LeagueStanding
+			var ok bool
+
+			// Try MembershipID first (new format)
+			if !player.MembershipID.IsZero() {
+				standing, ok = standingsByMembership[player.MembershipID]
+			}
+			// Fall back to PlayerID (legacy format)
+			if !ok && !player.PlayerID.IsZero() {
+				standing, ok = standingsByUser[player.PlayerID]
+			}
+
 			if !ok {
-				// Player is not an active member, skip
+				// Player is not a member, skip
 				continue
 			}
 
@@ -135,9 +170,9 @@ func CalculateStandings(
 		}
 	}
 
-	// Convert map to slice
-	standings := make([]*LeagueStanding, 0, len(standingsMap))
-	for _, standing := range standingsMap {
+	// Convert map to slice (use standingsByMembership to avoid duplicates)
+	standings := make([]*LeagueStanding, 0, len(standingsByMembership))
+	for _, standing := range standingsByMembership {
 		standings = append(standings, standing)
 	}
 

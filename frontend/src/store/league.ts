@@ -5,7 +5,6 @@ import LeagueApi, {
     LeagueInvitation,
     LeagueMember,
     LeagueStanding,
-    CreateInvitationResponse
 } from '@/api/LeagueApi';
 
 interface LeagueState {
@@ -119,16 +118,16 @@ export const useLeagueStore = defineStore('league', {
         },
 
         /**
-         * Create an invitation for the current league
+         * Create an invitation for the current league with a player alias
          */
-        async createInvitation(): Promise<CreateInvitationResponse> {
+        async createInvitation(alias: string): Promise<LeagueInvitation> {
             if (!this.currentLeague) {
                 throw new Error('No current league set');
             }
             this.loading = true;
             this.error = null;
             try {
-                return await LeagueApi.createInvitation(this.currentLeague.code);
+                return await LeagueApi.createInvitation(this.currentLeague.code, alias);
             } catch (error) {
                 this.error = error instanceof Error ? error.message : 'Failed to create invitation';
                 console.error('Error creating invitation:', error);
@@ -154,6 +153,21 @@ export const useLeagueStore = defineStore('league', {
         },
 
         /**
+         * List my expired invitations for the current league
+         */
+        async listMyExpiredInvitations(): Promise<LeagueInvitation[]> {
+            if (!this.currentLeague) {
+                throw new Error('No current league set');
+            }
+            try {
+                return await LeagueApi.listMyExpiredInvitations(this.currentLeague.code);
+            } catch (error) {
+                console.error('Error listing expired invitations:', error);
+                throw error;
+            }
+        },
+
+        /**
          * Cancel an invitation by token
          */
         async cancelInvitation(token: string): Promise<void> {
@@ -164,6 +178,38 @@ export const useLeagueStore = defineStore('league', {
                 await LeagueApi.cancelInvitation(this.currentLeague.code, token);
             } catch (error) {
                 console.error('Error cancelling invitation:', error);
+                throw error;
+            }
+        },
+
+        /**
+         * Extend an invitation by 7 days
+         */
+        async extendInvitation(token: string): Promise<LeagueInvitation> {
+            if (!this.currentLeague) {
+                throw new Error('No current league set');
+            }
+            try {
+                return await LeagueApi.extendInvitation(this.currentLeague.code, token);
+            } catch (error) {
+                console.error('Error extending invitation:', error);
+                throw error;
+            }
+        },
+
+        /**
+         * Update pending member alias
+         */
+        async updatePendingMemberAlias(memberCode: string, alias: string): Promise<void> {
+            if (!this.currentLeague) {
+                throw new Error('No current league set');
+            }
+            try {
+                await LeagueApi.updatePendingMemberAlias(this.currentLeague.code, memberCode, alias);
+                // Reload members to get updated data
+                await this.loadCurrentLeagueMembers();
+            } catch (error) {
+                console.error('Error updating member alias:', error);
                 throw error;
             }
         },

@@ -23,18 +23,30 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 
 	players := make([]models.GameRoundPlayer, 0, len(req.Players))
 	for _, p := range req.Players {
-		user, err := h.getUserInfo(r.Context(), p.UserID)
-		if err != nil {
-			http.Error(w, "Error fetching user info", http.StatusInternalServerError)
-			return
-		}
-
-		players = append(players, models.GameRoundPlayer{
-			PlayerID:    user.ID,
+		player := models.GameRoundPlayer{
 			Position:    p.Position,
 			IsModerator: p.IsModerator,
 			TeamName:    p.TeamName,
-		})
+		}
+
+		// Support both MembershipID and UserID (for backward compatibility)
+		if !p.MembershipID.IsZero() {
+			// Using membership ID directly (supports pending members)
+			player.MembershipID = p.MembershipID
+		} else if !p.UserID.IsZero() {
+			// Legacy: using user ID directly
+			user, err := h.getUserInfo(r.Context(), p.UserID)
+			if err != nil {
+				http.Error(w, "Error fetching user info", http.StatusInternalServerError)
+				return
+			}
+			player.PlayerID = user.ID
+		} else {
+			http.Error(w, "Either user_id or membership_id is required for each player", http.StatusBadRequest)
+			return
+		}
+
+		players = append(players, player)
 	}
 
 	gameType, err := h.gameTypeRepository.FindByName(r.Context(), req.Type)
@@ -370,9 +382,10 @@ type startGameRequest struct {
 }
 
 type playerSetup struct {
-	UserID      primitive.ObjectID `json:"user_id" validate:"required"`
-	Position    int                `json:"position" validate:"required"`
-	IsModerator bool               `json:"is_moderator"`
-	TeamName    string             `json:"team_name,omitempty"`
-	TeamColor   string             `json:"team_color,omitempty"`
+	UserID       primitive.ObjectID `json:"user_id,omitempty"`
+	MembershipID primitive.ObjectID `json:"membership_id,omitempty"`
+	Position     int                `json:"position" validate:"required"`
+	IsModerator  bool               `json:"is_moderator"`
+	TeamName     string             `json:"team_name,omitempty"`
+	TeamColor    string             `json:"team_color,omitempty"`
 }

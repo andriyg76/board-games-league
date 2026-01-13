@@ -11,6 +11,50 @@
       </v-card-title>
 
       <v-card-text class="py-6">
+        <!-- Player Alias -->
+        <div class="text-subtitle-2 mb-2">{{ t('leagues.playerAlias') }}</div>
+        <v-card variant="outlined" class="mb-4">
+          <v-card-text class="pa-2">
+            <div class="d-flex align-center gap-2">
+              <v-text-field
+                v-if="editingAlias"
+                v-model="newAlias"
+                :label="t('leagues.playerAlias')"
+                hide-details
+                variant="outlined"
+                density="compact"
+                class="flex-grow-1"
+                @keyup.enter="saveAlias"
+                @keyup.escape="cancelEditAlias"
+              />
+              <span v-else class="text-body-1 flex-grow-1">{{ invitation?.player_alias }}</span>
+              <v-btn
+                v-if="editingAlias"
+                icon="mdi-check"
+                variant="tonal"
+                color="success"
+                size="small"
+                :loading="savingAlias"
+                @click="saveAlias"
+              />
+              <v-btn
+                v-if="editingAlias"
+                icon="mdi-close"
+                variant="tonal"
+                size="small"
+                @click="cancelEditAlias"
+              />
+              <v-btn
+                v-if="!editingAlias"
+                icon="mdi-pencil"
+                variant="tonal"
+                size="small"
+                @click="startEditAlias"
+              />
+            </div>
+          </v-card-text>
+        </v-card>
+
         <!-- Invitation URL -->
         <div class="text-subtitle-2 mb-2">{{ t('leagues.invitationLink') }}</div>
         <v-card variant="outlined" class="mb-4">
@@ -96,9 +140,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import QrcodeVue from 'qrcode.vue';
+import { useLeagueStore } from '@/store/league';
 import type { LeagueInvitation } from '@/api/LeagueApi';
 
 interface Props {
@@ -111,12 +156,23 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   'cancel': [token: string];
+  'aliasUpdated': [newAlias: string];
 }>();
 
 const { t, locale } = useI18n();
+const leagueStore = useLeagueStore();
 
 const copied = ref(false);
 const cancelling = ref(false);
+const editingAlias = ref(false);
+const newAlias = ref('');
+const savingAlias = ref(false);
+
+// Reset editing state when invitation changes
+watch(() => props.invitation, () => {
+  editingAlias.value = false;
+  newAlias.value = props.invitation?.player_alias || '';
+});
 
 const invitationLink = computed(() => {
   if (!props.invitation) return '';
@@ -148,6 +204,31 @@ const handleCancel = async () => {
   }
 };
 
+const startEditAlias = () => {
+  newAlias.value = props.invitation?.player_alias || '';
+  editingAlias.value = true;
+};
+
+const cancelEditAlias = () => {
+  editingAlias.value = false;
+  newAlias.value = props.invitation?.player_alias || '';
+};
+
+const saveAlias = async () => {
+  if (!props.invitation?.membership_id || !newAlias.value.trim()) return;
+
+  savingAlias.value = true;
+  try {
+    await leagueStore.updatePendingMemberAlias(props.invitation.membership_id, newAlias.value.trim());
+    emit('aliasUpdated', newAlias.value.trim());
+    editingAlias.value = false;
+  } catch (err) {
+    console.error('Error saving alias:', err);
+  } finally {
+    savingAlias.value = false;
+  }
+};
+
 const formatExpiryDate = (dateStr: string | undefined) => {
   if (!dateStr) return '';
 
@@ -172,4 +253,5 @@ const formatExpiryDate = (dateStr: string | undefined) => {
   border: 1px solid rgba(0, 0, 0, 0.12);
 }
 </style>
+
 
