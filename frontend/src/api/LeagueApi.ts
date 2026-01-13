@@ -2,7 +2,7 @@
 import { apiFetch } from './apiClient';
 
 export type LeagueStatus = 'active' | 'archived';
-export type LeagueMembershipStatus = 'active' | 'banned' | 'pending';
+export type LeagueMembershipStatus = 'active' | 'banned' | 'pending' | 'virtual';
 
 export interface League {
     code: string;
@@ -62,6 +62,19 @@ export interface CreateInvitationResponse {
 export interface AcceptInvitationResponse {
     league: League;
     membership: LeagueMember;
+}
+
+export interface InvitationPreview {
+    league_name: string;
+    inviter_alias: string;
+    player_alias: string;
+    expires_at: string;
+    status: 'valid' | 'expired' | 'used';
+}
+
+export interface AcceptInvitationError {
+    error: string;
+    league_code?: string;
 }
 
 export default {
@@ -213,17 +226,36 @@ export default {
     },
 
     /**
+     * Preview an invitation (public, no auth required)
+     */
+    async previewInvitation(token: string): Promise<InvitationPreview> {
+        const response = await fetch(`/api/leagues/join/${encodeURIComponent(token)}/preview`);
+        if (!response.ok) {
+            throw new Error('Invitation not found');
+        }
+        return await response.json();
+    },
+
+    /**
      * Accept an invitation and join a league
      */
     async acceptInvitation(token: string): Promise<AcceptInvitationResponse> {
-        const response = await apiFetch(`/api/leagues/join/${token}`, {
+        const response = await apiFetch(`/api/leagues/join/${encodeURIComponent(token)}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
         });
         if (!response.ok) {
-            throw new Error('Failed to accept invitation');
+            // Check for already member error (409 Conflict)
+            if (response.status === 409) {
+                const errorData: AcceptInvitationError = await response.json();
+                const error = new Error(errorData.error) as Error & { leagueCode?: string };
+                error.leagueCode = errorData.league_code;
+                throw error;
+            }
+            const text = await response.text();
+            throw new Error(text || 'Failed to accept invitation');
         }
         return await response.json();
     },

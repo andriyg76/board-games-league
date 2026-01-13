@@ -16,9 +16,11 @@ type LeagueMembershipRepository interface {
 	Create(ctx context.Context, membership *models.LeagueMembership) error
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.LeagueMembership, error)
 	FindByLeagueAndUser(ctx context.Context, leagueID, userID primitive.ObjectID) (*models.LeagueMembership, error)
+	FindByLeagueAndAlias(ctx context.Context, leagueID primitive.ObjectID, alias string) (*models.LeagueMembership, error)
 	FindByLeague(ctx context.Context, leagueID primitive.ObjectID) ([]*models.LeagueMembership, error)
 	FindByUser(ctx context.Context, userID primitive.ObjectID) ([]*models.LeagueMembership, error)
 	Update(ctx context.Context, membership *models.LeagueMembership) error
+	Delete(ctx context.Context, id primitive.ObjectID) error
 	IsActiveMember(ctx context.Context, leagueID, userID primitive.ObjectID) (bool, error)
 }
 
@@ -176,4 +178,26 @@ func (r *LeagueMembershipRepositoryInstance) IsActiveMember(ctx context.Context,
 	}
 
 	return count > 0, nil
+}
+
+func (r *LeagueMembershipRepositoryInstance) FindByLeagueAndAlias(ctx context.Context, leagueID primitive.ObjectID, alias string) (*models.LeagueMembership, error) {
+	var membership models.LeagueMembership
+	filter := bson.M{
+		"league_id": leagueID,
+		"alias":     alias,
+	}
+
+	if err := r.collection.FindOne(ctx, filter).Decode(&membership); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &membership, nil
+}
+
+func (r *LeagueMembershipRepositoryInstance) Delete(ctx context.Context, id primitive.ObjectID) error {
+	_, err := r.collection.DeleteOne(ctx, bson.M{"_id": id})
+	return err
 }

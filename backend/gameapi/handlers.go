@@ -40,6 +40,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/leagues", func(r chi.Router) {
 		r.Post("/", h.createLeague)                       // Create league (superadmin)
 		r.Get("/", h.listLeagues)                          // List leagues
+		r.Get("/join/{token}/preview", h.previewInvitation) // Preview invitation (public)
 		r.Post("/join/{token}", h.acceptInvitation)        // Accept invitation
 		r.Get("/{code}", h.getLeague)                      // Get league details
 		r.Get("/{code}/members", h.getLeagueMembers)       // Get league members

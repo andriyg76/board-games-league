@@ -250,7 +250,14 @@ const messages = {
             memberPending: 'Pending',
             pleaseLoginFirst: 'Please log in first',
             loginToAcceptInvitation: 'You need to log in or create an account to accept this invitation.',
-            cannotAcceptOwnInvitation: 'You cannot accept your own invitation'
+            cannotAcceptOwnInvitation: 'You cannot accept your own invitation',
+            alreadyMember: 'Already a member',
+            alreadyMemberDescription: 'You are already a member of this league.',
+            invitedBy: 'Invited by: {name}',
+            youWillJoinAs: 'You will join as: {alias}',
+            loadingInvitation: 'Loading invitation...',
+            invitationUsed: 'This invitation has already been used.',
+            aliasExists: 'This alias already exists in the league.'
         }
     },
     uk: {
@@ -502,7 +509,14 @@ const messages = {
             memberPending: 'Очікує',
             pleaseLoginFirst: 'Спочатку увійдіть',
             loginToAcceptInvitation: 'Вам потрібно увійти або створити акаунт, щоб прийняти це запрошення.',
-            cannotAcceptOwnInvitation: 'Ви не можете прийняти власне запрошення'
+            cannotAcceptOwnInvitation: 'Ви не можете прийняти власне запрошення',
+            alreadyMember: 'Вже учасник',
+            alreadyMemberDescription: 'Ви вже є учасником цієї ліги.',
+            invitedBy: 'Запросив: {name}',
+            youWillJoinAs: 'Ви приєднаєтесь як: {alias}',
+            loadingInvitation: 'Завантаження запрошення...',
+            invitationUsed: 'Це запрошення вже використано.',
+            aliasExists: 'Цей псевдонім вже існує в лізі.'
         }
     },
     et: {
@@ -754,7 +768,14 @@ const messages = {
             memberPending: 'Ootel',
             pleaseLoginFirst: 'Palun logi sisse',
             loginToAcceptInvitation: 'Selle kutse vastuvõtmiseks pead sisse logima või konto looma.',
-            cannotAcceptOwnInvitation: 'Sa ei saa vastu võtta enda kutset'
+            cannotAcceptOwnInvitation: 'Sa ei saa vastu võtta enda kutset',
+            alreadyMember: 'Juba liige',
+            alreadyMemberDescription: 'Sa oled juba selle liiga liige.',
+            invitedBy: 'Kutsuja: {name}',
+            youWillJoinAs: 'Liitud nimega: {alias}',
+            loadingInvitation: 'Kutse laadimine...',
+            invitationUsed: 'See kutse on juba kasutatud.',
+            aliasExists: 'See hüüdnimi on liigas juba olemas.'
         }
     }
 }

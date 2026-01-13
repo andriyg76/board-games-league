@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
@@ -398,6 +399,40 @@ func (h *Handler) updatePendingMemberAlias(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 }
 
+// InvitationPreviewResponse represents public invitation preview data
+type InvitationPreviewResponse struct {
+	LeagueName   string `json:"league_name"`
+	InviterAlias string `json:"inviter_alias"`
+	PlayerAlias  string `json:"player_alias"`
+	ExpiresAt    string `json:"expires_at"`
+	Status       string `json:"status"` // valid, expired, used
+}
+
+// GET /api/leagues/join/:token/preview - Preview invitation (public, no auth required)
+func (h *Handler) previewInvitation(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		http.Error(w, "Invalid invitation token", http.StatusBadRequest)
+		return
+	}
+
+	preview, err := h.leagueService.PreviewInvitation(r.Context(), token)
+	if err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "invitation not found")
+		return
+	}
+
+	response := InvitationPreviewResponse{
+		LeagueName:   preview.LeagueName,
+		InviterAlias: preview.InviterAlias,
+		PlayerAlias:  preview.PlayerAlias,
+		ExpiresAt:    preview.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
+		Status:       preview.Status,
+	}
+
+	utils.WriteJSON(w, response, http.StatusOK)
+}
+
 // POST /api/leagues/join/:token - Accept invitation
 func (h *Handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
@@ -422,6 +457,17 @@ func (h *Handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 	// Accept invitation
 	league, err := h.leagueService.AcceptInvitation(r.Context(), token, userID)
 	if err != nil {
+		// Check if user is already a member - return league code for redirect
+		if leagueCode, ok := services.IsAlreadyMemberError(err); ok {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			response := map[string]string{
+				"error":       err.Error(),
+				"league_code": leagueCode,
+			}
+			_ = json.NewEncoder(w).Encode(response)
+			return
+		}
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to accept invitation")
 		return
 	}

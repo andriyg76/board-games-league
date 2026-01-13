@@ -49,3 +49,8 @@ func (m *MockGameRoundRepository) FindByLeague(ctx context.Context, leagueID pri
 	}
 	return nil, args.Error(1)
 }
+
+func (m *MockGameRoundRepository) HasGamesForMembership(ctx context.Context, membershipID primitive.ObjectID) (bool, error) {
+	args := m.Called(ctx, membershipID)
+	return args.Bool(0), args.Error(1)
+}

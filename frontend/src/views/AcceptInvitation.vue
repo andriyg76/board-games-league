@@ -16,10 +16,10 @@
               size="64"
               class="mb-4"
             />
-            <div class="text-h6">{{ t('leagues.acceptingInvitation') }}</div>
+            <div class="text-h6">{{ loadingMessage }}</div>
           </v-card-text>
 
-          <!-- Login Required State -->
+          <!-- Login Required State (with preview) -->
           <v-card-text v-else-if="needsLogin" class="text-center py-8">
             <v-icon
               size="80"
@@ -28,6 +28,18 @@
             >
               mdi-login
             </v-icon>
+
+            <!-- Show invitation preview if available -->
+            <template v-if="preview">
+              <div class="text-h6 mb-2">{{ preview.league_name }}</div>
+              <div class="text-body-1 mb-2">
+                {{ t('leagues.invitedBy', { name: preview.inviter_alias }) }}
+              </div>
+              <div class="text-body-2 text-medium-emphasis mb-4">
+                {{ t('leagues.youWillJoinAs', { alias: preview.player_alias }) }}
+              </div>
+            </template>
+
             <div class="text-h6 mb-2">{{ t('leagues.pleaseLoginFirst') }}</div>
             <div class="text-body-1 mb-4">
               {{ t('leagues.loginToAcceptInvitation') }}
@@ -49,6 +61,39 @@
               >
                 <v-icon start>mdi-discord</v-icon>
                 {{ t('auth.loginWithDiscord') }}
+              </v-btn>
+            </div>
+          </v-card-text>
+
+          <!-- Already Member State -->
+          <v-card-text v-else-if="alreadyMember" class="text-center py-8">
+            <v-icon
+              size="80"
+              color="info"
+              class="mb-4"
+            >
+              mdi-account-check
+            </v-icon>
+            <div class="text-h6 mb-2">{{ t('leagues.alreadyMember') }}</div>
+            <div class="text-body-1 mb-4">
+              {{ t('leagues.alreadyMemberDescription') }}
+            </div>
+
+            <div class="d-flex gap-2 justify-center">
+              <v-btn
+                v-if="alreadyMemberLeagueCode"
+                color="primary"
+                variant="flat"
+                @click="goToLeagueByCode(alreadyMemberLeagueCode)"
+              >
+                <v-icon start>mdi-arrow-right</v-icon>
+                {{ t('leagues.goToLeague') }}
+              </v-btn>
+              <v-btn
+                variant="outlined"
+                @click="goToHome"
+              >
+                {{ t('leagues.goToHome') }}
               </v-btn>
             </div>
           </v-card-text>
@@ -164,12 +209,13 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
 import { useUserStore } from '@/store/user';
-import type { League } from '@/api/LeagueApi';
+import LeagueApi from '@/api/LeagueApi';
+import type { League, InvitationPreview } from '@/api/LeagueApi';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -178,10 +224,42 @@ const leagueStore = useLeagueStore();
 const userStore = useUserStore();
 
 const loading = ref(false);
+const loadingPreview = ref(false);
 const success = ref(false);
 const needsLogin = ref(false);
+const alreadyMember = ref(false);
+const alreadyMemberLeagueCode = ref<string | null>(null);
 const error = ref<string | null>(null);
 const league = ref<League | null>(null);
+const preview = ref<InvitationPreview | null>(null);
+
+const loadingMessage = computed(() => {
+  if (loadingPreview.value) {
+    return t('leagues.loadingInvitation');
+  }
+  return t('leagues.acceptingInvitation');
+});
+
+const loadPreview = async (token: string) => {
+  try {
+    loadingPreview.value = true;
+    loading.value = true;
+    preview.value = await LeagueApi.previewInvitation(token);
+    
+    // Check if invitation is still valid
+    if (preview.value.status === 'expired') {
+      error.value = t('leagues.invitationExpired');
+    } else if (preview.value.status === 'used') {
+      error.value = t('leagues.invitationUsed');
+    }
+  } catch (err) {
+    console.error('Error loading invitation preview:', err);
+    error.value = t('leagues.invitationNotFound');
+  } finally {
+    loadingPreview.value = false;
+    loading.value = false;
+  }
+};
 
 const acceptInvitation = async (token: string) => {
   loading.value = true;
@@ -193,12 +271,21 @@ const acceptInvitation = async (token: string) => {
     success.value = true;
   } catch (err) {
     if (err instanceof Error) {
-      if (err.message.includes('404')) {
+      // Check for already member error with league code
+      const errWithCode = err as Error & { leagueCode?: string };
+      if (errWithCode.leagueCode) {
+        alreadyMember.value = true;
+        alreadyMemberLeagueCode.value = errWithCode.leagueCode;
+      } else if (err.message.includes('already a member')) {
+        alreadyMember.value = true;
+      } else if (err.message.includes('404') || err.message.includes('not found')) {
         error.value = t('leagues.invitationNotFound');
       } else if (err.message.includes('expired')) {
         error.value = t('leagues.invitationExpired');
       } else if (err.message.includes('own invitation')) {
         error.value = t('leagues.cannotAcceptOwnInvitation');
+      } else if (err.message.includes('already been used')) {
+        error.value = t('leagues.invitationUsed');
       } else {
         error.value = err.message;
       }
@@ -217,6 +304,10 @@ const goToLeague = () => {
   }
 };
 
+const goToLeagueByCode = (code: string) => {
+  router.push({ name: 'LeagueDetails', params: { code } });
+};
+
 const goToHome = () => {
   router.push({ name: 'Home' });
 };
@@ -224,6 +315,14 @@ const goToHome = () => {
 onMounted(async () => {
   const token = route.params.token as string;
   if (!token) {
+    return;
+  }
+
+  // Load preview first (public, no auth required)
+  await loadPreview(token);
+  
+  // If there was an error loading preview, stop here
+  if (error.value) {
     return;
   }
 

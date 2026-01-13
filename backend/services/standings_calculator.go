@@ -72,13 +72,13 @@ func CalculateStandings(
 	standingsByMembership := make(map[primitive.ObjectID]*LeagueStanding)
 	standingsByUser := make(map[primitive.ObjectID]*LeagueStanding)
 
-	// Initialize standings for all active and pending members
+	// Initialize standings for all active, pending, and virtual members
 	for _, member := range members {
-		if member.Status != models.MembershipActive && member.Status != models.MembershipPending {
+		if member.Status != models.MembershipActive && member.Status != models.MembershipPending && member.Status != models.MembershipVirtual {
 			continue
 		}
 
-		isPending := member.Status == models.MembershipPending
+		isPending := member.Status == models.MembershipPending || member.Status == models.MembershipVirtual
 		var userName, userAvatar string
 
 		if !member.UserID.IsZero() {

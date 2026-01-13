@@ -350,41 +350,97 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-### 10. Accept Invitation
+### 10. Preview Invitation (Public)
 
-**Endpoint:** `POST /api/leagues/invitations/{token}/accept`
+**Endpoint:** `GET /api/leagues/join/{token}/preview`
 
-**Description:** Accepts an invitation and adds the user to the league.
+**Description:** Returns public information about an invitation. This endpoint does not require authentication and can be used to show invitation details before login.
+
+**URL Parameters:**
+- `token` - Invitation token
+
+**Response:**
+```json
+{
+  "league_name": "Summer Championship 2026",
+  "inviter_alias": "John",
+  "player_alias": "NewPlayer",
+  "expires_at": "2026-01-15T00:00:00Z",
+  "status": "valid"
+}
+```
+
+**Status field values:**
+- `valid` - Invitation can be accepted
+- `expired` - Invitation has expired
+- `used` - Invitation has already been used
+
+**Status Codes:**
+- `200 OK` - Success
+- `404 Not Found` - Invitation not found
+
+---
+
+### 11. Accept Invitation
+
+**Endpoint:** `POST /api/leagues/join/{token}`
+
+**Description:** Accepts an invitation and adds the user to the league. The pending membership created with the invitation is activated and linked to the user.
 
 **URL Parameters:**
 - `token` - Invitation token
 
 **Request Body:** None
 
-**Response:**
+**Response (Success):**
 ```json
 {
-  "league": {
-    "id": "507f1f77bcf86cd799439011",
-    "code": "ABC123",
-    "name": "Summer Championship 2026",
-    "description": "Competitive league for summer season",
-    "status": "active"
-  }
+  "code": "ABC123",
+  "name": "Summer Championship 2026",
+  "status": "active",
+  "created_at": "2026-01-01T00:00:00Z",
+  "updated_at": "2026-01-01T00:00:00Z"
+}
+```
+
+**Response (Already Member - 409 Conflict):**
+```json
+{
+  "error": "user is already a member of this league",
+  "league_code": "ABC123"
 }
 ```
 
 **Status Codes:**
 - `200 OK` - Invitation accepted successfully
-- `400 Bad Request` - User is already a member
+- `400 Bad Request` - Invalid invitation (expired, used, own invitation)
 - `401 Unauthorized` - Missing or invalid authentication
-- `404 Not Found` - Invitation not found or expired
-- `500 Internal Server Error` - Server error
+- `404 Not Found` - Invitation not found
+- `409 Conflict` - User is already a member (includes league_code for redirect)
 
 **Notes:**
 - Each invitation can only be used once
 - Invitations expire after 7 days
-- Users who are already members will receive a 400 error
+- Users cannot accept their own invitations
+- Already member error (409) includes `league_code` for frontend redirect
+
+---
+
+### 12. Membership Statuses
+
+League members can have the following statuses:
+
+| Status | Description |
+|--------|-------------|
+| `active` | Regular member with full access |
+| `pending` | Created via invitation, waiting for user to accept |
+| `virtual` | Player participated in games but never logged in (pending with games after invitation cancelled) |
+| `banned` | User banned from the league |
+
+**Virtual status flow:**
+- When an invitation is cancelled and the pending member has participated in games, they become `virtual`
+- Virtual members can be re-invited using the same alias to preserve their game history
+- Virtual members appear in standings if they have games
 
 ---
 

@@ -19,6 +19,7 @@ type GameRoundRepository interface {
 	FindByLeague(ctx context.Context, leagueID primitive.ObjectID) ([]*models.GameRound, error)
 	Update(ctx context.Context, round *models.GameRound) error
 	Delete(ctx context.Context, id primitive.ObjectID) error
+	HasGamesForMembership(ctx context.Context, membershipID primitive.ObjectID) (bool, error)
 }
 
 type gameRoundRepositoryInstance struct {
@@ -151,4 +152,15 @@ func (r *gameRoundRepositoryInstance) Update(ctx context.Context, round *models.
 func (r *gameRoundRepositoryInstance) Delete(ctx context.Context, id primitive.ObjectID) error {
 	_, err := r.collection.DeleteOne(ctx, bson.M{"_id": id})
 	return err
+}
+
+func (r *gameRoundRepositoryInstance) HasGamesForMembership(ctx context.Context, membershipID primitive.ObjectID) (bool, error) {
+	filter := bson.M{
+		"players.membership_id": membershipID,
+	}
+	count, err := r.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

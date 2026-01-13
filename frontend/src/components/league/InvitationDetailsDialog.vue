@@ -176,7 +176,7 @@ watch(() => props.invitation, () => {
 
 const invitationLink = computed(() => {
   if (!props.invitation) return '';
-  return `${window.location.origin}/invite/${props.invitation.token}`;
+  return `${window.location.origin}/ui/leagues/join/${props.invitation.token}`;
 });
 
 const copyToClipboard = async () => {

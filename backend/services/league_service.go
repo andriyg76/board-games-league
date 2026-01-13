@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
+	"github.com/andriyg76/bgl/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
@@ -34,6 +35,7 @@ type LeagueService interface {
 	// Запрошення
 	CreateInvitation(ctx context.Context, leagueID, createdBy primitive.ObjectID, playerAlias string) (*models.LeagueInvitation, error)
 	AcceptInvitation(ctx context.Context, token string, userID primitive.ObjectID) (*models.League, error)
+	PreviewInvitation(ctx context.Context, token string) (*InvitationPreview, error)
 	GetInvitationByToken(ctx context.Context, token string) (*models.LeagueInvitation, error)
 	ListMyInvitations(ctx context.Context, leagueID, userID primitive.ObjectID) ([]*models.LeagueInvitation, error)
 	ListMyExpiredInvitations(ctx context.Context, leagueID, userID primitive.ObjectID) ([]*models.LeagueInvitation, error)
@@ -54,6 +56,33 @@ type LeagueMemberInfo struct {
 	UserAvatar   string
 	Status       models.LeagueMembershipStatus
 	JoinedAt     time.Time
+}
+
+// InvitationPreview represents public invitation preview data
+type InvitationPreview struct {
+	LeagueName   string
+	InviterAlias string
+	PlayerAlias  string
+	ExpiresAt    time.Time
+	Status       string // "valid", "expired", "used"
+}
+
+// AlreadyMemberError is returned when user is already a member of the league
+type AlreadyMemberError struct {
+	LeagueCode string
+}
+
+func (e *AlreadyMemberError) Error() string {
+	return "user is already a member of this league"
+}
+
+// IsAlreadyMemberError checks if the error is AlreadyMemberError and returns the league code
+func IsAlreadyMemberError(err error) (string, bool) {
+	var alreadyMemberErr *AlreadyMemberError
+	if errors.As(err, &alreadyMemberErr) {
+		return alreadyMemberErr.LeagueCode, true
+	}
+	return "", false
 }
 
 type leagueServiceInstance struct {
@@ -266,22 +295,45 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 		return nil, errors.New("player alias is required")
 	}
 
+	// Check if alias already exists in this league
+	existingMembership, err := s.membershipRepo.FindByLeagueAndAlias(ctx, leagueID, playerAlias)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check alias uniqueness: %w", err)
+	}
+
+	var membership *models.LeagueMembership
+
+	if existingMembership != nil {
+		// Alias exists - check if it's a virtual member that can be reused
+		if existingMembership.Status == models.MembershipVirtual {
+			// Reuse virtual membership - convert back to pending
+			existingMembership.Status = models.MembershipPending
+			if err := s.membershipRepo.Update(ctx, existingMembership); err != nil {
+				return nil, fmt.Errorf("failed to update virtual membership: %w", err)
+			}
+			membership = existingMembership
+		} else {
+			// Alias is taken by active or pending member
+			return nil, errors.New("alias already exists in this league")
+		}
+	} else {
+		// Create new pending membership
+		membership = &models.LeagueMembership{
+			LeagueID: leagueID,
+			Alias:    playerAlias,
+			Status:   models.MembershipPending,
+			JoinedAt: time.Now(),
+		}
+
+		if err := s.membershipRepo.Create(ctx, membership); err != nil {
+			return nil, fmt.Errorf("failed to create pending membership: %w", err)
+		}
+	}
+
 	// Generate cryptographically secure token
 	token, err := generateInvitationToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %w", err)
-	}
-
-	// Create pending membership first
-	membership := &models.LeagueMembership{
-		LeagueID: leagueID,
-		Alias:    playerAlias,
-		Status:   models.MembershipPending,
-		JoinedAt: time.Now(),
-	}
-
-	if err := s.membershipRepo.Create(ctx, membership); err != nil {
-		return nil, fmt.Errorf("failed to create pending membership: %w", err)
 	}
 
 	invitation := &models.LeagueInvitation{
@@ -334,7 +386,13 @@ func (s *leagueServiceInstance) AcceptInvitation(ctx context.Context, token stri
 		return nil, fmt.Errorf("failed to check membership: %w", err)
 	}
 	if existing != nil && existing.Status == models.MembershipActive {
-		return nil, errors.New("user is already a member of this league")
+		// Get league code for the error
+		league, _ := s.leagueRepo.FindByID(ctx, invitation.LeagueID)
+		leagueCode := ""
+		if league != nil {
+			leagueCode = utils.IdToCode(league.ID)
+		}
+		return nil, &AlreadyMemberError{LeagueCode: leagueCode}
 	}
 
 	// Get the pending membership created with the invitation
@@ -362,6 +420,53 @@ func (s *leagueServiceInstance) AcceptInvitation(ctx context.Context, token stri
 
 	// Get and return the league
 	return s.GetLeague(ctx, invitation.LeagueID)
+}
+
+func (s *leagueServiceInstance) PreviewInvitation(ctx context.Context, token string) (*InvitationPreview, error) {
+	invitation, err := s.invitationRepo.FindByToken(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find invitation: %w", err)
+	}
+	if invitation == nil {
+		return nil, errors.New("invitation not found")
+	}
+
+	// Get league name
+	league, err := s.leagueRepo.FindByID(ctx, invitation.LeagueID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find league: %w", err)
+	}
+	if league == nil {
+		return nil, errors.New("league not found")
+	}
+
+	// Get inviter info (membership alias or user name)
+	inviterAlias := ""
+	inviterMembership, _ := s.membershipRepo.FindByLeagueAndUser(ctx, invitation.LeagueID, invitation.CreatedBy)
+	if inviterMembership != nil && inviterMembership.Alias != "" {
+		inviterAlias = inviterMembership.Alias
+	} else {
+		inviterUser, _ := s.userRepo.FindByID(ctx, invitation.CreatedBy)
+		if inviterUser != nil {
+			inviterAlias = inviterUser.Name
+		}
+	}
+
+	// Determine status
+	status := "valid"
+	if invitation.IsUsed {
+		status = "used"
+	} else if time.Now().After(invitation.ExpiresAt) {
+		status = "expired"
+	}
+
+	return &InvitationPreview{
+		LeagueName:   league.Name,
+		InviterAlias: inviterAlias,
+		PlayerAlias:  invitation.PlayerAlias,
+		ExpiresAt:    invitation.ExpiresAt,
+		Status:       status,
+	}, nil
 }
 
 func (s *leagueServiceInstance) GetLeagueStandings(ctx context.Context, leagueID primitive.ObjectID) ([]*LeagueStanding, error) {
@@ -432,6 +537,34 @@ func (s *leagueServiceInstance) CancelInvitation(ctx context.Context, token stri
 	// Cancel the invitation
 	if err := s.invitationRepo.Cancel(ctx, invitation.ID); err != nil {
 		return fmt.Errorf("failed to cancel invitation: %w", err)
+	}
+
+	// Handle the pending membership
+	if !invitation.MembershipID.IsZero() {
+		membership, err := s.membershipRepo.FindByID(ctx, invitation.MembershipID)
+		if err != nil {
+			return fmt.Errorf("failed to find membership: %w", err)
+		}
+		if membership != nil && membership.Status == models.MembershipPending {
+			// Check if membership has games
+			hasGames, err := s.gameRoundRepo.HasGamesForMembership(ctx, membership.ID)
+			if err != nil {
+				return fmt.Errorf("failed to check games: %w", err)
+			}
+
+			if hasGames {
+				// Has games - convert to virtual
+				membership.Status = models.MembershipVirtual
+				if err := s.membershipRepo.Update(ctx, membership); err != nil {
+					return fmt.Errorf("failed to update membership to virtual: %w", err)
+				}
+			} else {
+				// No games - delete the membership
+				if err := s.membershipRepo.Delete(ctx, membership.ID); err != nil {
+					return fmt.Errorf("failed to delete membership: %w", err)
+				}
+			}
+		}
 	}
 
 	return nil

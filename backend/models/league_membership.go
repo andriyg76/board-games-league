@@ -11,6 +11,7 @@ const (
 	MembershipActive  LeagueMembershipStatus = "active"
 	MembershipBanned  LeagueMembershipStatus = "banned"
 	MembershipPending LeagueMembershipStatus = "pending"
+	MembershipVirtual LeagueMembershipStatus = "virtual"
 )
 
 type LeagueMembership struct {

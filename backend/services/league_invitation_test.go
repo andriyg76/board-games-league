@@ -212,6 +212,7 @@ func TestCreateInvitation(t *testing.T) {
 		}
 
 		mockLeagueRepo.On("FindByID", ctx, leagueID).Return(league, nil)
+		mockMembershipRepo.On("FindByLeagueAndAlias", ctx, leagueID, playerAlias).Return(nil, nil) // No existing membership
 		mockMembershipRepo.On("Create", ctx, mock.AnythingOfType("*models.LeagueMembership")).Return(nil)
 		mockInvitationRepo.On("Create", ctx, mock.AnythingOfType("*models.LeagueInvitation")).Return(nil)
 		mockMembershipRepo.On("Update", ctx, mock.AnythingOfType("*models.LeagueMembership")).Return(nil)

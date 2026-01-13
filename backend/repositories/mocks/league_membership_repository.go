@@ -63,4 +63,16 @@ func (m *MockLeagueMembershipRepository) IsActiveMember(ctx context.Context, lea
 	return args.Bool(0), args.Error(1)
 }
 
+func (m *MockLeagueMembershipRepository) FindByLeagueAndAlias(ctx context.Context, leagueID primitive.ObjectID, alias string) (*models.LeagueMembership, error) {
+	args := m.Called(ctx, leagueID, alias)
+	membership := args.Get(0)
+	if membership == nil {
+		return nil, args.Error(1)
+	}
+	return membership.(*models.LeagueMembership), args.Error(1)
+}
 
+func (m *MockLeagueMembershipRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
