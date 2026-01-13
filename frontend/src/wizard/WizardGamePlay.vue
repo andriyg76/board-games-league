@@ -177,6 +177,9 @@
         :existingResults="currentRoundResults"
         @submit="submitResults"
       />
+
+      <!-- Scoreboard Dialog -->
+      <WizardScoreboard v-model="showScoreboardDialog" />
     </div>
 
     <v-card v-else class="text-center pa-8">
@@ -196,6 +199,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useWizardStore } from '@/store/wizard'
 import WizardBidDialog from './WizardBidDialog.vue'
 import WizardResultDialog from './WizardResultDialog.vue'
+import WizardScoreboard from './WizardScoreboard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -203,6 +207,7 @@ const wizardStore = useWizardStore()
 
 const showBidDialog = ref(false)
 const showResultDialog = ref(false)
+const showScoreboardDialog = ref(false)
 const completing = ref(false)
 const finalizing = ref(false)
 
@@ -284,8 +289,7 @@ async function finalizeGame() {
 }
 
 function showScoreboard() {
-  // TODO: Implement scoreboard view
-  alert('Scoreboard view not implemented yet')
+  showScoreboardDialog.value = true
 }
 
 onMounted(async () => {
