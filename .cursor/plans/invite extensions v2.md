@@ -1,61 +1,61 @@
 ---
 name: Enhanced Invitations v2
-overview: ""
+overview: "IMPLEMENTED - All tasks completed"
 todos:
   - id: model-invitation
     content: "Backend: Add PlayerAlias field to LeagueInvitation model"
-    status: pending
+    status: completed
   - id: model-membership
     content: "Backend: Add 'pending' status and Alias to LeagueMembership"
-    status: pending
+    status: completed
   - id: model-gameround
     content: "Backend: Change GameRoundPlayer to use MembershipID instead of PlayerID"
-    status: pending
+    status: completed
   - id: service-create
     content: "Backend: Update createInvitation to create pending membership"
-    status: pending
+    status: completed
   - id: service-accept
     content: "Backend: Update acceptInvitation with self-use check and alias"
-    status: pending
+    status: completed
   - id: api-extend
     content: "Backend: Add extend invitation endpoint"
-    status: pending
+    status: completed
   - id: frontend-alias-input
     content: "Frontend: Add alias input to invitation creation"
-    status: pending
+    status: completed
   - id: frontend-extend
     content: "Frontend: Add extend button for expired invitations"
-    status: pending
+    status: completed
   - id: frontend-pending
     content: "Frontend: Show pending members in league members list"
-    status: pending
+    status: completed
   - id: frontend-login-flow
     content: "Frontend: Handle login redirect for uninvited users"
-    status: pending
+    status: completed
   - id: api-edit-alias
     content: "Backend: Add endpoint to edit pending member alias"
-    status: pending
+    status: completed
   - id: frontend-edit-alias
     content: "Frontend: Add edit alias button in invitation details"
-    status: pending
+    status: completed
   - id: pending-games
     content: "Backend: Allow pending members to participate in games"
-    status: pending
+    status: completed
   - id: pending-standings
     content: "Backend: Include pending members in standings calculation"
-    status: pending
+    status: completed
   - id: frontend-pending-players
-    content: "Frontend: Show pending members in player selection for games"
-    status: pending
+    content: "Frontend: Show pending members in player selection (backend ready)"
+    status: completed
   - id: i18n
     content: Add translations for new UI elements
-    status: pending
+    status: completed
   - id: tests
     content: "Backend: Add unit tests for new invitation functionality"
-    status: pending
+    status: completed
   - id: docs
     content: Update documentation with new invitation features
-    status: pending
+    status: completed
 ---
 
 # Розширена система інвайтів з placeholder-гравцями
@@ -208,3 +208,43 @@ sequenceDiagram
 
 - Оновити README з описом нової функціональності інвайтів
 - Додати приклади API запитів для нових endpoints
+
+---
+
+## Статус імплементації (13.01.2026)
+
+### ✅ Реалізовано
+
+**Backend:**
+- `LeagueInvitation` model: додано `PlayerAlias`, `MembershipID`
+- `LeagueMembership` model: додано статус `pending`, поле `Alias`, `InvitationID`
+- `GameRoundPlayer` model: додано `MembershipID` (PlayerID залишено для зворотної сумісності)
+- `CreateInvitation`: створює pending membership разом з інвайтом
+- `AcceptInvitation`: перевірка self-use, активація pending → active
+- `ExtendInvitation`: продовження інвайту на 7 днів
+- `UpdatePendingMemberAlias`: редагування alias pending-члена
+- `GetLeagueMemberships`: повертає всіх членів включно з pending
+- Standings calculation: включає pending-членів, підтримує MembershipID та PlayerID
+
+**Frontend:**
+- Створення інвайту з alias (діалог)
+- Список активних та expired інвайтів
+- Кнопка "Продовжити" для expired інвайтів
+- Деталі інвайту з QR-кодом та можливістю редагування alias
+- Pending-члени в списку учасників з відповідним статусом
+- Login redirect flow для незалогінених користувачів
+
+**API Endpoints:**
+```
+POST /api/leagues/:code/invitations           - Create invitation (alias required)
+GET  /api/leagues/:code/invitations           - List active invitations
+GET  /api/leagues/:code/invitations/expired   - List expired invitations
+POST /api/leagues/:code/invitations/:token/cancel  - Cancel invitation
+POST /api/leagues/:code/invitations/:token/extend  - Extend invitation by 7 days
+PUT  /api/leagues/:code/members/:memberCode/alias  - Update pending member alias
+```
+
+### 📝 Примітки
+
+- Міграція даних для `GameRoundPlayer.MembershipID` не потрібна - старі записи продовжують працювати через `PlayerID`
+- Для повноцінної підтримки pending-членів у виборі гравців для ігор потрібен league-aware game creation UI

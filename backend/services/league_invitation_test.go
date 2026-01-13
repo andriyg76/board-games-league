@@ -281,4 +281,189 @@ func TestCreateInvitation(t *testing.T) {
 	})
 }
 
+func TestAcceptInvitation(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Fail when trying to accept own invitation", func(t *testing.T) {
+		mockInvitationRepo := new(mocks.MockLeagueInvitationRepository)
+		mockLeagueRepo := new(mocks.MockLeagueRepository)
+		mockMembershipRepo := new(mocks.MockLeagueMembershipRepository)
+		mockUserRepo := new(mocks.MockUserRepository)
+		mockGameRoundRepo := new(mocks.MockGameRoundRepository)
+
+		service := NewLeagueService(mockLeagueRepo, mockMembershipRepo, mockInvitationRepo, mockUserRepo, mockGameRoundRepo)
+
+		userID := primitive.NewObjectID()
+		token := "test-token"
+
+		invitation := &models.LeagueInvitation{
+			ID:           primitive.NewObjectID(),
+			LeagueID:     primitive.NewObjectID(),
+			CreatedBy:    userID, // Same user
+			Token:        token,
+			MembershipID: primitive.NewObjectID(),
+			IsUsed:       false,
+			ExpiresAt:    time.Now().Add(7 * 24 * time.Hour),
+		}
+
+		mockInvitationRepo.On("FindByToken", ctx, token).Return(invitation, nil)
+
+		league, err := service.AcceptInvitation(ctx, token, userID)
+
+		assert.Error(t, err)
+		assert.Nil(t, league)
+		assert.Contains(t, err.Error(), "you cannot accept your own invitation")
+		mockInvitationRepo.AssertExpectations(t)
+	})
+}
+
+func TestExtendInvitation(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Successfully extend own invitation", func(t *testing.T) {
+		mockInvitationRepo := new(mocks.MockLeagueInvitationRepository)
+		mockLeagueRepo := new(mocks.MockLeagueRepository)
+		mockMembershipRepo := new(mocks.MockLeagueMembershipRepository)
+		mockUserRepo := new(mocks.MockUserRepository)
+		mockGameRoundRepo := new(mocks.MockGameRoundRepository)
+
+		service := NewLeagueService(mockLeagueRepo, mockMembershipRepo, mockInvitationRepo, mockUserRepo, mockGameRoundRepo)
+
+		userID := primitive.NewObjectID()
+		invitationID := primitive.NewObjectID()
+		token := "test-token"
+
+		invitation := &models.LeagueInvitation{
+			ID:        invitationID,
+			LeagueID:  primitive.NewObjectID(),
+			CreatedBy: userID,
+			Token:     token,
+			IsUsed:    false,
+			ExpiresAt: time.Now().Add(-24 * time.Hour), // Expired
+		}
+
+		extendedInvitation := &models.LeagueInvitation{
+			ID:        invitationID,
+			LeagueID:  invitation.LeagueID,
+			CreatedBy: userID,
+			Token:     token,
+			IsUsed:    false,
+			ExpiresAt: time.Now().Add(7 * 24 * time.Hour), // Extended
+		}
+
+		mockInvitationRepo.On("FindByToken", ctx, token).Return(invitation, nil).Once()
+		mockInvitationRepo.On("Extend", ctx, invitationID, 7*24*time.Hour).Return(nil)
+		mockInvitationRepo.On("FindByToken", ctx, token).Return(extendedInvitation, nil).Once()
+
+		result, err := service.ExtendInvitation(ctx, token, userID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockInvitationRepo.AssertExpectations(t)
+	})
+
+	t.Run("Fail to extend someone else's invitation", func(t *testing.T) {
+		mockInvitationRepo := new(mocks.MockLeagueInvitationRepository)
+		mockLeagueRepo := new(mocks.MockLeagueRepository)
+		mockMembershipRepo := new(mocks.MockLeagueMembershipRepository)
+		mockUserRepo := new(mocks.MockUserRepository)
+		mockGameRoundRepo := new(mocks.MockGameRoundRepository)
+
+		service := NewLeagueService(mockLeagueRepo, mockMembershipRepo, mockInvitationRepo, mockUserRepo, mockGameRoundRepo)
+
+		ownerID := primitive.NewObjectID()
+		otherUserID := primitive.NewObjectID()
+		token := "test-token"
+
+		invitation := &models.LeagueInvitation{
+			ID:        primitive.NewObjectID(),
+			LeagueID:  primitive.NewObjectID(),
+			CreatedBy: ownerID,
+			Token:     token,
+			IsUsed:    false,
+			ExpiresAt: time.Now().Add(-24 * time.Hour),
+		}
+
+		mockInvitationRepo.On("FindByToken", ctx, token).Return(invitation, nil)
+
+		result, err := service.ExtendInvitation(ctx, token, otherUserID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "you can only extend your own invitations")
+		mockInvitationRepo.AssertExpectations(t)
+	})
+
+	t.Run("Fail to extend used invitation", func(t *testing.T) {
+		mockInvitationRepo := new(mocks.MockLeagueInvitationRepository)
+		mockLeagueRepo := new(mocks.MockLeagueRepository)
+		mockMembershipRepo := new(mocks.MockLeagueMembershipRepository)
+		mockUserRepo := new(mocks.MockUserRepository)
+		mockGameRoundRepo := new(mocks.MockGameRoundRepository)
+
+		service := NewLeagueService(mockLeagueRepo, mockMembershipRepo, mockInvitationRepo, mockUserRepo, mockGameRoundRepo)
+
+		userID := primitive.NewObjectID()
+		token := "test-token"
+
+		invitation := &models.LeagueInvitation{
+			ID:        primitive.NewObjectID(),
+			LeagueID:  primitive.NewObjectID(),
+			CreatedBy: userID,
+			Token:     token,
+			IsUsed:    true, // Already used
+			ExpiresAt: time.Now().Add(-24 * time.Hour),
+		}
+
+		mockInvitationRepo.On("FindByToken", ctx, token).Return(invitation, nil)
+
+		result, err := service.ExtendInvitation(ctx, token, userID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "cannot extend used invitation")
+		mockInvitationRepo.AssertExpectations(t)
+	})
+}
+
+func TestUpdatePendingMemberAlias(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Fail to update alias of non-pending member", func(t *testing.T) {
+		mockInvitationRepo := new(mocks.MockLeagueInvitationRepository)
+		mockLeagueRepo := new(mocks.MockLeagueRepository)
+		mockMembershipRepo := new(mocks.MockLeagueMembershipRepository)
+		mockUserRepo := new(mocks.MockUserRepository)
+		mockGameRoundRepo := new(mocks.MockGameRoundRepository)
+
+		service := NewLeagueService(mockLeagueRepo, mockMembershipRepo, mockInvitationRepo, mockUserRepo, mockGameRoundRepo)
+
+		membershipID := primitive.NewObjectID()
+		userID := primitive.NewObjectID()
+		creatorID := primitive.NewObjectID()
+
+		membership := &models.LeagueMembership{
+			ID:       membershipID,
+			LeagueID: primitive.NewObjectID(),
+			UserID:   userID,
+			Status:   models.MembershipActive, // Not pending
+		}
+
+		invitation := &models.LeagueInvitation{
+			ID:           primitive.NewObjectID(),
+			MembershipID: membershipID,
+			CreatedBy:    creatorID,
+		}
+
+		mockMembershipRepo.On("FindByID", ctx, membershipID).Return(membership, nil)
+		mockInvitationRepo.On("FindByID", ctx, membership.InvitationID).Return(invitation, nil)
+
+		err := service.UpdatePendingMemberAlias(ctx, membershipID, creatorID, "New Alias")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "can only edit alias of pending members")
+		mockMembershipRepo.AssertExpectations(t)
+	})
+}
+
 

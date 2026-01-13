@@ -90,19 +90,22 @@ func (h *Handler) getLeagueMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	members, err := h.leagueService.GetLeagueMembers(r.Context(), leagueID)
+	members, err := h.leagueService.GetLeagueMemberships(r.Context(), leagueID)
 	if err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to get league members")
 		return
 	}
 
-	response := make([]playerResponse, 0, len(members))
+	response := make([]memberResponse, 0, len(members))
 	for _, member := range members {
-		response = append(response, playerResponse{
-			Code:   utils.IdToCode(member.ID),
-			Alias:  member.Alias,
-			Avatar: member.Avatar,
-			Name:   member.Name,
+		response = append(response, memberResponse{
+			Code:       utils.IdToCode(member.MembershipID),
+			UserID:     utils.IdToCode(member.UserID),
+			UserName:   member.UserName,
+			UserAvatar: member.UserAvatar,
+			Alias:      member.UserAlias,
+			Status:     string(member.Status),
+			JoinedAt:   member.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
 		})
 	}
 
@@ -559,6 +562,16 @@ type playerResponse struct {
 	Alias  string `json:"alias"`
 	Avatar string `json:"avatar"`
 	Name   string `json:"name"`
+}
+
+type memberResponse struct {
+	Code       string `json:"code"`
+	UserID     string `json:"user_id"`
+	UserName   string `json:"user_name"`
+	UserAvatar string `json:"user_avatar"`
+	Alias      string `json:"alias"`
+	Status     string `json:"status"`
+	JoinedAt   string `json:"joined_at"`
 }
 
 type standingResponse struct {

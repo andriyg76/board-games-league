@@ -101,20 +101,33 @@
                       :key="member.code"
                     >
                       <template v-slot:prepend>
-                        <v-avatar :image="member.user_avatar" />
+                        <v-avatar v-if="member.user_avatar" :image="member.user_avatar" />
+                        <v-avatar v-else color="warning">
+                          <v-icon>mdi-account-clock</v-icon>
+                        </v-avatar>
                       </template>
 
-                      <v-list-item-title>{{ member.user_name }}</v-list-item-title>
+                      <v-list-item-title>
+                        {{ member.alias || member.user_name }}
+                        <span v-if="member.alias && member.user_name && member.alias !== member.user_name" class="text-caption text-medium-emphasis ml-2">
+                          ({{ member.user_name }})
+                        </span>
+                      </v-list-item-title>
                       <v-list-item-subtitle>
-                        {{ t('leagues.joined') }} {{ formatDate(member.joined_at) }}
+                        <template v-if="member.status === 'pending'">
+                          {{ t('leagues.awaitingJoin') }}
+                        </template>
+                        <template v-else>
+                          {{ t('leagues.joined') }} {{ formatDate(member.joined_at) }}
+                        </template>
                       </v-list-item-subtitle>
 
                       <template v-slot:append>
                         <v-chip
-                          :color="member.status === 'active' ? 'success' : 'error'"
+                          :color="getMemberStatusColor(member.status)"
                           size="small"
                         >
-                          {{ member.status === 'active' ? t('leagues.memberActive') : t('leagues.memberBanned') }}
+                          {{ getMemberStatusText(member.status) }}
                         </v-chip>
                         <v-btn
                           v-if="canManageLeague && member.status === 'active'"
@@ -173,6 +186,24 @@ const formatDate = (dateStr: string) => {
     month: 'long',
     day: 'numeric'
   });
+};
+
+const getMemberStatusColor = (status: string) => {
+  switch (status) {
+    case 'active': return 'success';
+    case 'pending': return 'warning';
+    case 'banned': return 'error';
+    default: return 'grey';
+  }
+};
+
+const getMemberStatusText = (status: string) => {
+  switch (status) {
+    case 'active': return t('leagues.memberActive');
+    case 'pending': return t('leagues.pendingMember');
+    case 'banned': return t('leagues.memberBanned');
+    default: return status;
+  }
 };
 
 const archiveLeague = async () => {

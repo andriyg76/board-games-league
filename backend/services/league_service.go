@@ -27,6 +27,7 @@ type LeagueService interface {
 
 	// Управління членством
 	GetLeagueMembers(ctx context.Context, leagueID primitive.ObjectID) ([]*models.User, error)
+	GetLeagueMemberships(ctx context.Context, leagueID primitive.ObjectID) ([]*LeagueMemberInfo, error)
 	IsUserMember(ctx context.Context, leagueID, userID primitive.ObjectID) (bool, error)
 	BanUserFromLeague(ctx context.Context, leagueID, userID primitive.ObjectID) error
 
@@ -42,6 +43,17 @@ type LeagueService interface {
 
 	// Рейтинг
 	GetLeagueStandings(ctx context.Context, leagueID primitive.ObjectID) ([]*LeagueStanding, error)
+}
+
+// LeagueMemberInfo represents a member with user and membership info
+type LeagueMemberInfo struct {
+	MembershipID primitive.ObjectID
+	UserID       primitive.ObjectID
+	UserName     string
+	UserAlias    string
+	UserAvatar   string
+	Status       models.LeagueMembershipStatus
+	JoinedAt     time.Time
 }
 
 type leagueServiceInstance struct {
@@ -172,6 +184,50 @@ func (s *leagueServiceInstance) GetLeagueMembers(ctx context.Context, leagueID p
 	}
 
 	return users, nil
+}
+
+func (s *leagueServiceInstance) GetLeagueMemberships(ctx context.Context, leagueID primitive.ObjectID) ([]*LeagueMemberInfo, error) {
+	memberships, err := s.membershipRepo.FindByLeague(ctx, leagueID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get league memberships: %w", err)
+	}
+
+	members := make([]*LeagueMemberInfo, 0, len(memberships))
+	for _, membership := range memberships {
+		// Skip banned members
+		if membership.Status == models.MembershipBanned {
+			continue
+		}
+
+		member := &LeagueMemberInfo{
+			MembershipID: membership.ID,
+			UserID:       membership.UserID,
+			UserAlias:    membership.Alias,
+			Status:       membership.Status,
+			JoinedAt:     membership.JoinedAt,
+		}
+
+		// If user exists, get their info
+		if !membership.UserID.IsZero() {
+			user, err := s.userRepo.FindByID(ctx, membership.UserID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get user %s: %w", membership.UserID.Hex(), err)
+			}
+			if user != nil {
+				member.UserName = user.Name
+				member.UserAvatar = user.Avatar
+			}
+		}
+
+		// For pending members, use alias as name if no user
+		if member.UserName == "" && member.UserAlias != "" {
+			member.UserName = member.UserAlias
+		}
+
+		members = append(members, member)
+	}
+
+	return members, nil
 }
 
 func (s *leagueServiceInstance) IsUserMember(ctx context.Context, leagueID, userID primitive.ObjectID) (bool, error) {
