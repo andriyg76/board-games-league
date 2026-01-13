@@ -6,7 +6,10 @@ todos:
     content: "Backend: Add PlayerAlias field to LeagueInvitation model"
     status: pending
   - id: model-membership
-    content: "Backend: Add 'pending' status to LeagueMembership"
+    content: "Backend: Add 'pending' status and Alias to LeagueMembership"
+    status: pending
+  - id: model-gameround
+    content: "Backend: Change GameRoundPlayer to use MembershipID instead of PlayerID"
     status: pending
   - id: service-create
     content: "Backend: Update createInvitation to create pending membership"
@@ -35,6 +38,15 @@ todos:
   - id: frontend-edit-alias
     content: "Frontend: Add edit alias button in invitation details"
     status: pending
+  - id: pending-games
+    content: "Backend: Allow pending members to participate in games"
+    status: pending
+  - id: pending-standings
+    content: "Backend: Include pending members in standings calculation"
+    status: pending
+  - id: frontend-pending-players
+    content: "Frontend: Show pending members in player selection for games"
+    status: pending
   - id: i18n
     content: Add translations for new UI elements
     status: pending
@@ -56,9 +68,10 @@ todos:
 
 1. **Alias при створенні інвайту** - творець інвайту вказує аліас майбутнього гравця
 2. **Placeholder-член ліги** - відображається в списку учасників як "очікує приєднання"
-3. **Продовження інвайту** - додати ще 7 днів до заекспайреного інвайту
-4. **Заборона self-use** - творець не може використати власний інвайт
-5. **Login flow для інвайтів** - незалогінений користувач → логін → автоматичне приєднання
+3. **Pending-члени можуть грати** - запрошені гравці можуть брати участь в іграх та обліковуватись в рейтингу
+4. **Продовження інвайту** - додати ще 7 днів до заекспайреного інвайту
+5. **Заборона self-use** - творець не може використати власний інвайт
+6. **Login flow для інвайтів** - незалогінений користувач → логін → автоматичне приєднання
 
 ## Зміни в моделях
 
@@ -75,9 +88,29 @@ type LeagueInvitation struct {
 
 ```go
 type MembershipStatus = "active" | "banned" | "pending"  // ADD: pending
+
+type LeagueMembership struct {
+    // ... existing fields ...
+    Alias string  // NEW: аліас гравця (копіюється з інвайту)
+}
 ```
 
 Pending membership = placeholder, очікує прийняття інвайту
+
+### Backend: GameRound (BREAKING CHANGE)
+
+```go
+type GameRoundPlayer struct {
+    MembershipID primitive.ObjectID  // CHANGE: замість PlayerID (user_id)
+    // ... rest of fields ...
+}
+```
+
+**Примітка:** Міграція існуючих даних не потрібна на даному етапі
+
+### Backend: Standings
+
+Розрахунок standings тепер по `membership_id`, а не по `user_id`. Це дозволяє pending-членам мати статистику.
 
 ## API зміни
 
@@ -162,6 +195,7 @@ sequenceDiagram
 
 - **Аліас вводиться в діалозі створення інвайту** (InvitationDetailsDialog)
 - **Аліас pending-члена можна редагувати** до прийняття інвайту
+- **Pending-члени можуть грати в ігри** та обліковуватись в рейтинговій таблиці ліги
 
 ## Тести
 
