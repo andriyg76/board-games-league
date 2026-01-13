@@ -29,6 +29,7 @@ type LeagueService interface {
 	// Управління членством
 	GetLeagueMembers(ctx context.Context, leagueID primitive.ObjectID) ([]*models.User, error)
 	GetLeagueMemberships(ctx context.Context, leagueID primitive.ObjectID) ([]*LeagueMemberInfo, error)
+	GetMemberByID(ctx context.Context, membershipID primitive.ObjectID) (*models.LeagueMembership, error)
 	IsUserMember(ctx context.Context, leagueID, userID primitive.ObjectID) (bool, error)
 	BanUserFromLeague(ctx context.Context, leagueID, userID primitive.ObjectID) error
 
@@ -257,6 +258,17 @@ func (s *leagueServiceInstance) GetLeagueMemberships(ctx context.Context, league
 	}
 
 	return members, nil
+}
+
+func (s *leagueServiceInstance) GetMemberByID(ctx context.Context, membershipID primitive.ObjectID) (*models.LeagueMembership, error) {
+	membership, err := s.membershipRepo.FindByID(ctx, membershipID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find membership: %w", err)
+	}
+	if membership == nil {
+		return nil, errors.New("membership not found")
+	}
+	return membership, nil
 }
 
 func (s *leagueServiceInstance) IsUserMember(ctx context.Context, leagueID, userID primitive.ObjectID) (bool, error) {

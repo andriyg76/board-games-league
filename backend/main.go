@@ -18,6 +18,7 @@ import (
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/userapi"
+	"github.com/andriyg76/bgl/wizardapi"
 	log "github.com/andriyg76/glog"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -68,6 +69,11 @@ func main() {
 		log.Fatal("Failed to initialise leagueInvitationRepository %v", err)
 	}
 
+	wizardGameRepository, err := repositories.NewWizardGameRepository(mongodb)
+	if err != nil {
+		log.Fatal("Failed to initialise wizardGameRepository %v", err)
+	}
+
 	log.Info("Database connector initialised")
 
 	userService := services.NewUserService(userRepository)
@@ -85,6 +91,7 @@ func main() {
 	log.Info("Services initialised...")
 
 	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository, leagueService)
+	wizardApiHandler := wizardapi.NewHandler(wizardGameRepository, gameRoundRepository, gameTypeRepository, leagueService, userService)
 	authHandler := auth.NewDefaultHandler(userRepository, sessionService, requestService)
 	userProfileHandler := userapi.NewHandlerWithServices(userRepository, sessionRepository, geoIPService)
 	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService)
@@ -114,6 +121,7 @@ func main() {
 			r.Get("/admin/diagnostics", diagnosticsHandler.GetDiagnosticsHandler)
 
 			gameApiHandler.RegisterRoutes(r)
+			wizardApiHandler.RegisterRoutes(r)
 		})
 		r.Handle("/*", http.NotFoundHandler())
 	})
