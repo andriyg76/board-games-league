@@ -10,7 +10,7 @@ The release process is automated through a GitHub Actions workflow. It allows cr
 
 ### Via GitHub UI
 
-1. Navigate to Actions page: `https://github.com/{owner}/{repo}/actions/workflows/release.yml`
+1. Navigate to Actions page: https://github.com/andriyg76/board-games-league/actions/workflows/release.yml
 2. Click "Run workflow"
 3. Select the branch (`main` or `release/v*`)
 4. Select the version bump type:
@@ -162,6 +162,6 @@ If the container is not working correctly, the workflow will fail, preventing th
 
 ## Links
 
-- [GitHub Actions Workflow](https://github.com/{owner}/{repo}/actions/workflows/release.yml)
+- [GitHub Actions Workflow](https://github.com/andriyg76/board-games-league/actions/workflows/release.yml)
 - [Semantic Versioning](https://semver.org/)
 

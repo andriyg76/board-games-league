@@ -10,7 +10,7 @@
 
 ### Через GitHub UI
 
-1. Перейдіть на сторінку Actions: `https://github.com/{owner}/{repo}/actions/workflows/release.yml`
+1. Перейдіть на сторінку Actions: https://github.com/andriyg76/board-games-league/actions/workflows/release.yml
 2. Натисніть "Run workflow"
 3. Виберіть гілку (`main` або `release/v*`)
 4. Виберіть тип bump версії:
@@ -162,6 +162,6 @@ BACKEND_VERSION=v1.2.3
 
 ## Посилання
 
-- [GitHub Actions Workflow](https://github.com/{owner}/{repo}/actions/workflows/release.yml)
+- [GitHub Actions Workflow](https://github.com/andriyg76/board-games-league/actions/workflows/release.yml)
 - [Semantic Versioning](https://semver.org/)
 
