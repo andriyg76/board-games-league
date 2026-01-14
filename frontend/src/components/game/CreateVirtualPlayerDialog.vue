@@ -1,65 +1,64 @@
 <template>
-  <v-dialog v-model="dialog" max-width="500" persistent>
-    <v-card>
-      <v-card-title>
-        {{ $t('game.createVirtualPlayer') }}
-      </v-card-title>
-      
-      <v-card-text>
-        <v-text-field
-          v-model="alias"
-          :label="$t('game.playerAlias')"
-          :error-messages="errorMessage"
-          :loading="checking"
-          variant="outlined"
-          autofocus
-          @input="debouncedCheckAlias"
-        />
-        
-        <v-alert
-          v-if="invitationLink"
-          type="success"
-          density="compact"
-          class="mt-2"
+  <n-modal
+    v-model:show="dialog"
+    preset="card"
+    :title="$t('game.createVirtualPlayer')"
+    style="max-width: 500px;"
+    :mask-closable="false"
+  >
+    <n-form-item :label="$t('game.playerAlias')" :validation-status="errorMessage ? 'error' : undefined" :feedback="errorMessage">
+      <n-input
+        v-model:value="alias"
+        :placeholder="$t('game.playerAlias')"
+        :loading="checking"
+        autofocus
+        @update:value="debouncedCheckAlias"
+      />
+    </n-form-item>
+    
+    <n-alert
+      v-if="invitationLink"
+      type="success"
+      size="small"
+      style="margin-top: 16px;"
+    >
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 0.875rem;">{{ $t('game.invitationCreated') }}</span>
+        <n-button
+          size="small"
+          quaternary
+          @click="copyLink"
         >
-          <div class="d-flex align-center justify-space-between">
-            <span class="text-body-2">{{ $t('game.invitationCreated') }}</span>
-            <v-btn
-              size="small"
-              variant="text"
-              @click="copyLink"
-            >
-              <v-icon start>mdi-content-copy</v-icon>
-              {{ $t('common.copy') }}
-            </v-btn>
-          </div>
-        </v-alert>
-      </v-card-text>
-      
-      <v-card-actions>
-        <v-spacer />
-        <v-btn
-          variant="text"
-          @click="close"
-        >
+          <template #icon>
+            <n-icon><CopyIcon /></n-icon>
+          </template>
+          {{ $t('common.copy') }}
+        </n-button>
+      </div>
+    </n-alert>
+
+    <template #action>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; width: 100%;">
+        <n-button @click="close">
           {{ $t('common.cancel') }}
-        </v-btn>
-        <v-btn
-          color="primary"
-          variant="elevated"
+        </n-button>
+        <n-button
+          type="primary"
           :loading="creating"
           :disabled="!canCreate"
           @click="create"
         >
           {{ $t('common.create') }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </n-button>
+      </div>
+    </template>
+  </n-modal>
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, watch } from 'vue';
+import { NModal, NFormItem, NInput, NAlert, NButton, NIcon } from 'naive-ui';
+import { Copy as CopyIcon } from '@vicons/ionicons5';
 import LeagueApi, { SuggestedPlayer } from '@/api/LeagueApi';
 
 const props = defineProps<{

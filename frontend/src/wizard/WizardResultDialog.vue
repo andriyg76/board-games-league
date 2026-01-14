@@ -1,122 +1,97 @@
 <template>
-  <v-dialog v-model="isOpen" max-width="600" persistent>
-    <v-card>
-      <v-card-title class="text-h5">
-        Enter Results - Round {{ roundNumber }}
-      </v-card-title>
+  <n-modal v-model:show="isOpen" preset="card" :title="`Enter Results - Round ${roundNumber}`" style="max-width: 600px;" :mask-closable="false">
+    <n-tag type="info" style="margin-bottom: 16px;">
+      Total tricks must equal {{ cardsCount }}
+    </n-tag>
 
-      <v-card-subtitle class="mt-2">
-        <v-chip size="small" color="info" variant="outlined">
-          Total tricks must equal {{ cardsCount }}
-        </v-chip>
-      </v-card-subtitle>
+    <n-alert v-if="error" type="error" style="margin-bottom: 16px;" closable @close="error = null">
+      {{ error }}
+    </n-alert>
 
-      <v-card-text>
-        <v-alert v-if="error" type="error" class="mb-4" closable @click:close="error = null">
-          {{ error }}
-        </v-alert>
+    <n-alert v-if="validationError" type="warning" style="margin-bottom: 16px;">
+      {{ validationError }}
+    </n-alert>
 
-        <v-alert v-if="validationError" type="warning" class="mb-4">
-          {{ validationError }}
-        </v-alert>
+    <n-alert v-if="allResultsValid" type="success" style="margin-bottom: 16px;">
+      <template #icon>
+        <n-icon><CheckCircleIcon /></n-icon>
+      </template>
+      All results valid! Total: {{ totalResults }} = {{ cardsCount }}
+    </n-alert>
 
-        <v-alert v-if="allResultsValid" type="success" class="mb-4">
-          <v-icon start>mdi-check-circle</v-icon>
-          All results valid! Total: {{ totalResults }} = {{ cardsCount }}
-        </v-alert>
-
-        <v-list>
-          <v-list-item
-            v-for="(player, index) in players"
-            :key="player.membership_id"
-            class="mb-2"
-          >
-            <v-row align="center">
-              <v-col cols="5">
-                <v-list-item-title>
-                  {{ player.player_name }}
-                </v-list-item-title>
-                <v-list-item-subtitle v-if="playerBids[index] !== undefined">
-                  Bid: {{ playerBids[index] }}
-                  <v-chip
-                    v-if="results[index] !== -1 && results[index] === playerBids[index]"
-                    size="x-small"
-                    color="success"
-                    class="ml-1"
-                  >
-                    Match!
-                  </v-chip>
-                </v-list-item-subtitle>
-              </v-col>
-              <v-col cols="7">
-                <v-slider
-                  v-model="results[index]"
-                  :min="0"
-                  :max="cardsCount"
-                  :step="1"
-                  thumb-label="always"
-                  :color="getSliderColor(index)"
-                  hide-details
-                  @update:model-value="validateResults"
-                >
-                  <template v-slot:prepend>
-                    <v-btn
-                      icon="mdi-minus"
-                      size="small"
-                      variant="text"
-                      @click="decrementResult(index)"
-                    />
-                  </template>
-                  <template v-slot:append>
-                    <v-btn
-                      icon="mdi-plus"
-                      size="small"
-                      variant="text"
-                      @click="incrementResult(index)"
-                    />
-                  </template>
-                </v-slider>
-              </v-col>
-            </v-row>
-          </v-list-item>
-        </v-list>
-
-        <v-divider class="my-4" />
-
-        <div class="d-flex justify-space-between text-body-1">
-          <span>Total Tricks:</span>
-          <span :class="totalResultsColor" class="font-weight-bold">
-            {{ totalResults }} / {{ cardsCount }}
-          </span>
+    <n-list>
+      <n-list-item
+        v-for="(player, index) in players"
+        :key="player.membership_id"
+        style="margin-bottom: 16px; padding: 12px; border: 1px solid rgba(0, 0, 0, 0.12); border-radius: 4px;"
+      >
+        <div style="width: 100%;">
+          <div style="margin-bottom: 8px;">
+            <div style="font-weight: 500;">{{ player.player_name }}</div>
+            <div v-if="playerBids[index] !== undefined" style="font-size: 0.875rem; opacity: 0.7; display: flex; align-items: center; gap: 8px;">
+              Bid: {{ playerBids[index] }}
+              <n-tag v-if="results[index] !== -1 && results[index] === playerBids[index]" size="small" type="success">
+                Match!
+              </n-tag>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <n-button size="small" quaternary @click="decrementResult(index)">
+              <template #icon>
+                <n-icon><RemoveIcon /></n-icon>
+              </template>
+            </n-button>
+            <n-slider
+              v-model:value="results[index]"
+              :min="0"
+              :max="cardsCount"
+              :step="1"
+              :tooltip="true"
+              :style="{ flex: 1, '--n-handle-color': getSliderColor(index) }"
+              @update:value="validateResults"
+            />
+            <n-button size="small" quaternary @click="incrementResult(index)">
+              <template #icon>
+                <n-icon><AddIcon /></n-icon>
+              </template>
+            </n-button>
+            <span style="min-width: 30px; text-align: center; font-weight: 500;">{{ results[index] }}</span>
+          </div>
         </div>
-      </v-card-text>
+      </n-list-item>
+    </n-list>
 
-      <v-card-actions>
-        <v-spacer />
-        <v-btn
-          color="grey"
-          variant="text"
-          @click="cancel"
-          :disabled="loading"
-        >
+    <n-divider style="margin: 16px 0;" />
+
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span>Total Tricks:</span>
+      <span :style="{ color: getTotalResultsColor(), fontWeight: 'bold' }">
+        {{ totalResults }} / {{ cardsCount }}
+      </span>
+    </div>
+
+    <template #action>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <n-button quaternary @click="cancel" :disabled="loading">
           Cancel
-        </v-btn>
-        <v-btn
-          color="primary"
-          variant="elevated"
+        </n-button>
+        <n-button
+          type="primary"
           @click="submit"
           :loading="loading"
           :disabled="!!validationError"
         >
           Submit Results
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </n-button>
+      </div>
+    </template>
+  </n-modal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { NModal, NTag, NIcon, NAlert, NList, NListItem, NSlider, NButton, NDivider } from 'naive-ui'
+import { CheckmarkCircle as CheckCircleIcon, Remove as RemoveIcon, Add as AddIcon } from '@vicons/ionicons5'
 import type { WizardPlayer } from './types'
 
 interface Props {
@@ -165,28 +140,28 @@ const allResultsValid = computed(() => {
   return !validationError.value && totalResults.value === props.cardsCount
 })
 
-const totalResultsColor = computed(() => {
+const getTotalResultsColor = () => {
   const total = totalResults.value
   const cards = props.cardsCount
 
   if (total === cards) {
-    return 'text-success'
+    return '#18a058'
   } else if (total > cards) {
-    return 'text-error'
+    return '#d03050'
   } else {
-    return 'text-warning'
+    return '#f0a020'
   }
-})
+}
 
 function getSliderColor(index: number): string {
   const result = results.value[index]
   const bid = props.playerBids[index]
 
   if (result === -1 || bid === undefined) {
-    return 'primary'
+    return '#2080f0'
   }
 
-  return result === bid ? 'success' : 'warning'
+  return result === bid ? '#18a058' : '#f0a020'
 }
 
 function validateResults() {
@@ -239,9 +214,3 @@ async function submit() {
 }
 </script>
 
-<style scoped>
-.v-list-item {
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 4px;
-}
-</style>

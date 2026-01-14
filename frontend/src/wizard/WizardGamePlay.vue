@@ -1,200 +1,213 @@
 <template>
-  <v-container>
-    <v-alert v-if="wizardStore.error" type="error" class="mb-4" closable>
-      {{ wizardStore.error }}
-    </v-alert>
+  <n-grid :cols="24" :x-gap="16">
+    <n-gi :span="24">
+      <n-alert v-if="wizardStore.error" type="error" style="margin-bottom: 16px;" closable @close="wizardStore.error = null">
+        {{ wizardStore.error }}
+      </n-alert>
 
-    <div v-if="wizardStore.loading" class="text-center py-8">
-      <v-progress-circular indeterminate color="primary" size="64" />
-      <p class="mt-4">Loading game...</p>
-    </div>
+      <n-spin v-if="wizardStore.loading" size="large" style="display: flex; justify-content: center; padding: 64px;">
+        <template #description>
+          Loading game...
+        </template>
+      </n-spin>
 
-    <div v-else-if="game">
-      <!-- Game Header -->
-      <v-card class="mb-4">
-        <v-card-title class="d-flex align-center">
-          <v-icon start>mdi-wizard-hat</v-icon>
-          Wizard Game
-          <v-spacer />
-          <v-chip color="primary" class="ml-2">
-            Round {{ game.current_round }} / {{ game.max_rounds }}
-          </v-chip>
-        </v-card-title>
-        <v-card-subtitle>
-          Game Code: {{ game.code }}
-        </v-card-subtitle>
-      </v-card>
-
-      <!-- Current Round Info -->
-      <v-card class="mb-4" v-if="currentRound">
-        <v-card-text>
-          <div class="d-flex justify-space-between align-center mb-2">
-            <div>
-              <v-icon>mdi-cards</v-icon>
-              <span class="ml-2 text-h6">{{ currentRound.cards_count }} cards</span>
+      <div v-else-if="game">
+        <!-- Game Header -->
+        <n-card style="margin-bottom: 16px;">
+          <template #header>
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <n-icon :size="24"><WizardIcon /></n-icon>
+                <span style="font-weight: 500;">Wizard Game</span>
+              </div>
+              <n-tag type="primary">
+                Round {{ game.current_round }} / {{ game.max_rounds }}
+              </n-tag>
             </div>
-            <div>
-              <v-icon>mdi-account-star</v-icon>
-              <span class="ml-2">
-                Dealer: {{ game.players[currentRound.dealer_index]?.player_name }}
-              </span>
-            </div>
-            <div>
-              <v-chip :color="roundStatusColor" size="small">
-                {{ currentRound.status }}
-              </v-chip>
-            </div>
+          </template>
+          <div style="font-size: 0.875rem; opacity: 0.7;">
+            Game Code: {{ game.code }}
           </div>
+        </n-card>
 
-          <v-divider class="my-3" />
+        <!-- Current Round Info -->
+        <n-card v-if="currentRound" style="margin-bottom: 16px;">
+          <n-grid :cols="24" :x-gap="8" style="margin-bottom: 16px;">
+            <n-gi :span="24" :responsive="{ m: 8 }">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <n-icon><CardsIcon /></n-icon>
+                <span style="font-size: 1.125rem; font-weight: 500;">{{ currentRound.cards_count }} cards</span>
+              </div>
+            </n-gi>
+            <n-gi :span="24" :responsive="{ m: 8 }">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <n-icon><StarIcon /></n-icon>
+                <span>Dealer: {{ game.players[currentRound.dealer_index]?.player_name }}</span>
+              </div>
+            </n-gi>
+            <n-gi :span="24" :responsive="{ m: 8 }">
+              <n-tag :type="getRoundStatusTagType(currentRound.status)" size="small">
+                {{ currentRound.status }}
+              </n-tag>
+            </n-gi>
+          </n-grid>
+
+          <n-divider style="margin: 16px 0;" />
 
           <!-- Action Buttons -->
-          <div class="d-flex gap-2 flex-wrap">
-            <v-btn
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <n-button
               v-if="currentRound.status === 'BIDDING'"
-              color="primary"
+              type="primary"
               @click="showBidDialog = true"
             >
-              <v-icon start>mdi-hand-coin</v-icon>
+              <template #icon>
+                <n-icon><HandCoinIcon /></n-icon>
+              </template>
               Enter Bids
-            </v-btn>
+            </n-button>
 
-            <v-btn
+            <n-button
               v-if="currentRound.status === 'PLAYING' && !wizardStore.areAllResultsSubmitted"
-              color="success"
+              type="success"
               @click="showResultDialog = true"
             >
-              <v-icon start>mdi-trophy</v-icon>
+              <template #icon>
+                <n-icon><TrophyIcon /></n-icon>
+              </template>
               Enter Results
-            </v-btn>
+            </n-button>
 
-            <v-btn
+            <n-button
               v-if="wizardStore.areAllBidsSubmitted && wizardStore.areAllResultsSubmitted"
-              color="success"
-              variant="elevated"
+              type="success"
               @click="completeRound"
               :loading="completing"
             >
-              <v-icon start>mdi-check-circle</v-icon>
+              <template #icon>
+                <n-icon><CheckCircleIcon /></n-icon>
+              </template>
               Complete Round
-            </v-btn>
+            </n-button>
 
-            <v-btn
+            <n-button
               v-if="currentRound.status === 'COMPLETED' && game.current_round < game.max_rounds"
-              color="primary"
+              type="primary"
               @click="moveToNextRound"
             >
-              <v-icon start>mdi-arrow-right</v-icon>
+              <template #icon>
+                <n-icon><ArrowForwardIcon /></n-icon>
+              </template>
               Next Round
-            </v-btn>
+            </n-button>
 
-            <v-btn
+            <n-button
               v-if="currentRound.status === 'COMPLETED' && game.current_round === game.max_rounds"
-              color="success"
-              variant="elevated"
+              type="success"
               @click="finalizeGame"
               :loading="finalizing"
             >
-              <v-icon start>mdi-flag-checkered</v-icon>
+              <template #icon>
+                <n-icon><FlagIcon /></n-icon>
+              </template>
               Finalize Game
-            </v-btn>
+            </n-button>
 
-            <v-spacer />
+            <div style="flex: 1;"></div>
 
-            <v-btn
-              color="grey"
-              variant="text"
-              @click="showScoreboard"
-            >
-              <v-icon start>mdi-table</v-icon>
+            <n-button quaternary @click="showScoreboard">
+              <template #icon>
+                <n-icon><TableIcon /></n-icon>
+              </template>
               Scoreboard
-            </v-btn>
+            </n-button>
           </div>
-        </v-card-text>
-      </v-card>
+        </n-card>
 
-      <!-- Players List -->
-      <v-card>
-        <v-card-title>Players</v-card-title>
-        <v-list>
-          <v-list-item
-            v-for="(player, index) in game.players"
-            :key="player.membership_id"
-          >
-            <template v-slot:prepend>
-              <v-avatar :color="index === currentRound?.dealer_index ? 'primary' : 'grey'">
-                <v-icon>
-                  {{ index === currentRound?.dealer_index ? 'mdi-account-star' : 'mdi-account' }}
-                </v-icon>
-              </v-avatar>
-            </template>
-
-            <v-list-item-title>
-              {{ player.player_name }}
-            </v-list-item-title>
-
-            <v-list-item-subtitle v-if="currentRound">
-              <span v-if="currentPlayerResult(index).bid >= 0">
-                Bid: {{ currentPlayerResult(index).bid }}
-              </span>
-              <span v-if="currentPlayerResult(index).actual >= 0" class="ml-2">
-                Actual: {{ currentPlayerResult(index).actual }}
-              </span>
-              <span v-if="currentRound.status === 'COMPLETED'" class="ml-2">
-                Score: {{ currentPlayerResult(index).score > 0 ? '+' : '' }}{{ currentPlayerResult(index).score }}
-              </span>
-            </v-list-item-subtitle>
-
-            <template v-slot:append>
-              <div class="text-right">
-                <div class="text-h6">{{ player.total_score }}</div>
-                <div class="text-caption text-grey">Total</div>
+        <!-- Players List -->
+        <n-card>
+          <template #header>
+            Players
+          </template>
+          <n-list>
+            <n-list-item
+              v-for="(player, index) in game.players"
+              :key="player.membership_id"
+            >
+              <template #prefix>
+                <n-avatar :style="{ backgroundColor: index === currentRound?.dealer_index ? '#2080f0' : '#999' }">
+                  <n-icon :color="index === currentRound?.dealer_index ? '#fff' : '#fff'">
+                    <component :is="index === currentRound?.dealer_index ? StarIcon : PersonIcon" />
+                  </n-icon>
+                </n-avatar>
+              </template>
+              <div style="flex: 1;">
+                <div style="font-weight: 500;">{{ player.player_name }}</div>
+                <div v-if="currentRound" style="font-size: 0.875rem; opacity: 0.7;">
+                  <span v-if="currentPlayerResult(index).bid >= 0">
+                    Bid: {{ currentPlayerResult(index).bid }}
+                  </span>
+                  <span v-if="currentPlayerResult(index).actual >= 0" style="margin-left: 8px;">
+                    Actual: {{ currentPlayerResult(index).actual }}
+                  </span>
+                  <span v-if="currentRound.status === 'COMPLETED'" style="margin-left: 8px;">
+                    Score: {{ currentPlayerResult(index).score > 0 ? '+' : '' }}{{ currentPlayerResult(index).score }}
+                  </span>
+                </div>
               </div>
-            </template>
-          </v-list-item>
-        </v-list>
-      </v-card>
+              <template #suffix>
+                <div style="text-align: right;">
+                  <div style="font-size: 1.25rem; font-weight: 500;">{{ player.total_score }}</div>
+                  <div style="font-size: 0.75rem; opacity: 0.7;">Total</div>
+                </div>
+              </template>
+            </n-list-item>
+          </n-list>
+        </n-card>
 
-      <!-- Bid Dialog -->
-      <WizardBidDialog
-        v-model="showBidDialog"
-        :roundNumber="game.current_round"
-        :cardsCount="currentRound?.cards_count || 1"
-        :players="game.players"
-        :dealerIndex="currentRound?.dealer_index || 0"
-        :bidRestriction="game.config.bid_restriction"
-        :existingBids="currentRoundBids"
-        @submit="submitBids"
-      />
+        <!-- Bid Dialog -->
+        <WizardBidDialog
+          v-model="showBidDialog"
+          :roundNumber="game.current_round"
+          :cardsCount="currentRound?.cards_count || 1"
+          :players="game.players"
+          :dealerIndex="currentRound?.dealer_index || 0"
+          :bidRestriction="game.config.bid_restriction"
+          :existingBids="currentRoundBids"
+          @submit="submitBids"
+        />
 
-      <!-- Result Dialog -->
-      <WizardResultDialog
-        v-model="showResultDialog"
-        :roundNumber="game.current_round"
-        :cardsCount="currentRound?.cards_count || 1"
-        :players="game.players"
-        :playerBids="currentRoundBids"
-        :existingResults="currentRoundResults"
-        @submit="submitResults"
-      />
+        <!-- Result Dialog -->
+        <WizardResultDialog
+          v-model="showResultDialog"
+          :roundNumber="game.current_round"
+          :cardsCount="currentRound?.cards_count || 1"
+          :players="game.players"
+          :playerBids="currentRoundBids"
+          :existingResults="currentRoundResults"
+          @submit="submitResults"
+        />
 
-      <!-- Scoreboard Dialog -->
-      <WizardScoreboard v-model="showScoreboardDialog" />
-    </div>
+        <!-- Scoreboard Dialog -->
+        <WizardScoreboard v-model="showScoreboardDialog" />
+      </div>
 
-    <v-card v-else class="text-center pa-8">
-      <v-icon size="64" color="grey">mdi-wizard-hat</v-icon>
-      <h2 class="mt-4">No game loaded</h2>
-      <p class="text-grey mt-2">Game code not found or invalid</p>
-      <v-btn color="primary" class="mt-4" to="/">
-        Go Home
-      </v-btn>
-    </v-card>
-  </v-container>
+      <n-card v-else style="text-align: center; padding: 64px;">
+        <n-icon :size="64" color="#999"><WizardIcon /></n-icon>
+        <h2 style="margin-top: 16px; font-size: 1.5rem;">No game loaded</h2>
+        <p style="color: #999; margin-top: 8px;">Game code not found or invalid</p>
+        <n-button type="primary" style="margin-top: 16px;" @click="$router.push('/')">
+          Go Home
+        </n-button>
+      </n-card>
+    </n-gi>
+  </n-grid>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { NGrid, NGi, NAlert, NSpin, NCard, NIcon, NTag, NDivider, NButton, NList, NListItem, NAvatar } from 'naive-ui'
+import { Sparkles as WizardIcon, Card as CardsIcon, Star as StarIcon, Gift as HandCoinIcon, Trophy as TrophyIcon, CheckmarkCircle as CheckCircleIcon, ArrowForward as ArrowForwardIcon, Flag as FlagIcon, Grid as TableIcon, Person as PersonIcon } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
 import { useWizardStore } from '@/store/wizard'
 import WizardBidDialog from './WizardBidDialog.vue'
@@ -214,14 +227,14 @@ const finalizing = ref(false)
 const game = computed(() => wizardStore.currentGame)
 const currentRound = computed(() => wizardStore.currentRoundData)
 
-const roundStatusColor = computed(() => {
-  switch (currentRound.value?.status) {
+const getRoundStatusTagType = (status?: string): 'default' | 'info' | 'success' | 'warning' | 'error' => {
+  switch (status) {
     case 'BIDDING': return 'warning'
     case 'PLAYING': return 'info'
     case 'COMPLETED': return 'success'
-    default: return 'grey'
+    default: return 'default'
   }
-})
+}
 
 const currentRoundBids = computed(() => {
   if (!currentRound.value) return []
@@ -304,8 +317,3 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-.gap-2 {
-  gap: 0.5rem;
-}
-</style>

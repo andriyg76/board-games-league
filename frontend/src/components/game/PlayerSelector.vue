@@ -1,164 +1,178 @@
 <template>
-  <v-row>
+  <n-grid :cols="24" :x-gap="16">
     <!-- Left panel: Available players -->
-    <v-col cols="12" md="6">
-      <v-card>
-        <v-card-title class="d-flex align-center">
-          <span>{{ $t('game.availablePlayers') }}</span>
-          <v-spacer />
-          <v-btn
-            size="small"
-            variant="tonal"
-            color="primary"
-            @click="showCreateDialog = true"
-          >
-            <v-icon start>mdi-plus</v-icon>
-            {{ $t('game.addVirtual') }}
-          </v-btn>
-        </v-card-title>
-        
-        <v-card-text>
-          <v-text-field
-            v-model="searchQuery"
-            :label="$t('common.search')"
-            prepend-inner-icon="mdi-magnify"
-            variant="outlined"
-            density="compact"
-            clearable
-            class="mb-2"
-          />
-          
-          <v-list density="compact" class="available-players-list">
-            <v-list-item
-              v-for="player in filteredAvailablePlayers"
-              :key="player.membership_id"
-              :class="{ 'virtual-player': player.is_virtual }"
-              @click="addPlayer(player)"
+    <n-gi :span="24" :responsive="{ m: 12 }">
+      <n-card>
+        <template #header>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span>{{ $t('game.availablePlayers') }}</span>
+            <n-button
+              size="small"
+              quaternary
+              type="primary"
+              @click="showCreateDialog = true"
             >
-              <template #prepend>
-                <v-avatar size="32" class="mr-2">
-                  <v-img v-if="player.avatar" :src="player.avatar" />
-                  <v-icon v-else>mdi-account</v-icon>
-                </v-avatar>
+              <template #icon>
+                <n-icon><AddIcon /></n-icon>
               </template>
-              
-              <v-list-item-title>
-                {{ player.alias }}
-                <v-chip v-if="player.is_virtual" size="x-small" class="ml-1">
-                  {{ $t('game.virtual') }}
-                </v-chip>
-              </v-list-item-title>
-              
-              <template #append>
-                <v-btn
-                  icon="mdi-plus"
-                  size="small"
-                  variant="text"
-                  color="primary"
-                />
-              </template>
-            </v-list-item>
+              {{ $t('game.addVirtual') }}
+            </n-button>
+          </div>
+        </template>
+        
+        <n-input
+          v-model:value="searchQuery"
+          :placeholder="$t('common.search')"
+          clearable
+          style="margin-bottom: 16px;"
+        >
+          <template #prefix>
+            <n-icon><SearchIcon /></n-icon>
+          </template>
+        </n-input>
+        
+        <n-list style="max-height: 400px; overflow-y: auto;">
+          <n-list-item
+            v-for="player in filteredAvailablePlayers"
+            :key="player.membership_id"
+            clickable
+            :style="{ opacity: player.is_virtual ? 0.8 : 1 }"
+            @click="addPlayer(player)"
+          >
+            <template #prefix>
+              <n-avatar :size="32" round>
+                <img v-if="player.avatar" :src="player.avatar" />
+                <template v-else>
+                  <n-icon><PersonIcon /></n-icon>
+                </template>
+              </n-avatar>
+            </template>
             
-            <v-list-item v-if="filteredAvailablePlayers.length === 0">
-              <v-list-item-title class="text-grey">
-                {{ $t('game.noPlayersFound') }}
-              </v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-card-text>
-      </v-card>
-    </v-col>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: 500;">{{ player.alias }}</span>
+                <n-tag v-if="player.is_virtual" size="small" type="info">
+                  {{ $t('game.virtual') }}
+                </n-tag>
+              </div>
+            </div>
+            
+            <template #suffix>
+              <n-button
+                quaternary
+                circle
+                size="small"
+                type="primary"
+              >
+                <template #icon>
+                  <n-icon><AddIcon /></n-icon>
+                </template>
+              </n-button>
+            </template>
+          </n-list-item>
+          
+          <n-list-item v-if="filteredAvailablePlayers.length === 0">
+            <div style="opacity: 0.7;">
+              {{ $t('game.noPlayersFound') }}
+            </div>
+          </n-list-item>
+        </n-list>
+      </n-card>
+    </n-gi>
     
     <!-- Right panel: Selected players -->
-    <v-col cols="12" md="6">
-      <v-card>
-        <v-card-title>
-          {{ $t('game.selectedPlayers') }}
-          <v-chip 
-            size="small" 
-            class="ml-2"
-            :color="playerCountColor"
-          >
-            {{ selectedPlayers.length }} / {{ maxPlayers }}
-          </v-chip>
-        </v-card-title>
-        
-        <v-card-text>
-          <v-alert
-            v-if="selectedPlayers.length < minPlayers"
-            type="warning"
-            density="compact"
-            class="mb-2"
-          >
-            {{ $t('game.minPlayersWarning', { min: minPlayers }) }}
-          </v-alert>
-          
-          <v-list density="compact" class="selected-players-list">
-            <v-list-item
-              v-for="(player, index) in selectedPlayers"
-              :key="player.membership_id"
-              :class="{ 
-                'selected-moderator': player.membership_id === selectedModeratorId,
-                'virtual-player': player.is_virtual 
-              }"
-              @click="toggleModerator(player)"
+    <n-gi :span="24" :responsive="{ m: 12 }">
+      <n-card>
+        <template #header>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span>{{ $t('game.selectedPlayers') }}</span>
+            <n-tag 
+              size="small" 
+              :type="playerCountTagType"
             >
-              <template #prepend>
-                <v-avatar size="32" class="mr-2">
-                  <v-img v-if="player.avatar" :src="player.avatar" />
-                  <v-icon v-else>mdi-account</v-icon>
-                </v-avatar>
-              </template>
-              
-              <v-list-item-title>
-                {{ player.alias }}
-                <v-chip 
+              {{ selectedPlayers.length }} / {{ maxPlayers }}
+            </n-tag>
+          </div>
+        </template>
+        
+        <n-alert
+          v-if="selectedPlayers.length < minPlayers"
+          type="warning"
+          size="small"
+          style="margin-bottom: 16px;"
+        >
+          {{ $t('game.minPlayersWarning', { min: minPlayers }) }}
+        </n-alert>
+        
+        <n-list style="max-height: 400px; overflow-y: auto;">
+          <n-list-item
+            v-for="(player, index) in selectedPlayers"
+            :key="player.membership_id"
+            clickable
+            :style="getPlayerItemStyle(player)"
+            @click="toggleModerator(player)"
+          >
+            <template #prefix>
+              <n-avatar :size="32" round>
+                <img v-if="player.avatar" :src="player.avatar" />
+                <template v-else>
+                  <n-icon><PersonIcon /></n-icon>
+                </template>
+              </n-avatar>
+            </template>
+            
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-weight: 500;">{{ player.alias }}</span>
+                <n-tag 
                   v-if="player.membership_id === currentPlayerMembershipId" 
-                  size="x-small" 
-                  color="primary"
-                  class="ml-1"
+                  size="small" 
+                  type="primary"
                 >
                   {{ $t('game.you') }}
-                </v-chip>
-                <v-chip v-if="player.is_virtual" size="x-small" class="ml-1">
+                </n-tag>
+                <n-tag v-if="player.is_virtual" size="small" type="info">
                   {{ $t('game.virtual') }}
-                </v-chip>
-                <v-icon 
+                </n-tag>
+                <n-icon 
                   v-if="hasModerator && player.membership_id === selectedModeratorId" 
-                  size="small" 
-                  color="warning"
-                  class="ml-1"
+                  size="16" 
+                  color="#f0a020"
                 >
-                  mdi-crown
-                </v-icon>
-              </v-list-item-title>
-              
-              <template #append>
-                <v-btn
-                  icon="mdi-close"
-                  size="small"
-                  variant="text"
-                  color="error"
-                  @click.stop="removePlayer(index)"
-                />
-              </template>
-            </v-list-item>
+                  <CrownIcon />
+                </n-icon>
+              </div>
+            </div>
             
-            <v-list-item v-if="selectedPlayers.length === 0">
-              <v-list-item-title class="text-grey">
-                {{ $t('game.noPlayersSelected') }}
-              </v-list-item-title>
-            </v-list-item>
-          </v-list>
+            <template #suffix>
+              <n-button
+                quaternary
+                circle
+                size="small"
+                type="error"
+                @click.stop="removePlayer(index)"
+              >
+                <template #icon>
+                  <n-icon><CloseIcon /></n-icon>
+                </template>
+              </n-button>
+            </template>
+          </n-list-item>
           
-          <div v-if="hasModerator" class="mt-2 text-caption text-grey">
-            <v-icon size="small">mdi-information</v-icon>
-            {{ $t('game.clickToSelectModerator') }}
-          </div>
-        </v-card-text>
-      </v-card>
-    </v-col>
-  </v-row>
+          <n-list-item v-if="selectedPlayers.length === 0">
+            <div style="opacity: 0.7;">
+              {{ $t('game.noPlayersSelected') }}
+            </div>
+          </n-list-item>
+        </n-list>
+        
+        <div v-if="hasModerator" style="margin-top: 16px; font-size: 0.875rem; opacity: 0.7; display: flex; align-items: center; gap: 4px;">
+          <n-icon size="16"><InformationIcon /></n-icon>
+          {{ $t('game.clickToSelectModerator') }}
+        </div>
+      </n-card>
+    </n-gi>
+  </n-grid>
   
   <!-- Create virtual player dialog -->
   <CreateVirtualPlayerDialog
@@ -170,6 +184,15 @@
 
 <script lang="ts" setup>
 import { ref, computed, watch } from 'vue';
+import { NGrid, NGi, NCard, NList, NListItem, NAvatar, NIcon, NButton, NTag, NInput, NAlert } from 'naive-ui';
+import { 
+  Add as AddIcon,
+  Search as SearchIcon,
+  Person as PersonIcon,
+  Close as CloseIcon,
+  Star as CrownIcon,
+  Information as InformationIcon
+} from '@vicons/ionicons5';
 import { SuggestedPlayer, SuggestedPlayersResponse } from '@/api/LeagueApi';
 import CreateVirtualPlayerDialog from './CreateVirtualPlayerDialog.vue';
 
@@ -230,13 +253,27 @@ const filteredAvailablePlayers = computed(() => {
   );
 });
 
-// Player count color based on min/max
-const playerCountColor = computed(() => {
+// Player count tag type based on min/max
+const playerCountTagType = computed<'success' | 'warning' | 'error' | 'info'>(() => {
   const count = selectedPlayers.value.length;
   if (count < props.minPlayers) return 'warning';
   if (count > props.maxPlayers) return 'error';
   return 'success';
 });
+
+// Get style for player item
+const getPlayerItemStyle = (player: SuggestedPlayer) => {
+  const style: Record<string, any> = {
+    opacity: player.is_virtual ? 0.8 : 1,
+  };
+  
+  if (props.hasModerator && player.membership_id === selectedModeratorId.value) {
+    style.backgroundColor = 'rgba(240, 160, 32, 0.1)';
+    style.borderLeft = '3px solid #f0a020';
+  }
+  
+  return style;
+};
 
 // Add player to selection
 const addPlayer = (player: SuggestedPlayer) => {
@@ -313,20 +350,3 @@ defineExpose({
   getModeratorId: () => selectedModeratorId.value,
 });
 </script>
-
-<style scoped>
-.available-players-list,
-.selected-players-list {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.virtual-player {
-  opacity: 0.8;
-}
-
-.selected-moderator {
-  background-color: rgba(var(--v-theme-warning), 0.1);
-  border-left: 3px solid rgb(var(--v-theme-warning));
-}
-</style>

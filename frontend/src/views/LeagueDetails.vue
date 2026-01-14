@@ -1,160 +1,137 @@
 <template>
-  <v-container>
-    <v-row v-if="loading">
-      <v-col cols="12" class="text-center">
-        <v-progress-circular indeterminate color="primary" size="64" />
-      </v-col>
-    </v-row>
+  <div>
+    <n-spin v-if="loading" size="large" style="display: flex; justify-content: center; padding: 64px;" />
 
-    <v-row v-else-if="error">
-      <v-col cols="12">
-        <v-alert type="error" variant="tonal">
-          {{ error }}
-        </v-alert>
-      </v-col>
-    </v-row>
+    <n-alert v-else-if="error" type="error" style="margin-bottom: 16px;">
+      {{ error }}
+    </n-alert>
 
     <template v-else-if="currentLeague">
-      <v-row>
-        <v-col cols="12">
-          <v-card elevation="2">
-            <v-card-title>
-              <v-row align="center">
-                <v-col>
-                  <div class="d-flex align-center">
-                    <v-icon size="large" class="mr-3">mdi-trophy</v-icon>
-                    <div>
-                      <div class="text-h4">{{ currentLeague.name }}</div>
-                      <v-chip
-                        :color="currentLeague.status === 'active' ? 'success' : 'grey'"
-                        size="small"
-                        class="mt-2"
-                      >
-                        {{ currentLeague.status === 'active' ? t('leagues.active') : t('leagues.archived') }}
-                      </v-chip>
-                    </div>
+      <n-grid :cols="24" :x-gap="16">
+        <n-gi :span="24">
+          <n-card>
+            <template #header>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <n-icon size="32" color="#18a058">
+                    <TrophyIcon />
+                  </n-icon>
+                  <div>
+                    <div style="font-size: 1.5rem; font-weight: 500;">{{ currentLeague.name }}</div>
+                    <n-tag :type="currentLeague.status === 'active' ? 'success' : 'default'" size="small" style="margin-top: 8px;">
+                      {{ currentLeague.status === 'active' ? t('leagues.active') : t('leagues.archived') }}
+                    </n-tag>
                   </div>
-                </v-col>
-                <v-col cols="auto">
-                  <v-btn
-                    v-if="canManageLeague"
-                    icon
-                    @click="showManageMenu = !showManageMenu"
-                  >
-                    <v-icon>mdi-dots-vertical</v-icon>
-                  </v-btn>
-                  <v-menu v-model="showManageMenu" :close-on-content-click="true">
-                    <template v-slot:activator="{ props }">
-                      <div v-bind="props"></div>
+                </div>
+                <n-dropdown
+                  v-if="canManageLeague"
+                  :options="manageOptions"
+                  trigger="click"
+                  @select="handleManageAction"
+                >
+                  <n-button quaternary circle>
+                    <template #icon>
+                      <n-icon><MoreVerticalIcon /></n-icon>
                     </template>
-                    <v-list>
-                      <v-list-item
-                        v-if="currentLeague.status === 'active'"
-                        @click="archiveLeague"
-                      >
-                        <template v-slot:prepend>
-                          <v-icon>mdi-archive</v-icon>
-                        </template>
-                        <v-list-item-title>{{ t('leagues.archive') }}</v-list-item-title>
-                      </v-list-item>
-                      <v-list-item
-                        v-else
-                        @click="unarchiveLeague"
-                      >
-                        <template v-slot:prepend>
-                          <v-icon>mdi-archive-arrow-up</v-icon>
-                        </template>
-                        <v-list-item-title>{{ t('leagues.unarchive') }}</v-list-item-title>
-                      </v-list-item>
-                    </v-list>
-                  </v-menu>
-                </v-col>
-              </v-row>
-            </v-card-title>
-            <v-divider />
+                  </n-button>
+                </n-dropdown>
+              </div>
+            </template>
 
-            <v-tabs v-model="activeTab" bg-color="transparent">
-              <v-tab value="standings">
-                <v-icon start>mdi-chart-line</v-icon>
-                {{ t('leagues.standings') }}
-              </v-tab>
-              <v-tab value="members">
-                <v-icon start>mdi-account-group</v-icon>
-                {{ t('leagues.members') }} ({{ members.length }})
-              </v-tab>
-              <v-tab value="invitation">
-                <v-icon start>mdi-account-plus</v-icon>
-                {{ t('leagues.invitation') }}
-              </v-tab>
-            </v-tabs>
+            <n-tabs v-model:value="activeTab" type="line">
+              <n-tab name="standings">
+                <template #tab>
+                  <n-icon style="margin-right: 4px; vertical-align: middle;"><ChartLineIcon /></n-icon>
+                  {{ t('leagues.standings') }}
+                </template>
+                <league-standings :standings="standings" />
+              </n-tab>
 
-            <v-card-text>
-              <v-window v-model="activeTab">
-                <v-window-item value="standings">
-                  <league-standings :standings="standings" />
-                </v-window-item>
+              <n-tab name="members">
+                <template #tab>
+                  <n-icon style="margin-right: 4px; vertical-align: middle;"><PeopleIcon /></n-icon>
+                  {{ t('leagues.members') }} ({{ members.length }})
+                </template>
+                <n-list>
+                  <n-list-item
+                    v-for="member in members"
+                    :key="member.code"
+                  >
+                    <template #prefix>
+                      <n-avatar v-if="member.user_avatar" :src="member.user_avatar" round />
+                      <n-avatar v-else color="#f0a020" round>
+                        <n-icon><PersonClockIcon /></n-icon>
+                      </n-avatar>
+                    </template>
 
-                <v-window-item value="members">
-                  <v-list>
-                    <v-list-item
-                      v-for="member in members"
-                      :key="member.code"
-                    >
-                      <template v-slot:prepend>
-                        <v-avatar v-if="member.user_avatar" :image="member.user_avatar" />
-                        <v-avatar v-else color="warning">
-                          <v-icon>mdi-account-clock</v-icon>
-                        </v-avatar>
-                      </template>
-
-                      <v-list-item-title>
+                    <div>
+                      <div style="font-weight: 500;">
                         {{ member.alias || member.user_name }}
-                        <span v-if="member.alias && member.user_name && member.alias !== member.user_name" class="text-caption text-medium-emphasis ml-2">
+                        <span v-if="member.alias && member.user_name && member.alias !== member.user_name" style="font-size: 0.875rem; opacity: 0.7; margin-left: 8px;">
                           ({{ member.user_name }})
                         </span>
-                      </v-list-item-title>
-                      <v-list-item-subtitle>
+                      </div>
+                      <div style="font-size: 0.875rem; opacity: 0.7; margin-top: 4px;">
                         <template v-if="member.status === 'pending'">
                           {{ t('leagues.awaitingJoin') }}
                         </template>
                         <template v-else>
                           {{ t('leagues.joined') }} {{ formatDate(member.joined_at) }}
                         </template>
-                      </v-list-item-subtitle>
+                      </div>
+                    </div>
 
-                      <template v-slot:append>
-                        <v-chip
-                          :color="getMemberStatusColor(member.status)"
-                          size="small"
-                        >
+                    <template #suffix>
+                      <n-space :size="8">
+                        <n-tag :type="getMemberStatusTagType(member.status)" size="small">
                           {{ getMemberStatusText(member.status) }}
-                        </v-chip>
-                        <v-btn
+                        </n-tag>
+                        <n-button
                           v-if="canManageLeague && member.status === 'active'"
-                          icon="mdi-block-helper"
+                          quaternary
+                          circle
                           size="small"
-                          variant="text"
                           @click="banMember(member)"
-                        />
-                      </template>
-                    </v-list-item>
-                  </v-list>
-                </v-window-item>
+                        >
+                          <template #icon>
+                            <n-icon><BlockIcon /></n-icon>
+                          </template>
+                        </n-button>
+                      </n-space>
+                    </template>
+                  </n-list-item>
+                </n-list>
+              </n-tab>
 
-                <v-window-item value="invitation">
-                  <league-invitation :league-code="currentLeague.code" />
-                </v-window-item>
-              </v-window>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
+              <n-tab name="invitation">
+                <template #tab>
+                  <n-icon style="margin-right: 4px; vertical-align: middle;"><PersonAddIcon /></n-icon>
+                  {{ t('leagues.invitation') }}
+                </template>
+                <league-invitation :league-code="currentLeague.code" />
+              </n-tab>
+            </n-tabs>
+          </n-card>
+        </n-gi>
+      </n-grid>
     </template>
-  </v-container>
+  </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, h } from 'vue';
+import { NGrid, NGi, NCard, NIcon, NTabs, NTab, NTag, NButton, NDropdown, NList, NListItem, NAvatar, NSpace, NSpin, NAlert } from 'naive-ui';
+import { 
+  Trophy as TrophyIcon,
+  EllipsisVertical as MoreVerticalIcon,
+  TrendingUp as ChartLineIcon,
+  People as PeopleIcon,
+  PersonAdd as PersonAddIcon,
+  Archive as ArchiveIcon,
+  ArchiveOutline as ArchiveArrowUpIcon,
+  Time as PersonClockIcon,
+  Ban as BlockIcon
+} from '@vicons/ionicons5';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
@@ -169,7 +146,6 @@ const leagueStore = useLeagueStore();
 const userStore = useUserStore();
 
 const activeTab = ref('standings');
-const showManageMenu = ref(false);
 
 const canManageLeague = computed(() => userStore.isSuperAdmin);
 
@@ -178,6 +154,28 @@ const error = computed(() => leagueStore.errorMessage);
 const currentLeague = computed(() => leagueStore.currentLeague);
 const members = computed(() => leagueStore.currentLeagueMembers);
 const standings = computed(() => leagueStore.currentLeagueStandings);
+
+const manageOptions = computed(() => {
+  if (!currentLeague.value) return [];
+  
+  if (currentLeague.value.status === 'active') {
+    return [
+      {
+        label: t('leagues.archive'),
+        key: 'archive',
+        icon: () => h(NIcon, null, { default: () => h(ArchiveIcon) }),
+      },
+    ];
+  } else {
+    return [
+      {
+        label: t('leagues.unarchive'),
+        key: 'unarchive',
+        icon: () => h(NIcon, null, { default: () => h(ArchiveArrowUpIcon) }),
+      },
+    ];
+  }
+});
 
 const formatDate = (dateStr: string) => {
   const localeMap: Record<string, string> = { 'uk': 'uk-UA', 'en': 'en-US', 'et': 'et-EE' };
@@ -188,12 +186,12 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-const getMemberStatusColor = (status: string) => {
+const getMemberStatusTagType = (status: string): 'success' | 'warning' | 'error' | 'default' => {
   switch (status) {
     case 'active': return 'success';
     case 'pending': return 'warning';
     case 'banned': return 'error';
-    default: return 'grey';
+    default: return 'default';
   }
 };
 
@@ -203,6 +201,14 @@ const getMemberStatusText = (status: string) => {
     case 'pending': return t('leagues.pendingMember');
     case 'banned': return t('leagues.memberBanned');
     default: return status;
+  }
+};
+
+const handleManageAction = (key: string) => {
+  if (key === 'archive') {
+    archiveLeague();
+  } else if (key === 'unarchive') {
+    unarchiveLeague();
   }
 };
 
