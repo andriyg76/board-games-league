@@ -77,6 +77,21 @@ export interface AcceptInvitationError {
     league_code?: string;
 }
 
+// Suggested players for game creation
+export interface SuggestedPlayer {
+    membership_id: string;
+    alias: string;
+    avatar?: string;
+    last_played_at?: string;
+    is_virtual: boolean;
+}
+
+export interface SuggestedPlayersResponse {
+    current_player: SuggestedPlayer | null;
+    recent_players: SuggestedPlayer[];
+    other_players: SuggestedPlayer[];
+}
+
 export default {
     /**
      * Create a new league (superadmin only)
@@ -303,5 +318,17 @@ export default {
         if (!response.ok) {
             throw new Error('Failed to unarchive league');
         }
+    },
+
+    /**
+     * Get suggested players for game creation
+     * Returns current player, recent co-players, and other league members
+     */
+    async getSuggestedPlayers(leagueCode: string): Promise<SuggestedPlayersResponse> {
+        const response = await apiFetch(`/api/leagues/${leagueCode}/suggested-players`);
+        if (!response.ok) {
+            throw new Error('Failed to get suggested players');
+        }
+        return await response.json();
     },
 };
