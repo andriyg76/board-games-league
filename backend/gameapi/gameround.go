@@ -352,6 +352,26 @@ func (h *Handler) finalizeGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update recent co-players cache for all players (if game is in a league)
+	if !round.LeagueID.IsZero() {
+		playerMembershipIDs := make([]primitive.ObjectID, 0, len(round.Players))
+		for _, player := range round.Players {
+			if !player.MembershipID.IsZero() {
+				playerMembershipIDs = append(playerMembershipIDs, player.MembershipID)
+			}
+		}
+		if len(playerMembershipIDs) > 0 {
+			// Update in background, don't fail the request if this fails
+			go func() {
+				ctx := context.Background()
+				if err := h.leagueService.UpdatePlayersAfterGame(ctx, playerMembershipIDs); err != nil {
+					// Log error but don't fail the request
+					fmt.Printf("Failed to update players after game: %v\n", err)
+				}
+			}()
+		}
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 

@@ -19,9 +19,13 @@ type LeagueMembershipRepository interface {
 	FindByLeagueAndAlias(ctx context.Context, leagueID primitive.ObjectID, alias string) (*models.LeagueMembership, error)
 	FindByLeague(ctx context.Context, leagueID primitive.ObjectID) ([]*models.LeagueMembership, error)
 	FindByUser(ctx context.Context, userID primitive.ObjectID) ([]*models.LeagueMembership, error)
+	FindByLeagueSortedByActivity(ctx context.Context, leagueID primitive.ObjectID, excludeIDs []primitive.ObjectID, limit int) ([]*models.LeagueMembership, error)
 	Update(ctx context.Context, membership *models.LeagueMembership) error
 	Delete(ctx context.Context, id primitive.ObjectID) error
 	IsActiveMember(ctx context.Context, leagueID, userID primitive.ObjectID) (bool, error)
+	UpdateLastActivity(ctx context.Context, membershipID primitive.ObjectID, timestamp time.Time) error
+	AddRecentCoPlayer(ctx context.Context, membershipID primitive.ObjectID, coPlayerMembershipID primitive.ObjectID, timestamp time.Time) error
+	UpdateRecentCoPlayersAfterGame(ctx context.Context, membershipID primitive.ObjectID, coPlayerIDs []primitive.ObjectID, timestamp time.Time) error
 }
 
 type LeagueMembershipRepositoryInstance struct {
@@ -52,6 +56,9 @@ func ensureLeagueMembershipIndexes(r *LeagueMembershipRepositoryInstance) error 
 		},
 		{
 			Keys: bson.D{{"league_id", 1}, {"status", 1}},
+		},
+		{
+			Keys: bson.D{{"league_id", 1}, {"last_activity_at", -1}},
 		},
 	})
 	return err
@@ -199,5 +206,154 @@ func (r *LeagueMembershipRepositoryInstance) FindByLeagueAndAlias(ctx context.Co
 
 func (r *LeagueMembershipRepositoryInstance) Delete(ctx context.Context, id primitive.ObjectID) error {
 	_, err := r.collection.DeleteOne(ctx, bson.M{"_id": id})
+	return err
+}
+
+// FindByLeagueSortedByActivity returns league members sorted by last_activity_at DESC, with nulls last
+func (r *LeagueMembershipRepositoryInstance) FindByLeagueSortedByActivity(ctx context.Context, leagueID primitive.ObjectID, excludeIDs []primitive.ObjectID, limit int) ([]*models.LeagueMembership, error) {
+	filter := bson.M{
+		"league_id": leagueID,
+		"status": bson.M{
+			"$in": []models.LeagueMembershipStatus{
+				models.MembershipActive,
+				models.MembershipPending,
+				models.MembershipVirtual,
+			},
+		},
+	}
+
+	if len(excludeIDs) > 0 {
+		filter["_id"] = bson.M{"$nin": excludeIDs}
+	}
+
+	// Sort by last_activity_at DESC, with null values last
+	// MongoDB sorts nulls first with -1, so we use aggregation
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: filter}},
+		{{Key: "$addFields", Value: bson.M{
+			"has_activity": bson.M{"$gt": bson.A{"$last_activity_at", nil}},
+		}}},
+		{{Key: "$sort", Value: bson.D{
+			{Key: "has_activity", Value: -1},
+			{Key: "last_activity_at", Value: -1},
+			{Key: "created_at", Value: -1},
+		}}},
+		{{Key: "$limit", Value: limit}},
+	}
+
+	cursor, err := r.collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var memberships []*models.LeagueMembership
+	if err := cursor.All(ctx, &memberships); err != nil {
+		return nil, err
+	}
+
+	return memberships, nil
+}
+
+// UpdateLastActivity updates the last_activity_at field
+func (r *LeagueMembershipRepositoryInstance) UpdateLastActivity(ctx context.Context, membershipID primitive.ObjectID, timestamp time.Time) error {
+	filter := bson.M{"_id": membershipID}
+	update := bson.M{
+		"$set": bson.M{
+			"last_activity_at": timestamp,
+			"updated_at":       time.Now(),
+		},
+	}
+
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+// AddRecentCoPlayer adds a co-player to the recent_co_players list (at the end, max 10)
+func (r *LeagueMembershipRepositoryInstance) AddRecentCoPlayer(ctx context.Context, membershipID primitive.ObjectID, coPlayerMembershipID primitive.ObjectID, timestamp time.Time) error {
+	// First, remove if already exists
+	filter := bson.M{"_id": membershipID}
+	pullUpdate := bson.M{
+		"$pull": bson.M{
+			"recent_co_players": bson.M{"membership_id": coPlayerMembershipID},
+		},
+	}
+	_, _ = r.collection.UpdateOne(ctx, filter, pullUpdate)
+
+	// Then add to the end
+	pushUpdate := bson.M{
+		"$push": bson.M{
+			"recent_co_players": bson.M{
+				"$each":     []models.RecentCoPlayer{{MembershipID: coPlayerMembershipID, LastPlayedAt: timestamp}},
+				"$position": 0, // Add at the beginning (most recent first)
+				"$slice":    models.MaxRecentCoPlayers,
+			},
+		},
+		"$set": bson.M{
+			"updated_at": time.Now(),
+		},
+	}
+
+	_, err := r.collection.UpdateOne(ctx, filter, pushUpdate)
+	return err
+}
+
+// UpdateRecentCoPlayersAfterGame updates recent_co_players after a game finishes
+// It adds all co-players with the given timestamp, keeping max 10 sorted by LastPlayedAt DESC
+func (r *LeagueMembershipRepositoryInstance) UpdateRecentCoPlayersAfterGame(ctx context.Context, membershipID primitive.ObjectID, coPlayerIDs []primitive.ObjectID, timestamp time.Time) error {
+	// Get current membership
+	membership, err := r.FindByID(ctx, membershipID)
+	if err != nil {
+		return err
+	}
+	if membership == nil {
+		return errors.New("membership not found")
+	}
+
+	// Build new list of co-players
+	existingMap := make(map[primitive.ObjectID]models.RecentCoPlayer)
+	for _, cp := range membership.RecentCoPlayers {
+		existingMap[cp.MembershipID] = cp
+	}
+
+	// Update/add co-players from this game
+	for _, cpID := range coPlayerIDs {
+		existingMap[cpID] = models.RecentCoPlayer{
+			MembershipID: cpID,
+			LastPlayedAt: timestamp,
+		}
+	}
+
+	// Convert to slice and sort by LastPlayedAt DESC
+	newList := make([]models.RecentCoPlayer, 0, len(existingMap))
+	for _, cp := range existingMap {
+		newList = append(newList, cp)
+	}
+
+	// Sort by LastPlayedAt DESC
+	for i := 0; i < len(newList)-1; i++ {
+		for j := i + 1; j < len(newList); j++ {
+			if newList[j].LastPlayedAt.After(newList[i].LastPlayedAt) {
+				newList[i], newList[j] = newList[j], newList[i]
+			}
+		}
+	}
+
+	// Trim to max size
+	if len(newList) > models.MaxRecentCoPlayers {
+		newList = newList[:models.MaxRecentCoPlayers]
+	}
+
+	// Update the document
+	filter := bson.M{"_id": membershipID}
+	update := bson.M{
+		"$set": bson.M{
+			"recent_co_players": newList,
+			"last_activity_at":  timestamp,
+			"updated_at":        time.Now(),
+		},
+	}
+
+	_, err = r.collection.UpdateOne(ctx, filter, update)
 	return err
 }

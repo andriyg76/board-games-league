@@ -2,6 +2,8 @@ package mocks
 
 import (
 	"context"
+	"time"
+
 	"github.com/andriyg76/bgl/models"
 	mock2 "github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -74,5 +76,29 @@ func (m *MockLeagueMembershipRepository) FindByLeagueAndAlias(ctx context.Contex
 
 func (m *MockLeagueMembershipRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
 	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockLeagueMembershipRepository) FindByLeagueSortedByActivity(ctx context.Context, leagueID primitive.ObjectID, excludeIDs []primitive.ObjectID, limit int) ([]*models.LeagueMembership, error) {
+	args := m.Called(ctx, leagueID, excludeIDs, limit)
+	memberships := args.Get(0)
+	if memberships == nil {
+		return nil, args.Error(1)
+	}
+	return memberships.([]*models.LeagueMembership), args.Error(1)
+}
+
+func (m *MockLeagueMembershipRepository) UpdateLastActivity(ctx context.Context, membershipID primitive.ObjectID, timestamp time.Time) error {
+	args := m.Called(ctx, membershipID, timestamp)
+	return args.Error(0)
+}
+
+func (m *MockLeagueMembershipRepository) AddRecentCoPlayer(ctx context.Context, membershipID primitive.ObjectID, coPlayerMembershipID primitive.ObjectID, timestamp time.Time) error {
+	args := m.Called(ctx, membershipID, coPlayerMembershipID, timestamp)
+	return args.Error(0)
+}
+
+func (m *MockLeagueMembershipRepository) UpdateRecentCoPlayersAfterGame(ctx context.Context, membershipID primitive.ObjectID, coPlayerIDs []primitive.ObjectID, timestamp time.Time) error {
+	args := m.Called(ctx, membershipID, coPlayerIDs, timestamp)
 	return args.Error(0)
 }
