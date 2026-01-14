@@ -3,6 +3,9 @@ package gameapi
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/services"
@@ -10,7 +13,6 @@ import (
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"net/http"
 )
 
 // POST /api/leagues - Create league (superadmin only)
@@ -683,6 +685,117 @@ func getIDFromURL(r *http.Request, paramName string) (primitive.ObjectID, error)
 	}
 
 	return id, nil
+}
+
+// GET /api/leagues/:code/game_rounds - List game rounds for league
+func (h *Handler) listLeagueGameRounds(w http.ResponseWriter, r *http.Request) {
+	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	if err != nil {
+		http.Error(w, "Invalid league code", http.StatusBadRequest)
+		return
+	}
+
+	// Check for status filter
+	statusFilter := r.URL.Query().Get("status")
+	activeOnly := r.URL.Query().Get("active") == "true"
+
+	var rounds []*models.GameRound
+
+	if activeOnly {
+		rounds, err = h.gameRoundRepository.FindActiveByLeague(r.Context(), leagueID)
+	} else if statusFilter != "" {
+		status := models.GameRoundStatus(statusFilter)
+		if !status.IsValidStatus() {
+			http.Error(w, "Invalid status filter", http.StatusBadRequest)
+			return
+		}
+		rounds, err = h.gameRoundRepository.FindByLeagueAndStatus(r.Context(), leagueID, []models.GameRoundStatus{status})
+	} else {
+		rounds, err = h.gameRoundRepository.FindByLeague(r.Context(), leagueID)
+	}
+
+	if err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to list game rounds")
+		return
+	}
+
+	utils.WriteJSON(w, rounds, http.StatusOK)
+}
+
+// createLeagueGameRoundRequest - запит на створення раунду в лізі
+type createLeagueGameRoundRequest struct {
+	Name      string        `json:"name"`
+	Type      string        `json:"type" validate:"required"`
+	Players   []playerSetup `json:"players" validate:"required,min=1"`
+}
+
+// POST /api/leagues/:code/game_rounds - Create game round in league
+func (h *Handler) createLeagueGameRound(w http.ResponseWriter, r *http.Request) {
+	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	if err != nil {
+		http.Error(w, "Invalid league code", http.StatusBadRequest)
+		return
+	}
+
+	var req createLeagueGameRoundRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Get game type
+	gameType, err := h.gameTypeRepository.FindByKey(r.Context(), req.Type)
+	if gameType == nil || err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error fetching game type: "+req.Type)
+		return
+	}
+
+	// Build players list
+	players := make([]models.GameRoundPlayer, 0, len(req.Players))
+	for _, p := range req.Players {
+		player := models.GameRoundPlayer{
+			Position:    p.Position,
+			IsModerator: p.IsModerator,
+			TeamName:    p.TeamName,
+		}
+
+		if !p.MembershipID.IsZero() {
+			player.MembershipID = p.MembershipID
+		} else {
+			http.Error(w, "membership_id is required for each player", http.StatusBadRequest)
+			return
+		}
+
+		players = append(players, player)
+	}
+
+	// Create team scores if game type has team roles
+	var teamScores []models.TeamScore
+	for i, role := range gameType.Roles {
+		if role.RoleType == models.RoleTypeMultiple {
+			teamScores = append(teamScores, models.TeamScore{
+				Name:     role.Key,
+				Position: i + 1,
+			})
+		}
+	}
+
+	round := &models.GameRound{
+		Name:       req.Name,
+		GameTypeID: gameType.ID,
+		LeagueID:   leagueID,
+		Status:     models.StatusPlayersSelected,
+		StartTime:  time.Now(),
+		Players:    players,
+		TeamScores: teamScores,
+	}
+
+	if err := h.gameRoundRepository.Create(r.Context(), round); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, round, http.StatusCreated)
 }
 
 // GET /api/leagues/:code/suggested-players - Get suggested players for game creation

@@ -5,6 +5,38 @@ import (
 	"time"
 )
 
+// GameRoundStatus визначає статус раунду гри
+type GameRoundStatus string
+
+const (
+	// StatusPlayersSelected - гравці обрані, гра не почалась
+	StatusPlayersSelected GameRoundStatus = "players_selected"
+	// StatusInProgress - гра в процесі (ролі призначаються)
+	StatusInProgress GameRoundStatus = "in_progress"
+	// StatusScoring - введення очок
+	StatusScoring GameRoundStatus = "scoring"
+	// StatusCompleted - гра завершена
+	StatusCompleted GameRoundStatus = "completed"
+)
+
+// ValidGameRoundStatuses - список валідних статусів
+var ValidGameRoundStatuses = []GameRoundStatus{
+	StatusPlayersSelected,
+	StatusInProgress,
+	StatusScoring,
+	StatusCompleted,
+}
+
+// IsValidStatus перевіряє чи є статус валідним
+func (s GameRoundStatus) IsValidStatus() bool {
+	for _, valid := range ValidGameRoundStatuses {
+		if s == valid {
+			return true
+		}
+	}
+	return false
+}
+
 type GameRoundPlayer struct {
 	IsModerator  bool               `bson:"is_moderator"`
 	TeamName     string             `bson:"team_name,omitempty"`
@@ -29,6 +61,7 @@ type GameRound struct {
 	LeagueID         primitive.ObjectID `bson:"league_id,omitempty"`
 	Name             string             `bson:"name"`
 	GameTypeID       primitive.ObjectID `bson:"game_type_id,omitempty"`
+	Status           GameRoundStatus    `bson:"status" json:"status"`
 	StartTime        time.Time          `bson:"start_time"`
 	EndTime          time.Time          `bson:"end_time"`
 	Players          []GameRoundPlayer  `bson:"players"`

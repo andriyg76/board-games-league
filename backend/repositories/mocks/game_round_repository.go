@@ -54,3 +54,24 @@ func (m *MockGameRoundRepository) HasGamesForMembership(ctx context.Context, mem
 	args := m.Called(ctx, membershipID)
 	return args.Bool(0), args.Error(1)
 }
+
+func (m *MockGameRoundRepository) FindByLeagueAndStatus(ctx context.Context, leagueID primitive.ObjectID, statuses []models.GameRoundStatus) ([]*models.GameRound, error) {
+	args := m.Called(ctx, leagueID, statuses)
+	if rounds := args.Get(0); rounds != nil {
+		return rounds.([]*models.GameRound), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *MockGameRoundRepository) FindActiveByLeague(ctx context.Context, leagueID primitive.ObjectID) ([]*models.GameRound, error) {
+	args := m.Called(ctx, leagueID)
+	if rounds := args.Get(0); rounds != nil {
+		return rounds.([]*models.GameRound), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *MockGameRoundRepository) UpdateStatus(ctx context.Context, id primitive.ObjectID, status models.GameRoundStatus, version int64) error {
+	args := m.Called(ctx, id, status, version)
+	return args.Error(0)
+}
