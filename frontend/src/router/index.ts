@@ -56,11 +56,17 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/ui/game-rounds/new',
     name: 'NewGameRound',
-    component: () => import('@/gametypes/GameroundEdit.vue')
+    component: () => import('@/gametypes/GameRoundWizard.vue')
   },
   {
     path: '/ui/game-rounds/:id',
     name: 'EditGameRound',
+    component: () => import('@/gametypes/GameRoundWizard.vue'),
+    props: true
+  },
+  {
+    path: '/ui/game-rounds/:id/edit',
+    name: 'EditCompletedGameRound',
     component: () => import('@/gametypes/GameroundEdit.vue'),
     props: true
   },

@@ -202,6 +202,7 @@ const messages = {
             enterScores: 'Enter Scores',
             saveRoles: 'Save Roles',
             finishGame: 'Finish Game',
+            position: 'Position',
         },
         wizard: {
             newGame: 'New Wizard Game',

@@ -153,7 +153,8 @@ const continueRound = (round: GameRoundView) => {
 };
 
 const editRound = (round: GameRoundView) => {
-  router.push({ name: 'EditGameRound', params: { id: round.code }});
+  // Use edit page for completed rounds
+  router.push({ name: 'EditCompletedGameRound', params: { id: round.code }});
 };
 
 const createNewRound = () => {
