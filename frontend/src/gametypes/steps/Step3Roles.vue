@@ -45,7 +45,7 @@
               <td v-if="hasModerator">
                 <v-checkbox
                   :model-value="player.is_moderator"
-                  @update:model-value="$emit('updateModerator', index, $event)"
+                  @update:model-value="$emit('updateModerator', index, !!$event)"
                   hide-details
                   density="compact"
                 />

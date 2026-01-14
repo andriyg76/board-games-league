@@ -53,8 +53,10 @@ defineProps<{
   canProceed: boolean;
 }>();
 
+import type { SuggestedPlayer } from '@/api/LeagueApi';
+
 defineEmits<{
-  'update:selectedPlayers': [players: unknown[]];
+  'update:selectedPlayers': [players: SuggestedPlayer[]];
   'update:moderatorId': [moderatorId: string | null];
   back: [];
   next: [];

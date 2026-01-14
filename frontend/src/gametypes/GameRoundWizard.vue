@@ -31,8 +31,8 @@
               :loading="loadingSuggested"
               :saving="saving"
               :can-proceed="canProceedFromStep2"
-              @update:selectedPlayers="onPlayersSelected"
-              @update:moderatorId="onModeratorSelected"
+              @update:selected-players="onPlayersSelected"
+              @update:moderator-id="onModeratorSelected"
               @back="step = 1"
               @next="goToStep3"
             />
