@@ -17,26 +17,63 @@ export const ScoringTypes: Record<ScoringType, string> = {
     team_vs_team: "Team vs Team"
 }
 
+export type RoleType =
+    | 'optional'       // 0+ гравців
+    | 'optional_one'   // 0-1 гравець
+    | 'exactly_one'    // рівно 1 гравець
+    | 'required'       // 1+ гравців
+    | 'multiple'       // 2+ гравців
+    | 'moderator';     // модератор гри
+
+export const RoleTypes: Record<RoleType, string> = {
+    optional: "Optional (0+)",
+    optional_one: "Optional, max one (0-1)",
+    exactly_one: "Exactly one (1)",
+    required: "Required (1+)",
+    multiple: "Multiple required (2+)",
+    moderator: "Moderator (1)"
+}
+
+export interface LocalizedNames {
+    [lang: string]: string;
+}
+
+export interface Role {
+    key: string;
+    names: LocalizedNames;
+    color: string;
+    icon: string;
+    role_type: RoleType;
+}
+
+export interface GameType {
+    code: string;
+    key: string;
+    names: LocalizedNames;
+    icon: string;
+    scoring_type: ScoringType;
+    roles: Role[];
+    min_players: number;
+    max_players: number;
+    built_in: boolean;
+    version: number;
+}
+
+// Helper function to get localized name
+export function getLocalizedName(names: LocalizedNames | undefined, lang: string = 'en'): string {
+    if (!names) return '';
+    return names[lang] || names['en'] || Object.values(names)[0] || '';
+}
+
+// Deprecated - for backwards compatibility
 export interface Label {
     name: string;
     color: string;
     icon: string;
 }
 
-export interface GameType {
-    code: string;
-    version: number;
-    name: string;
-    icon: string;
-    labels: Label[];
-    teams: Label[];
-    min_players: number;
-    max_players: number;
-    scoring_type: ScoringType;
-}
-
 export default {
-    async getGameTypes() {
+    async getGameTypes(): Promise<GameType[]> {
         try {
             const response = await apiFetch(`/api/game_types`);
             if (!response.ok) {
@@ -49,7 +86,20 @@ export default {
         }
     },
 
-    async createGameType(gameType: GameType) {
+    async getGameType(code: string): Promise<GameType> {
+        try {
+            const response = await apiFetch(`/api/game_types/${code}`);
+            if (!response.ok) {
+                throw new Error('Error fetching game type');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching game type:', error);
+            throw error;
+        }
+    },
+
+    async createGameType(gameType: Partial<GameType>): Promise<GameType> {
         try {
             const response = await apiFetch(`/api/game_types`, {
                 method: 'POST',
@@ -68,7 +118,7 @@ export default {
         }
     },
 
-    async updateGameType(code: string, gameType: GameType) {
+    async updateGameType(code: string, gameType: Partial<GameType>): Promise<GameType> {
         try {
             console.debug("Storing gametype", gameType)
             const response = await apiFetch(`/api/game_types/${code}`, {
@@ -88,12 +138,15 @@ export default {
         }
     },
 
-    async deleteGameType(code: string) {
+    async deleteGameType(code: string): Promise<void> {
         try {
             const response = await apiFetch(`/api/game_types/${code}`, {
                 method: 'DELETE',
             });
             if (!response.ok) {
+                if (response.status === 403) {
+                    throw new Error('Cannot delete built-in game type');
+                }
                 throw new Error('Error deleting game type');
             }
         } catch (error) {
