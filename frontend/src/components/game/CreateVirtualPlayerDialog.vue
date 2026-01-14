@@ -138,8 +138,8 @@ const create = async () => {
       close();
     }, 1500);
     
-  } catch (error: any) {
-    errorMessage.value = error.message || 'Failed to create virtual player';
+  } catch (error: unknown) {
+    errorMessage.value = error instanceof Error ? error.message : 'Failed to create virtual player';
   } finally {
     creating.value = false;
   }

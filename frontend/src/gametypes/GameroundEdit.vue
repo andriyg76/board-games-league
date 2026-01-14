@@ -12,7 +12,7 @@
         <template v-else>
           <!-- Wizard Stepper -->
           <v-stepper v-if="!isEditing" v-model="step" :items="stepItems" class="mb-4">
-            <template v-slot:item.1>
+            <template #[`item.1`]>
               <!-- Step 1: Select Game Type -->
               <v-card flat>
                 <v-card-title>{{ $t('game.selectGameType') }}</v-card-title>
@@ -55,7 +55,7 @@
               </v-card>
             </template>
 
-            <template v-slot:item.2>
+            <template #[`item.2`]>
               <!-- Step 2: Select Players -->
               <v-card flat>
                 <v-card-title>{{ $t('game.selectPlayers') }}</v-card-title>
@@ -94,7 +94,7 @@
               </v-card>
             </template>
 
-            <template v-slot:item.3>
+            <template #[`item.3`]>
               <!-- Step 3: Configure Round -->
               <v-card flat>
                 <v-card-title>{{ $t('game.configureRound') }}</v-card-title>
@@ -218,7 +218,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useGameStore } from '@/store/game';
 import { usePlayerStore } from '@/store/player';
 import { useLeagueStore } from '@/store/league';
@@ -240,7 +240,6 @@ const gameStore = useGameStore();
 const playerStore = usePlayerStore();
 const leagueStore = useLeagueStore();
 
-const loading = ref(false);
 const loadingRound = ref(false);
 const loadingSuggested = ref(false);
 const saving = ref(false);
