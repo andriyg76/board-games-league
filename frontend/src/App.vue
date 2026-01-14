@@ -64,7 +64,7 @@
         />
         <v-list-group v-if="loggedIn" value="Game Rounds">
           <v-list-item to="/ui/game-rounds/new" :title="t('gameRounds.start')" />
-          <v-list-item to="/ui/wizard/new" :title="t('wizard.newGame')" prepend-icon="mdi-wizard-hat" />
+          <v-list-item to="/ui/game-rounds/new?gameType=wizard" :title="t('wizard.newGame')" prepend-icon="mdi-wizard-hat" />
           <v-list-item to="/ui/game-rounds" :title="t('gameRounds.list')" />
         </v-list-group>
         <v-list-item
