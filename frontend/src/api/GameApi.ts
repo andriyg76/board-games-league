@@ -235,20 +235,95 @@ export default {
         }
         return await response.json();
     },
+
+    // League-specific game round methods
+    async listLeagueGameRounds(leagueCode: string, options?: { active?: boolean; status?: GameRoundStatus }): Promise<GameRound[]> {
+        let url = `/api/leagues/${leagueCode}/game_rounds`;
+        const params = new URLSearchParams();
+        if (options?.active) params.set('active', 'true');
+        if (options?.status) params.set('status', options.status);
+        if (params.toString()) url += `?${params.toString()}`;
+
+        const response = await apiFetch(url);
+        if (!response.ok) {
+            throw new Error('Failed to load league game rounds');
+        }
+        return await response.json();
+    },
+
+    async createLeagueGameRound(leagueCode: string, round: CreateLeagueGameRoundRequest): Promise<GameRound> {
+        const response = await apiFetch(`/api/leagues/${leagueCode}/game_rounds`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(round),
+        });
+        if (!response.ok) {
+            throw new Error('Error creating game round');
+        }
+        return await response.json();
+    },
+
+    // Update player roles (step 3)
+    async updateRoles(code: string, players: PlayerRoleUpdate[]): Promise<GameRound> {
+        const response = await apiFetch(`/api/game_rounds/${code}/roles`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ players }),
+        });
+        if (!response.ok) {
+            throw new Error('Error updating roles');
+        }
+        return await response.json();
+    },
+
+    // Update scores (step 4)
+    async updateScores(code: string, playerScores: Record<string, number>, teamScores?: Record<string, number>): Promise<GameRound> {
+        const response = await apiFetch(`/api/game_rounds/${code}/scores`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ player_scores: playerScores, team_scores: teamScores }),
+        });
+        if (!response.ok) {
+            throw new Error('Error updating scores');
+        }
+        return await response.json();
+    },
+
+    // Update round status
+    async updateRoundStatus(code: string, status: GameRoundStatus, version: number): Promise<void> {
+        const response = await apiFetch(`/api/game_rounds/${code}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status, version }),
+        });
+        if (!response.ok) {
+            throw new Error('Error updating round status');
+        }
+    },
 };
+
+// Game Round Status
+export type GameRoundStatus = 'players_selected' | 'in_progress' | 'scoring' | 'completed';
 
 export interface GameRoundPlayer {
     user_id: string;
+    membership_id?: string;
     score: number;
     is_moderator: boolean;
     team_name?: string;
+    label_name?: string;
+    position?: number;
 }
 
 export interface GameRound {
     code?: string;
     name: string;
     game_type: string;
+    game_type_id?: string;
+    league_id?: string;
+    status?: GameRoundStatus;
     start_time: string;
+    end_time?: string;
     players: GameRoundPlayer[];
     version: number;
 }
@@ -263,4 +338,22 @@ export interface FinalizeGameRoundRequest {
     player_scores: Record<string, number>;
     team_scores?: Record<string, number>;
     cooperative_score?: number;
+}
+
+export interface CreateLeagueGameRoundRequest {
+    name?: string;
+    type: string;
+    players: {
+        membership_id: string;
+        position: number;
+        is_moderator?: boolean;
+        team_name?: string;
+    }[];
+}
+
+export interface PlayerRoleUpdate {
+    membership_id: string;
+    role_key?: string;
+    team_name?: string;
+    is_moderator?: boolean;
 }

@@ -293,7 +293,7 @@ import { usePlayerStore } from '@/store/player';
 import { useLeagueStore } from '@/store/league';
 import { useWizardStore } from '@/store/wizard';
 import { useRouter, useRoute } from 'vue-router';
-import { GameRound, GameRoundPlayer, Player, GameType, getLocalizedName, Role } from '@/api/GameApi';
+import { GameRound, GameRoundPlayer, Player, GameType, getLocalizedName, Role, GameRoundStatus } from '@/api/GameApi';
 import GameApi from '@/api/GameApi';
 import LeagueApi, { SuggestedPlayer, SuggestedPlayersResponse } from '@/api/LeagueApi';
 import PlayerSelector from '@/components/game/PlayerSelector.vue';
@@ -352,12 +352,19 @@ const bidRestrictions = [
   { value: BidRestriction.MUST_MATCH_CARDS, title: 'wizard.mustMatchCards' },
 ];
 
-// Wizard step items
-const stepItems = computed(() => [
-  { title: 'game.selectGameType', value: 1 },
-  { title: 'game.selectPlayers', value: 2 },
-  { title: 'game.configureRound', value: 3 },
-]);
+// Wizard step items - dynamic based on game type
+const stepItems = computed(() => {
+  const items = [
+    { title: 'game.selectGameType', value: 1 },
+    { title: 'game.selectPlayers', value: 2 },
+    { title: 'game.configureRound', value: 3 },
+  ];
+  // Add scoring step for non-wizard games
+  if (!isWizardGame.value) {
+    items.push({ title: 'game.enterScores', value: 4 });
+  }
+  return items;
+});
 
 // Get league code from route or store
 const leagueCode = computed(() => {
@@ -379,7 +386,13 @@ const players = computed(() => {
 });
 
 const gameTypes = computed(() => gameStore.gameTypes);
-const isEditing = computed(() => !!round.value.code);
+// Only show edit mode (simple form) for completed rounds
+const isEditing = computed(() => {
+  if (!round.value.code) return false;
+  // Check if round is loaded and completed
+  const status = (round.value as unknown as { status?: GameRoundStatus }).status;
+  return status === 'completed';
+});
 
 const selectedGameType = computed(() =>
   gameTypes.value.find(gt => gt.code === round.value.game_type)
@@ -445,14 +458,54 @@ const goToStep2 = async () => {
   }
 };
 
-// Go to step 3 - prepare round players
-const goToStep3 = () => {
+// Go to step 3 - save round and prepare for role assignment
+const goToStep3 = async () => {
   // Convert selected players to round players
-  roundPlayers.value = selectedPlayersList.value.map(player => ({
+  roundPlayers.value = selectedPlayersList.value.map((player, index) => ({
     membership_id: player.membership_id,
     is_moderator: hasModerator.value && player.membership_id === selectedModeratorId.value,
     role_key: undefined,
   }));
+
+  // For wizard games, handle separately
+  if (isWizardGame.value) {
+    step.value = 3;
+    return;
+  }
+
+  // For other games, save the round to server first
+  if (!round.value.code && leagueCode.value) {
+    saving.value = true;
+    try {
+      const players = selectedPlayersList.value.map((player, index) => ({
+        membership_id: player.membership_id,
+        position: index + 1,
+        is_moderator: hasModerator.value && player.membership_id === selectedModeratorId.value,
+      }));
+
+      const savedRound = await GameApi.createLeagueGameRound(leagueCode.value, {
+        name: round.value.name || `Game ${new Date().toLocaleDateString()}`,
+        type: round.value.game_type,
+        players,
+      });
+
+      round.value.code = savedRound.code;
+      round.value.version = savedRound.version;
+      
+      // Update URL to include the round code for bookmarking
+      await router.replace({
+        name: 'EditGameRound',
+        params: { id: savedRound.code },
+        query: route.query,
+      });
+    } catch (error) {
+      console.error('Failed to save round:', error);
+      saving.value = false;
+      return;
+    } finally {
+      saving.value = false;
+    }
+  }
   
   step.value = 3;
 };
@@ -488,7 +541,7 @@ const isCurrentPlayer = (membershipId: string): boolean => {
   return suggestedPlayers.value?.current_player?.membership_id === membershipId;
 };
 
-// Load game round for editing
+// Load game round for editing/continuing
 const loadGameRound = async () => {
   if (!props.id) return;
 
@@ -503,6 +556,29 @@ const loadGameRound = async () => {
       players: loadedRound.players,
       version: loadedRound.version
     };
+
+    // Set step based on round status
+    const status = loadedRound.status as GameRoundStatus;
+    if (status === 'players_selected') {
+      // Prepare roundPlayers for step 3
+      roundPlayers.value = loadedRound.players.map(p => ({
+        membership_id: p.membership_id || '',
+        is_moderator: p.is_moderator,
+        role_key: p.label_name,
+      }));
+      step.value = 3;
+    } else if (status === 'in_progress') {
+      // Load roles and go to step 3 or 4
+      roundPlayers.value = loadedRound.players.map(p => ({
+        membership_id: p.membership_id || '',
+        is_moderator: p.is_moderator,
+        role_key: p.label_name,
+      }));
+      step.value = 3;
+    } else if (status === 'scoring') {
+      step.value = 4;
+    }
+    // For completed, we're in edit mode (isEditing = true)
   } catch (error) {
     console.error('Error loading game round:', error);
   } finally {

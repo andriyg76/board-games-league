@@ -192,6 +192,9 @@ const messages = {
             next: 'Next',
             back: 'Back',
             startGame: 'Start Game',
+            enterScores: 'Enter Scores',
+            saveRoles: 'Save Roles',
+            finishGame: 'Finish Game',
         },
         wizard: {
             newGame: 'New Wizard Game',
@@ -499,6 +502,9 @@ const messages = {
             next: 'Далі',
             back: 'Назад',
             startGame: 'Почати гру',
+            enterScores: 'Введення очок',
+            saveRoles: 'Зберегти ролі',
+            finishGame: 'Завершити гру',
         },
         wizard: {
             newGame: 'Нова гра Wizard',
@@ -806,6 +812,9 @@ const messages = {
             next: 'Edasi',
             back: 'Tagasi',
             startGame: 'Alusta mängu',
+            enterScores: 'Sisesta punktid',
+            saveRoles: 'Salvesta rollid',
+            finishGame: 'Lõpeta mäng',
         },
         wizard: {
             newGame: 'Uus Wizard mäng',
