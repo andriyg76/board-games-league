@@ -156,6 +156,9 @@ const messages = {
             list: 'List Game Rounds',
             title: 'Game Rounds',
         },
+        wizard: {
+            newGame: 'New Wizard Game',
+        },
         admin: {
             user: 'User',
         },
@@ -415,6 +418,9 @@ const messages = {
             list: 'Список раундів',
             title: 'Раунди ігор',
         },
+        wizard: {
+            newGame: 'Нова гра Wizard',
+        },
         admin: {
             user: 'Користувач',
         },
@@ -673,6 +679,9 @@ const messages = {
             start: 'Alusta mänguvooru',
             list: 'Mänguvoorude nimekiri',
             title: 'Mänguvoorud',
+        },
+        wizard: {
+            newGame: 'Uus Wizard mäng',
         },
         admin: {
             user: 'Kasutaja',
