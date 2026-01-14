@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
-	"github.com/andriyg76/glog"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -16,10 +15,11 @@ import (
 type GameTypeRepository interface {
 	Create(ctx context.Context, gameType *models.GameType) error
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.GameType, error)
+	FindByKey(ctx context.Context, key string) (*models.GameType, error)
 	FindAll(ctx context.Context) ([]*models.GameType, error)
 	Update(ctx context.Context, gameType *models.GameType) error
+	Upsert(ctx context.Context, gameType *models.GameType) error
 	Delete(ctx context.Context, id primitive.ObjectID) error
-	FindByName(ctx context.Context, name string) (*models.GameType, error)
 }
 
 type mongoGameTypeRepository struct {
@@ -38,32 +38,27 @@ func NewGameTypeRepository(db *db.MongoDB) (GameTypeRepository, error) {
 
 func (r *mongoGameTypeRepository) ensureIndexes() error {
 	_, err := r.collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		// Унікальний індекс на key
 		{
-			Keys: bson.D{
-				{"_id", 1},
-				{"labels.name", 1},
-			},
-			Options: options.Index().SetUnique(true),
+			Keys:    bson.D{{"key", 1}},
+			Options: options.Index().SetUnique(true).SetSparse(true),
 		},
+		// Індекс на roles.key в межах документа
 		{
 			Keys: bson.D{
 				{"_id", 1},
-				{"teams.name", 1},
+				{"roles.key", 1},
 			},
-			Options: options.Index().SetUnique(true),
+			Options: options.Index().SetUnique(true).SetSparse(true),
 		},
 	})
 	return err
 }
 
-func (r *mongoGameTypeRepository) FindByName(_ context.Context, _ string) (*models.GameType, error) {
-	return nil, glog.Error("not implemented")
-}
-
 func (r *mongoGameTypeRepository) Create(ctx context.Context, gameType *models.GameType) error {
 	gameType.CreatedAt = time.Now()
 	gameType.UpdatedAt = time.Now()
-	gameType.Version = 1 // Initialize version
+	gameType.Version = 1
 
 	result, err := r.collection.InsertOne(ctx, gameType)
 	if err != nil {
@@ -77,6 +72,18 @@ func (r *mongoGameTypeRepository) Create(ctx context.Context, gameType *models.G
 func (r *mongoGameTypeRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*models.GameType, error) {
 	var gameType models.GameType
 	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&gameType)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &gameType, nil
+}
+
+func (r *mongoGameTypeRepository) FindByKey(ctx context.Context, key string) (*models.GameType, error) {
+	var gameType models.GameType
+	err := r.collection.FindOne(ctx, bson.M{"key": key}).Decode(&gameType)
 	if err == mongo.ErrNoDocuments {
 		return nil, nil
 	}
@@ -120,6 +127,46 @@ func (r *mongoGameTypeRepository) Update(ctx context.Context, gameType *models.G
 	if result.ModifiedCount == 0 {
 		return fmt.Errorf("concurrent modification detected")
 	}
+	return nil
+}
+
+func (r *mongoGameTypeRepository) Upsert(ctx context.Context, gameType *models.GameType) error {
+	gameType.UpdatedAt = time.Now()
+
+	filter := bson.M{"key": gameType.Key}
+
+	// Перевіряємо чи існує
+	existing, err := r.FindByKey(ctx, gameType.Key)
+	if err != nil {
+		return err
+	}
+
+	if existing == nil {
+		// Створюємо новий
+		gameType.CreatedAt = time.Now()
+		gameType.Version = 1
+		result, err := r.collection.InsertOne(ctx, gameType)
+		if err != nil {
+			return err
+		}
+		gameType.ID = result.InsertedID.(primitive.ObjectID)
+		return nil
+	}
+
+	// Оновлюємо існуючий (тільки якщо built_in)
+	if existing.BuiltIn {
+		gameType.ID = existing.ID
+		gameType.Version = existing.Version + 1
+		gameType.CreatedAt = existing.CreatedAt
+
+		_, err = r.collection.UpdateOne(
+			ctx,
+			filter,
+			bson.M{"$set": gameType},
+		)
+		return err
+	}
+
 	return nil
 }
 

@@ -3,20 +3,63 @@ package gameapi
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"net/http"
 	"time"
 )
 
+// API структури
+
+type roleAPI struct {
+	Key      string            `json:"key"`
+	Names    map[string]string `json:"names"`
+	Color    string            `json:"color"`
+	Icon     string            `json:"icon"`
+	RoleType string            `json:"role_type"`
+}
+
+type gameTypeAPI struct {
+	Code        string            `json:"code"`
+	Key         string            `json:"key"`
+	Names       map[string]string `json:"names"`
+	Icon        string            `json:"icon"`
+	ScoringType string            `json:"scoring_type"`
+	Roles       []roleAPI         `json:"roles"`
+	MinPlayers  int               `json:"min_players"`
+	MaxPlayers  int               `json:"max_players"`
+	BuiltIn     bool              `json:"built_in"`
+	Version     int64             `json:"version"`
+}
+
+// Helper functions
+
+func requireSuperAdmin(w http.ResponseWriter, r *http.Request) bool {
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	if !auth.IsSuperAdminByExternalIDs(profile.ExternalIDs) {
+		http.Error(w, "Forbidden: superadmin access required", http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+// Handlers
+
 func (h *Handler) listGameTypes(w http.ResponseWriter, r *http.Request) {
 	gameTypes, err := h.gameTypeRepository.FindAll(r.Context())
 	if err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error reading games types")
+		return
 	}
 
-	response := utils.Map(gameTypes, func(gt *models.GameType) gameType {
-		return dbToUi(gt)
+	response := utils.Map(gameTypes, func(gt *models.GameType) gameTypeAPI {
+		return dbToAPI(gt)
 	})
 
 	w.Header().Set("Content-Type", "application/json")
@@ -26,31 +69,13 @@ func (h *Handler) listGameTypes(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func validateLabelsAndTeams(gameType *models.GameType) error {
-	// Check for duplicate label names
-	labelNames := make(map[string]bool)
-	for _, label := range gameType.Labels {
-		if labelNames[label.Name] {
-			return fmt.Errorf("duplicate label name: %s", label.Name)
-		}
-		labelNames[label.Name] = true
-	}
-
-	// Check for duplicate team names
-	teamNames := make(map[string]bool)
-	for _, team := range gameType.Teams {
-		if teamNames[team.Name] {
-			return fmt.Errorf("duplicate team name: %s", team.Name)
-		}
-		teamNames[team.Name] = true
-	}
-
-	return nil
-}
-
 func (h *Handler) createGameType(w http.ResponseWriter, r *http.Request) {
-	var gameType gameType
-	if err := json.NewDecoder(r.Body).Decode(&gameType); err != nil {
+	if !requireSuperAdmin(w, r) {
+		return
+	}
+
+	var gt gameTypeAPI
+	if err := json.NewDecoder(r.Body).Decode(&gt); err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error parsing incoming request")
 		return
 	}
@@ -63,9 +88,9 @@ func (h *Handler) createGameType(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:  time.Now(),
 	}
 
-	uiToDb(gameType, &gameTypeDb)
+	apiToDb(gt, &gameTypeDb)
 
-	if err := validateLabelsAndTeams(&gameTypeDb); err != nil {
+	if err := validateGameType(&gameTypeDb); err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "validation error")
 		return
 	}
@@ -75,13 +100,12 @@ func (h *Handler) createGameType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gameType.Code = utils.IdToCode(gameTypeDb.ID)
-	gameType.Version = gameTypeDb.Version
+	response := dbToAPI(&gameTypeDb)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(gameType); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response %v", gameType)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response %v", response)
 	}
 }
 
@@ -102,7 +126,7 @@ func (h *Handler) getGameType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := dbToUi(gameType)
+	res := dbToAPI(gameType)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(res); err != nil {
@@ -111,54 +135,75 @@ func (h *Handler) getGameType(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) updateGameType(w http.ResponseWriter, r *http.Request) {
+	if !requireSuperAdmin(w, r) {
+		return
+	}
+
 	id, err := utils.GetIDFromChiURL(r, "code")
 	if err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error parsing incoming request, invalid code/id")
 		return
 	}
 
-	var gameType gameType
-	if err := json.NewDecoder(r.Body).Decode(&gameType); err != nil {
+	var gt gameTypeAPI
+	if err := json.NewDecoder(r.Body).Decode(&gt); err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error parsing incoming request payload")
 		return
 	}
 
-	if gameTypeDb, err := h.gameTypeRepository.FindByID(r.Context(), id); err != nil {
+	gameTypeDb, err := h.gameTypeRepository.FindByID(r.Context(), id)
+	if err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error reading gametype")
 		return
-	} else if gameTypeDb == nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error reading gametype")
+	}
+	if gameTypeDb == nil {
+		utils.LogAndWriteHTTPError(w, http.StatusNotFound, nil, "gametype not found")
 		return
-	} else {
-		uiToDb(gameType, gameTypeDb)
-		gameTypeDb.UpdatedAt = time.Now()
+	}
 
-		if err := validateLabelsAndTeams(gameTypeDb); err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "validation error")
-			return
-		}
+	apiToDb(gt, gameTypeDb)
+	gameTypeDb.UpdatedAt = time.Now()
 
-		if err := h.gameTypeRepository.Update(r.Context(), gameTypeDb); err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "Update ")
-			return
-		}
-		res := dbToUi(gameTypeDb)
+	if err := validateGameType(gameTypeDb); err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "validation error")
+		return
+	}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(res); err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response %v", res)
-		}
+	if err := h.gameTypeRepository.Update(r.Context(), gameTypeDb); err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "update error")
+		return
+	}
+
+	res := dbToAPI(gameTypeDb)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response %v", res)
 	}
 }
 
 func (h *Handler) deleteGameType(w http.ResponseWriter, r *http.Request) {
+	if !requireSuperAdmin(w, r) {
+		return
+	}
+
 	id, err := utils.GetIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid game type ID/code", http.StatusBadRequest)
 		return
 	}
 
-	// Change from gameRoundRepository to gameTypeRepository
+	// Перевірка чи це вбудований тип
+	gameType, err := h.gameTypeRepository.FindByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if gameType != nil && gameType.BuiltIn {
+		http.Error(w, "Cannot delete built-in game type", http.StatusForbidden)
+		return
+	}
+
 	if err := h.gameTypeRepository.Delete(r.Context(), id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -167,55 +212,130 @@ func (h *Handler) deleteGameType(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func uiToDb(gt gameType, db *models.GameType) {
-	db.Name = gt.Name
-	db.ScoringType = gt.ScoringType
-	db.Labels = uiToDbLabels(gt.Labels)
-	db.Teams = uiToDbLabels(gt.Teams)
-}
+// Validation
 
-func dbToUi(gt *models.GameType) gameType {
-	return gameType{
-		Code:        utils.IdToCode(gt.ID),
-		Name:        gt.Name,
-		ScoringType: gt.ScoringType,
-		Version:     gt.Version,
-		Labels:      dbToUiLabels(gt.Labels),
-		Teams:       dbToUiLabels(gt.Teams),
+func validateGameType(gt *models.GameType) error {
+	// Перевірка обов'язкових полів
+	if gt.Key == "" && len(gt.Names) == 0 {
+		return fmt.Errorf("game type key or name is required")
 	}
-}
 
-func dbToUiLabels(ls []models.Label) []label {
-	return utils.Map(ls, func(l models.Label) label {
-		return label{
-			Name:  l.Name,
-			Color: l.Color,
-			Icon:  l.Icon,
+	// Перевірка min/max players
+	if gt.MinPlayers < 1 {
+		gt.MinPlayers = 1
+	}
+	if gt.MaxPlayers < gt.MinPlayers {
+		gt.MaxPlayers = gt.MinPlayers
+	}
+
+	// Перевірка дублікатів ключів ролей
+	roleKeys := make(map[string]bool)
+	for _, role := range gt.Roles {
+		if role.Key == "" {
+			continue
 		}
-	})
-}
-
-func uiToDbLabels(labels []label) []models.Label {
-	return utils.Map(labels, func(label label) models.Label {
-		return models.Label{
-			Name:  label.Name,
-			Color: label.Color,
-			Icon:  label.Icon,
+		if roleKeys[role.Key] {
+			return fmt.Errorf("duplicate role key: %s", role.Key)
 		}
-	})
+		roleKeys[role.Key] = true
+	}
+
+	return nil
 }
 
-type label struct {
-	Name  string `json:"name"`
-	Color string `json:"color"`
-	Icon  string `json:"icon"`
+// Converters
+
+func apiToDb(api gameTypeAPI, db *models.GameType) {
+	if api.Key != "" {
+		db.Key = api.Key
+	}
+	if api.Names != nil {
+		db.Names = api.Names
+	}
+	if api.Icon != "" {
+		db.Icon = api.Icon
+	}
+	db.ScoringType = models.ScoringType(api.ScoringType)
+
+	if api.Roles != nil {
+		db.Roles = make([]models.Role, len(api.Roles))
+		for i, r := range api.Roles {
+			db.Roles[i] = models.Role{
+				Key:      r.Key,
+				Names:    r.Names,
+				Color:    r.Color,
+				Icon:     r.Icon,
+				RoleType: models.RoleType(r.RoleType),
+			}
+		}
+	}
+
+	if api.MinPlayers > 0 {
+		db.MinPlayers = api.MinPlayers
+	}
+	if api.MaxPlayers > 0 {
+		db.MaxPlayers = api.MaxPlayers
+	}
+
+	// Очищаємо застарілі поля
+	db.Labels = nil
+	db.Teams = nil
+	db.Name = ""
 }
 
-type gameType struct {
-	Code        string  `json:"code"`
-	Name        string  `json:"name"`
-	ScoringType string  `json:"scoring_type"`
-	Version     int64   `json:"version"`
-	Labels      []label `json:"labels"`
-	Teams       []label `json:"teams"`
+func dbToAPI(db *models.GameType) gameTypeAPI {
+	roles := make([]roleAPI, len(db.Roles))
+	for i, r := range db.Roles {
+		roles[i] = roleAPI{
+			Key:      r.Key,
+			Names:    r.Names,
+			Color:    r.Color,
+			Icon:     r.Icon,
+			RoleType: string(r.RoleType),
+		}
+	}
+
+	// Підтримка застарілих даних - конвертуємо Labels/Teams в Roles
+	if len(roles) == 0 && (len(db.Labels) > 0 || len(db.Teams) > 0) {
+		for _, l := range db.Labels {
+			roles = append(roles, roleAPI{
+				Key:      l.Name,
+				Names:    map[string]string{"en": l.Name},
+				Color:    l.Color,
+				Icon:     l.Icon,
+				RoleType: string(models.RoleTypeOptionalOne),
+			})
+		}
+		for _, t := range db.Teams {
+			roles = append(roles, roleAPI{
+				Key:      t.Name,
+				Names:    map[string]string{"en": t.Name},
+				Color:    t.Color,
+				Icon:     t.Icon,
+				RoleType: string(models.RoleTypeMultiple),
+			})
+		}
+	}
+
+	// Підтримка застарілого поля Name
+	names := db.Names
+	if names == nil {
+		names = make(map[string]string)
+	}
+	if db.Name != "" && names["en"] == "" {
+		names["en"] = db.Name
+	}
+
+	return gameTypeAPI{
+		Code:        utils.IdToCode(db.ID),
+		Key:         db.Key,
+		Names:       names,
+		Icon:        db.Icon,
+		ScoringType: string(db.ScoringType),
+		Roles:       roles,
+		MinPlayers:  db.MinPlayers,
+		MaxPlayers:  db.MaxPlayers,
+		BuiltIn:     db.BuiltIn,
+		Version:     db.Version,
+	}
 }

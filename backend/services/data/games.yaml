@@ -1,0 +1,350 @@
+# games.yaml - Вбудовані типи ігор
+
+games:
+  # ============================================
+  # MAFIA - командна гра з модератором
+  # ============================================
+  - key: mafia
+    names:
+      en: Mafia
+      uk: Мафія
+      et: Maffia
+    icon: mdi-account-group
+    scoring_type: mafia
+    min_players: 6
+    max_players: 20
+    roles:
+      - key: civilian
+        names: { en: Civilian, uk: Цивільний, et: Tsiviil }
+        color: "#4CAF50"
+        role_type: multiple
+
+      - key: mafia
+        names: { en: Mafia, uk: Мафія, et: Maffia }
+        color: "#F44336"
+        role_type: required
+
+      - key: sheriff
+        names: { en: Sheriff, uk: Шериф, et: Šerif }
+        color: "#2196F3"
+        role_type: optional_one
+
+      - key: don
+        names: { en: Don, uk: Дон, et: Don }
+        color: "#9C27B0"
+        role_type: optional_one
+
+      - key: doctor
+        names: { en: Doctor, uk: Лікар, et: Arst }
+        color: "#00BCD4"
+        role_type: optional_one
+
+      - key: moderator
+        names: { en: Moderator, uk: Ведучий, et: Mängujuht }
+        color: "#FF9800"
+        role_type: moderator
+
+  # ============================================
+  # WIZARD - карткова гра
+  # ============================================
+  - key: wizard
+    names:
+      en: Wizard
+      uk: Візард
+      et: Wizard
+    icon: mdi-cards-playing
+    scoring_type: classic
+    min_players: 3
+    max_players: 6
+    roles: []
+
+  # ============================================
+  # CATAN - 6 кольорів (з розширенням 5-6 гравців)
+  # ============================================
+  - key: catan
+    names:
+      en: Catan
+      uk: Катан
+      et: Catan
+    icon: mdi-hexagon-multiple
+    scoring_type: classic
+    min_players: 3
+    max_players: 6
+    roles:
+      - key: red
+        names: { en: Red, uk: Червоний, et: Punane }
+        color: "#F44336"
+        role_type: optional_one
+
+      - key: blue
+        names: { en: Blue, uk: Синій, et: Sinine }
+        color: "#2196F3"
+        role_type: optional_one
+
+      - key: white
+        names: { en: White, uk: Білий, et: Valge }
+        color: "#FAFAFA"
+        role_type: optional_one
+
+      - key: orange
+        names: { en: Orange, uk: Оранжевий, et: Oranž }
+        color: "#FF9800"
+        role_type: optional_one
+
+      - key: green
+        names: { en: Green, uk: Зелений, et: Roheline }
+        color: "#4CAF50"
+        role_type: optional_one
+
+      - key: brown
+        names: { en: Brown, uk: Коричневий, et: Pruun }
+        color: "#795548"
+        role_type: optional_one
+
+  # ============================================
+  # TICKET TO RIDE - 5 кольорів
+  # ============================================
+  - key: ticket_to_ride
+    names:
+      en: Ticket to Ride
+      uk: Квиток на потяг
+      et: Pilet sõidule
+    icon: mdi-train
+    scoring_type: classic
+    min_players: 2
+    max_players: 5
+    roles:
+      - key: red
+        names: { en: Red, uk: Червоний, et: Punane }
+        color: "#F44336"
+        role_type: optional_one
+
+      - key: blue
+        names: { en: Blue, uk: Синій, et: Sinine }
+        color: "#2196F3"
+        role_type: optional_one
+
+      - key: green
+        names: { en: Green, uk: Зелений, et: Roheline }
+        color: "#4CAF50"
+        role_type: optional_one
+
+      - key: yellow
+        names: { en: Yellow, uk: Жовтий, et: Kollane }
+        color: "#FFEB3B"
+        role_type: optional_one
+
+      - key: black
+        names: { en: Black, uk: Чорний, et: Must }
+        color: "#212121"
+        role_type: optional_one
+
+  # ============================================
+  # CARCASSONNE - 6 кольорів (з розширеннями)
+  # ============================================
+  - key: carcassonne
+    names:
+      en: Carcassonne
+      uk: Каркассон
+      et: Carcassonne
+    icon: mdi-castle
+    scoring_type: classic
+    min_players: 2
+    max_players: 6
+    roles:
+      - key: red
+        names: { en: Red, uk: Червоний, et: Punane }
+        color: "#F44336"
+        role_type: optional_one
+
+      - key: blue
+        names: { en: Blue, uk: Синій, et: Sinine }
+        color: "#2196F3"
+        role_type: optional_one
+
+      - key: green
+        names: { en: Green, uk: Зелений, et: Roheline }
+        color: "#4CAF50"
+        role_type: optional_one
+
+      - key: yellow
+        names: { en: Yellow, uk: Жовтий, et: Kollane }
+        color: "#FFEB3B"
+        role_type: optional_one
+
+      - key: black
+        names: { en: Black, uk: Чорний, et: Must }
+        color: "#212121"
+        role_type: optional_one
+
+      - key: gray
+        names: { en: Gray, uk: Сірий, et: Hall }
+        color: "#9E9E9E"
+        role_type: optional_one
+
+  # ============================================
+  # CODENAMES - командна гра
+  # ============================================
+  - key: codenames
+    names:
+      en: Codenames
+      uk: Кодові імена
+      et: Koodnimed
+    icon: mdi-account-search
+    scoring_type: team_vs_team
+    min_players: 4
+    max_players: 16
+    roles:
+      - key: red_team
+        names: { en: Red Team, uk: Червона команда, et: Punane meeskond }
+        color: "#F44336"
+        role_type: multiple
+
+      - key: blue_team
+        names: { en: Blue Team, uk: Синя команда, et: Sinine meeskond }
+        color: "#2196F3"
+        role_type: multiple
+
+  # ============================================
+  # DIXIT - 12 кольорів (Dixit Odyssey)
+  # ============================================
+  - key: dixit
+    names:
+      en: Dixit
+      uk: Діксіт
+      et: Dixit
+    icon: mdi-rabbit
+    scoring_type: classic
+    min_players: 3
+    max_players: 12
+    roles:
+      - key: red
+        names: { en: Red Rabbit, uk: Червоний кролик, et: Punane jänes }
+        color: "#F44336"
+        role_type: optional_one
+
+      - key: blue
+        names: { en: Blue Rabbit, uk: Синій кролик, et: Sinine jänes }
+        color: "#2196F3"
+        role_type: optional_one
+
+      - key: green
+        names: { en: Green Rabbit, uk: Зелений кролик, et: Roheline jänes }
+        color: "#4CAF50"
+        role_type: optional_one
+
+      - key: yellow
+        names: { en: Yellow Rabbit, uk: Жовтий кролик, et: Kollane jänes }
+        color: "#FFEB3B"
+        role_type: optional_one
+
+      - key: white
+        names: { en: White Rabbit, uk: Білий кролик, et: Valge jänes }
+        color: "#FAFAFA"
+        role_type: optional_one
+
+      - key: black
+        names: { en: Black Rabbit, uk: Чорний кролик, et: Must jänes }
+        color: "#212121"
+        role_type: optional_one
+
+      - key: pink
+        names: { en: Pink Rabbit, uk: Рожевий кролик, et: Roosa jänes }
+        color: "#E91E63"
+        role_type: optional_one
+
+      - key: purple
+        names: { en: Purple Rabbit, uk: Фіолетовий кролик, et: Lilla jänes }
+        color: "#9C27B0"
+        role_type: optional_one
+
+      - key: orange
+        names: { en: Orange Rabbit, uk: Оранжевий кролик, et: Oranž jänes }
+        color: "#FF9800"
+        role_type: optional_one
+
+      - key: cyan
+        names: { en: Cyan Rabbit, uk: Бірюзовий кролик, et: Tsüaan jänes }
+        color: "#00BCD4"
+        role_type: optional_one
+
+      - key: brown
+        names: { en: Brown Rabbit, uk: Коричневий кролик, et: Pruun jänes }
+        color: "#795548"
+        role_type: optional_one
+
+      - key: lime
+        names: { en: Lime Rabbit, uk: Лаймовий кролик, et: Laim jänes }
+        color: "#CDDC39"
+        role_type: optional_one
+
+  # ============================================
+  # UNO - карткова гра без фішок
+  # ============================================
+  - key: uno
+    names:
+      en: Uno
+      uk: Уно
+      et: Uno
+    icon: mdi-cards
+    scoring_type: classic
+    min_players: 2
+    max_players: 10
+    roles: []
+
+  # ============================================
+  # WINGSPAN - 6 кольорів (з розширенням)
+  # ============================================
+  - key: wingspan
+    names:
+      en: Wingspan
+      uk: Крила
+      et: Wingspan
+    icon: mdi-bird
+    scoring_type: classic
+    min_players: 1
+    max_players: 6
+    roles:
+      - key: purple
+        names: { en: Purple, uk: Фіолетовий, et: Lilla }
+        color: "#9C27B0"
+        role_type: optional_one
+
+      - key: green
+        names: { en: Green, uk: Зелений, et: Roheline }
+        color: "#4CAF50"
+        role_type: optional_one
+
+      - key: blue
+        names: { en: Blue, uk: Синій, et: Sinine }
+        color: "#2196F3"
+        role_type: optional_one
+
+      - key: yellow
+        names: { en: Yellow, uk: Жовтий, et: Kollane }
+        color: "#FFEB3B"
+        role_type: optional_one
+
+      - key: red
+        names: { en: Red, uk: Червоний, et: Punane }
+        color: "#F44336"
+        role_type: optional_one
+
+      - key: black
+        names: { en: Black, uk: Чорний, et: Must }
+        color: "#212121"
+        role_type: optional_one
+
+  # ============================================
+  # 1000 (Тисяча) - карткова гра
+  # ============================================
+  - key: thousand
+    names:
+      en: "1000"
+      uk: Тисяча
+      et: Tuhat
+    icon: mdi-cards-playing-spade
+    scoring_type: classic
+    min_players: 3
+    max_players: 4
+    roles: []

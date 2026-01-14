@@ -13,14 +13,6 @@ type MockGameTypeRepository struct {
 	mock2.Mock
 }
 
-func (m *MockGameTypeRepository) FindByName(ctx context.Context, name string) (*models.GameType, error) {
-	args := m.Called(ctx, name)
-	if gameType := args.Get(0); gameType != nil {
-		return gameType.(*models.GameType), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
 func (m *MockGameTypeRepository) Create(ctx context.Context, gameType *models.GameType) error {
 	args := m.Called(ctx, gameType)
 	return args.Error(0)
@@ -28,6 +20,14 @@ func (m *MockGameTypeRepository) Create(ctx context.Context, gameType *models.Ga
 
 func (m *MockGameTypeRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*models.GameType, error) {
 	args := m.Called(ctx, id)
+	if gameType := args.Get(0); gameType != nil {
+		return gameType.(*models.GameType), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *MockGameTypeRepository) FindByKey(ctx context.Context, key string) (*models.GameType, error) {
+	args := m.Called(ctx, key)
 	if gameType := args.Get(0); gameType != nil {
 		return gameType.(*models.GameType), args.Error(1)
 	}
@@ -43,6 +43,11 @@ func (m *MockGameTypeRepository) FindAll(ctx context.Context) ([]*models.GameTyp
 }
 
 func (m *MockGameTypeRepository) Update(ctx context.Context, gameType *models.GameType) error {
+	args := m.Called(ctx, gameType)
+	return args.Error(0)
+}
+
+func (m *MockGameTypeRepository) Upsert(ctx context.Context, gameType *models.GameType) error {
 	args := m.Called(ctx, gameType)
 	return args.Error(0)
 }

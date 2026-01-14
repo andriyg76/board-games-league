@@ -49,25 +49,30 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 		players = append(players, player)
 	}
 
-	gameType, err := h.gameTypeRepository.FindByName(r.Context(), req.Type)
+	gameType, err := h.gameTypeRepository.FindByKey(r.Context(), req.Type)
 	if gameType == nil || err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error fetching game type: "+req.Type)
 		return
 	}
 
+	// Знаходимо ролі типу team (multiple) для команд
 	var teamScores []models.TeamScore
-	for i, team := range gameType.Teams {
-		teamScores = append(teamScores, models.TeamScore{
-			Name:     team.Name,
-			Position: i + 1,
-		})
+	var teamRoles []models.Role
+	for i, role := range gameType.Roles {
+		if role.RoleType == models.RoleTypeMultiple {
+			teamScores = append(teamScores, models.TeamScore{
+				Name:     role.Key,
+				Position: i + 1,
+			})
+			teamRoles = append(teamRoles, role)
+		}
 	}
 
-	// If game type has teams, validate team assignments
-	if len(gameType.Teams) > 0 {
+	// If game type has team roles, validate team assignments
+	if len(teamRoles) > 0 {
 		teamAssignments := make(map[string]bool)
-		for _, team := range gameType.Teams {
-			teamAssignments[team.Name] = false
+		for _, role := range teamRoles {
+			teamAssignments[role.Key] = false
 		}
 
 		// Check if each team has at least one player
