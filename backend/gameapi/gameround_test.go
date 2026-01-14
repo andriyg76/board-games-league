@@ -35,28 +35,31 @@ func TestStartGame(t *testing.T) {
 		player2ID := primitive.NewObjectID()
 
 		gameType := &models.GameType{
-			ID:   gameTypeID,
-			Name: "Test Game",
-			Teams: []models.Label{
-				{Name: "Team A"},
-				{Name: "Team B"},
+			ID:  gameTypeID,
+			Key: "test_game",
+			Names: map[string]string{
+				"en": "Test Game",
+			},
+			Roles: []models.Role{
+				{Key: "team_a", Names: map[string]string{"en": "Team A"}, RoleType: models.RoleTypeMultiple},
+				{Key: "team_b", Names: map[string]string{"en": "Team B"}, RoleType: models.RoleTypeMultiple},
 			},
 		}
 
 		req := startGameRequest{
 			Name:      "Test Game Round",
-			Type:      "Test Game",
+			Type:      "test_game",
 			StartTime: time.Now(),
 			Players: []playerSetup{
-				{UserID: player1ID, Position: 1, TeamName: "Team A"},
-				{UserID: player2ID, Position: 2, TeamName: "Team B"},
+				{UserID: player1ID, Position: 1, TeamName: "team_a"},
+				{UserID: player2ID, Position: 2, TeamName: "team_b"},
 			},
 		}
 
-		mockGameTypeRepo.On("FindByName", mock.Anything, "Test Game").Return(gameType, nil)
-		mockUserService.On("FindByID", mock.Anything, player1ID).Return(&models.User{ID: player1ID}, nil)
-		mockUserService.On("FindByID", mock.Anything, player2ID).Return(&models.User{ID: player2ID}, nil)
-		mockGameRoundRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil)
+		mockGameTypeRepo.On("FindByKey", mock.Anything, "test_game").Return(gameType, nil).Once()
+		mockUserService.On("FindByID", mock.Anything, player1ID).Return(&models.User{ID: player1ID}, nil).Once()
+		mockUserService.On("FindByID", mock.Anything, player2ID).Return(&models.User{ID: player2ID}, nil).Once()
+		mockGameRoundRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil).Once()
 
 		body, _ := json.Marshal(req)
 		httpReq := httptest.NewRequest("POST", "/games", bytes.NewBuffer(body))
@@ -72,25 +75,28 @@ func TestStartGame(t *testing.T) {
 		player1ID := primitive.NewObjectID()
 
 		gameType := &models.GameType{
-			ID:   gameTypeID,
-			Name: "Test Game",
-			Teams: []models.Label{
-				{Name: "Team A"},
-				{Name: "Team B"},
+			ID:  gameTypeID,
+			Key: "test_game2",
+			Names: map[string]string{
+				"en": "Test Game",
+			},
+			Roles: []models.Role{
+				{Key: "team_a", Names: map[string]string{"en": "Team A"}, RoleType: models.RoleTypeMultiple},
+				{Key: "team_b", Names: map[string]string{"en": "Team B"}, RoleType: models.RoleTypeMultiple},
 			},
 		}
 
 		req := startGameRequest{
 			Name:      "Test Game Round",
-			Type:      "Test Game",
+			Type:      "test_game2",
 			StartTime: time.Now(),
 			Players: []playerSetup{
-				{UserID: player1ID, Position: 1, TeamName: "Team A"},
+				{UserID: player1ID, Position: 1, TeamName: "team_a"},
 			},
 		}
 
-		mockGameTypeRepo.On("FindByName", mock.Anything, "Test Game").Return(gameType, nil)
-		mockUserService.On("FindByID", mock.Anything, player1ID).Return(&models.User{ID: player1ID}, nil)
+		mockGameTypeRepo.On("FindByKey", mock.Anything, "test_game2").Return(gameType, nil).Once()
+		mockUserService.On("FindByID", mock.Anything, player1ID).Return(&models.User{ID: player1ID}, nil).Once()
 
 		body, _ := json.Marshal(req)
 		httpReq := httptest.NewRequest("POST", "/games", bytes.NewBuffer(body))
@@ -124,8 +130,8 @@ func TestUpdatePlayerScore(t *testing.T) {
 			},
 		}
 
-		mockRepo.On("FindByID", mock.Anything, gameID).Return(gameRound, nil)
-		mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil)
+		mockRepo.On("FindByID", mock.Anything, gameID).Return(gameRound, nil).Once()
+		mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil).Once()
 
 		req := updateScoreRequest{Score: 100}
 		body, _ := json.Marshal(req)
@@ -146,7 +152,7 @@ func TestUpdatePlayerScore(t *testing.T) {
 			Players: []models.GameRoundPlayer{},
 		}
 
-		mockRepo.On("FindByID", mock.Anything, gameID).Return(gameRound, nil)
+		mockRepo.On("FindByID", mock.Anything, gameID).Return(gameRound, nil).Once()
 
 		req := updateScoreRequest{Score: 100}
 		body, _ := json.Marshal(req)
@@ -177,17 +183,17 @@ func TestFinalizeGame(t *testing.T) {
 		gameRound := &models.GameRound{
 			ID: gameID,
 			Players: []models.GameRoundPlayer{
-				{PlayerID: player1ID, TeamName: "Team A"},
-				{PlayerID: player2ID, TeamName: "Team B"},
+				{PlayerID: player1ID, TeamName: "team_a"},
+				{PlayerID: player2ID, TeamName: "team_b"},
 			},
 			TeamScores: []models.TeamScore{
-				{Name: "Team A"},
-				{Name: "Team B"},
+				{Name: "team_a"},
+				{Name: "team_b"},
 			},
 		}
 
-		mockRepo.On("FindByID", mock.Anything, gameID).Return(gameRound, nil)
-		mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil)
+		mockRepo.On("FindByID", mock.Anything, gameID).Return(gameRound, nil).Once()
+		mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil).Once()
 
 		req := finalizeGameRequest{
 			PlayerScores: map[string]int64{
@@ -195,8 +201,8 @@ func TestFinalizeGame(t *testing.T) {
 				player2ID.Hex(): 50,
 			},
 			TeamScores: map[string]int64{
-				"Team A": 100,
-				"Team B": 50,
+				"team_a": 100,
+				"team_b": 50,
 			},
 		}
 

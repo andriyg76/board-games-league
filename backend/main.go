@@ -88,7 +88,14 @@ func main() {
 		gameRoundRepository,
 	)
 
+	gameTypeService := services.NewGameTypeService(gameTypeRepository)
+
 	log.Info("Services initialised...")
+
+	// Завантаження вбудованих типів ігор
+	if err := gameTypeService.LoadBuiltInGames(context.Background()); err != nil {
+		log.Warn("Failed to load built-in game types: %v", err)
+	}
 
 	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository, leagueService)
 	wizardApiHandler := wizardapi.NewHandler(wizardGameRepository, gameRoundRepository, gameTypeRepository, leagueService, userService)

@@ -123,13 +123,14 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get or create Wizard game type
-	gameType, err := h.gameTypeRepo.FindByName(r.Context(), "Wizard")
+	gameType, err := h.gameTypeRepo.FindByKey(r.Context(), "wizard")
 	if err != nil || gameType == nil {
 		// Create Wizard game type if doesn't exist
 		gameType = &models.GameType{
-			Name:        "Wizard",
-			ScoringType: string(models.ScoringTypeClassic),
-			Icon:        "mdi-wizard-hat",
+			Key:         "wizard",
+			Names:       map[string]string{"en": "Wizard", "uk": "Візард"},
+			ScoringType: models.ScoringTypeClassic,
+			Icon:        "mdi-cards-playing",
 			MinPlayers:  3,
 			MaxPlayers:  6,
 		}

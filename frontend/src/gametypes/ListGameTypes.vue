@@ -5,111 +5,205 @@
         <h2>{{ t('gameTypes.title') }}</h2>
         <v-list>
           <v-list-item v-for="gameType in gameTypes" :key="gameType.code">
-            <v-list-item-content>
-              <v-list-item-title>{{ gameType.name }} -- {{ t(`scoring.${gameType.scoring_type}`) }}</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-action>
-              <v-btn @click="editGameType(gameType)" color="primary">{{ t('gameTypes.edit') }}</v-btn>
-              <v-btn @click="deleteGameType(gameType.code)" color="error">{{ t('gameTypes.delete') }}</v-btn>
-            </v-list-item-action>
+            <template v-slot:prepend>
+              <v-icon v-if="gameType.icon">{{ gameType.icon }}</v-icon>
+              <v-chip v-if="gameType.built_in" size="x-small" color="info" class="ml-2">
+                {{ t('gameTypes.builtIn') }}
+              </v-chip>
+            </template>
+            <v-list-item-title>
+              {{ getGameTypeName(gameType) }} — {{ t(`scoring.${gameType.scoring_type}`) }}
+            </v-list-item-title>
+            <v-list-item-subtitle>
+              {{ t('gameTypes.players') }}: {{ gameType.min_players }}-{{ gameType.max_players }}
+              <span v-if="gameType.roles?.length"> | {{ t('gameTypes.roles') }}: {{ gameType.roles.length }}</span>
+            </v-list-item-subtitle>
+            <template v-slot:append>
+              <v-btn @click="editGameType(gameType)" color="primary" size="small" class="mr-2">
+                {{ t('gameTypes.edit') }}
+              </v-btn>
+              <v-btn 
+                @click="deleteGameType(gameType.code)" 
+                color="error" 
+                size="small"
+                :disabled="gameType.built_in"
+              >
+                {{ t('gameTypes.delete') }}
+              </v-btn>
+            </template>
           </v-list-item>
         </v-list>
       </v-col>
     </v-row>
+
+    <v-divider class="my-4" />
+
     <v-row>
       <v-col>
-        <h3>{{ isEditing ? t('gameTypes.edit') : t('gameTypes.create') }} Game Type</h3>
-        <v-form>
-          <v-text-field v-model="currentGameType.name" label="Game Type Name" />
-          <v-select
-              v-model="currentGameType.scoring_type"
-              :items="Object.keys(ScoringTypes)"
-              :item-title="(item) => ScoringTypes[item as ScoringType]"
-              :item-value="(item) => item"
-              label="Scoring Type"
-              required
+        <h3>{{ isEditing ? t('gameTypes.edit') : t('gameTypes.create') }} {{ t('gameTypes.gameType') }}</h3>
+        <v-form @submit.prevent="saveGameType">
+          <!-- Key -->
+          <v-text-field 
+            v-model="currentGameType.key" 
+            :label="t('gameTypes.key')"
+            :disabled="isEditing && currentGameType.built_in"
+            required
           />
 
-          <!-- Labels Section -->
-          <v-card class="mb-4" v-if="showLabels" >
-            <v-card-title>Labels</v-card-title>
+          <!-- Localized Names -->
+          <v-card class="mb-4">
+            <v-card-title>{{ t('gameTypes.localizedNames') }}</v-card-title>
             <v-card-text>
-              <div v-for="(label, index) in currentGameType.labels" :key="index" class="d-flex align-center mb-2">
-                <v-text-field v-model="label.name" label="Label Name" class="mr-2" />
-                <div class="color-box-wrapper mr-2">
-                  <div
-                      class="color-box"
-                      :style="{ backgroundColor: label.color }"
-                      @click="() => label.showPicker = !label.showPicker"
-                  />
-                  <v-menu
-                      v-model="label.showPicker"
-                      :close-on-content-click="false"
-                      location="bottom"
-                  >
-                    <template v-slot:activator="{ props }">
-                      <div v-bind="props"></div>
-                    </template>
-                    <v-card>
-                      <v-color-picker
-                          v-model="label.color"
-                          hide-inputs
-                          @update:model-value="() => label.showPicker = false"
-                      />
-                    </v-card>
-                  </v-menu>
-                </div>
-                <v-text-field v-model="label.icon" label="Icon" class="mx-2" />
-                <v-btn icon color="error" @click="removeLabel(index)">
-                  <v-icon>mdi-delete</v-icon>
-                </v-btn>
-              </div>
-              <v-btn color="primary" @click="addLabel">Add Label</v-btn>
+              <v-text-field 
+                v-model="currentGameType.names.en" 
+                label="English"
+                required
+              />
+              <v-text-field 
+                v-model="currentGameType.names.uk" 
+                label="Українська"
+              />
+              <v-text-field 
+                v-model="currentGameType.names.et" 
+                label="Eesti"
+              />
             </v-card-text>
           </v-card>
 
-          <!-- Teams Section -->
-          <v-card class="mb-4" v-if="showTeams">
-            <v-card-title>Teams</v-card-title>
+          <!-- Icon -->
+          <v-text-field 
+            v-model="currentGameType.icon" 
+            :label="t('gameTypes.icon')"
+            placeholder="mdi-cards-playing"
+          />
+
+          <!-- Scoring Type -->
+          <v-select
+            v-model="currentGameType.scoring_type"
+            :items="Object.keys(ScoringTypes)"
+            :item-title="(item) => t(`scoring.${item}`)"
+            :item-value="(item) => item"
+            :label="t('gameTypes.scoringType')"
+            required
+          />
+
+          <!-- Min/Max Players -->
+          <v-row>
+            <v-col cols="6">
+              <v-text-field 
+                v-model.number="currentGameType.min_players" 
+                :label="t('gameTypes.minPlayers')"
+                type="number"
+                min="1"
+              />
+            </v-col>
+            <v-col cols="6">
+              <v-text-field 
+                v-model.number="currentGameType.max_players" 
+                :label="t('gameTypes.maxPlayers')"
+                type="number"
+                min="1"
+              />
+            </v-col>
+          </v-row>
+
+          <!-- Roles Section -->
+          <v-card class="mb-4">
+            <v-card-title>{{ t('gameTypes.roles') }}</v-card-title>
             <v-card-text>
-              <div v-for="(team, index) in currentGameType.teams" :key="index" class="d-flex align-center mb-2">
-                <v-text-field v-model="team.name" label="Team Name" class="mr-2" />
-                <div class="color-box-wrapper mr-2">
-                  <div
-                      class="color-box"
-                      :style="{ backgroundColor: team.color }"
-                      @click="() => team.showPicker = !team.showPicker"
-                  />
-                  <v-menu
-                      v-model="team.showPicker"
-                      :close-on-content-click="false"
-                      location="bottom"
-                  >
-                    <template v-slot:activator="{ props }">
-                      <div v-bind="props"></div>
-                    </template>
-                    <v-card>
-                      <v-color-picker
-                          v-model="team.color"
-                          hide-inputs
-                          @update:model-value="() => team.showPicker = false"
+              <div v-for="(role, index) in currentGameType.roles" :key="index" class="role-item mb-4 pa-3 border rounded">
+                <v-row>
+                  <v-col cols="12" md="3">
+                    <v-text-field 
+                      v-model="role.key" 
+                      :label="t('gameTypes.roleKey')"
+                      dense
+                    />
+                  </v-col>
+                  <v-col cols="12" md="3">
+                    <v-text-field 
+                      v-model="role.names.en" 
+                      label="Name (EN)"
+                      dense
+                    />
+                  </v-col>
+                  <v-col cols="12" md="3">
+                    <v-text-field 
+                      v-model="role.names.uk" 
+                      label="Назва (UK)"
+                      dense
+                    />
+                  </v-col>
+                  <v-col cols="12" md="3">
+                    <v-select
+                      v-model="role.role_type"
+                      :items="roleTypeOptions"
+                      :item-title="(item) => t(`roleTypes.${item.value}`)"
+                      item-value="value"
+                      :label="t('gameTypes.roleType')"
+                      dense
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="4">
+                    <div class="d-flex align-center">
+                      <div 
+                        class="color-box mr-2"
+                        :style="{ backgroundColor: role.color }"
+                        @click="() => role.showPicker = !role.showPicker"
                       />
-                    </v-card>
-                  </v-menu>
-                </div>
-                <v-text-field v-model="team.icon" label="Icon" class="mx-2" />
-                <v-btn icon color="error" @click="removeTeam(index)">
-                  <v-icon>mdi-delete</v-icon>
-                </v-btn>
+                      <v-menu
+                        v-model="role.showPicker"
+                        :close-on-content-click="false"
+                        location="bottom"
+                      >
+                        <template v-slot:activator="{ props }">
+                          <v-text-field 
+                            v-model="role.color" 
+                            :label="t('gameTypes.color')"
+                            v-bind="props"
+                            dense
+                            readonly
+                          />
+                        </template>
+                        <v-card>
+                          <v-color-picker
+                            v-model="role.color"
+                            hide-inputs
+                            @update:model-value="() => role.showPicker = false"
+                          />
+                        </v-card>
+                      </v-menu>
+                    </div>
+                  </v-col>
+                  <v-col cols="12" md="4">
+                    <v-text-field 
+                      v-model="role.icon" 
+                      :label="t('gameTypes.icon')"
+                      dense
+                    />
+                  </v-col>
+                  <v-col cols="12" md="4" class="d-flex align-center">
+                    <v-btn icon color="error" @click="removeRole(index)" size="small">
+                      <v-icon>mdi-delete</v-icon>
+                    </v-btn>
+                  </v-col>
+                </v-row>
               </div>
-              <v-btn color="primary" @click="addTeam">Add Team</v-btn>
+              <v-btn color="primary" @click="addRole" prepend-icon="mdi-plus">
+                {{ t('gameTypes.addRole') }}
+              </v-btn>
             </v-card-text>
           </v-card>
-
 
           <div class="d-flex gap-2">
-            <v-btn @click="saveGameType" color="success">{{ isEditing ? 'Update' : 'Create' }}</v-btn>
-            <v-btn @click="cancelEdit" color="error">Cancel</v-btn>
+            <v-btn type="submit" color="success">
+              {{ isEditing ? t('gameTypes.update') : t('gameTypes.create') }}
+            </v-btn>
+            <v-btn @click="cancelEdit" color="error">
+              {{ t('gameTypes.cancel') }}
+            </v-btn>
           </div>
         </v-form>
       </v-col>
@@ -118,31 +212,61 @@
 </template>
 
 <script lang="ts" setup>
-import {ref, onMounted, computed} from 'vue';
-import GameApi, {GameType, Label, ScoringType, ScoringTypes} from '@/api/GameApi';
-
+import { ref, onMounted } from 'vue';
+import GameApi, { GameType, Role, ScoringTypes, getLocalizedName } from '@/api/GameApi';
 import { useI18n } from 'vue-i18n'
-const { t } = useI18n()
 
-interface LabelUI extends Label {
+const { t, locale } = useI18n()
+
+interface RoleUI extends Role {
   showPicker: boolean
 }
 
-interface GameTypeUI extends GameType {
-  labels: Array<LabelUI>
-  teams: Array<LabelUI>
+interface GameTypeUI extends Omit<GameType, 'roles'> {
+  roles: RoleUI[]
 }
 
-const defaultGameType = {} as GameTypeUI;
-const defaultLabel = { name: '', color: '#000000', icon: '', showPicker: false };
-const defaultTeam = { name: '', color: '#000000', icon: '', showPicker: false };
+const defaultGameType: GameTypeUI = {
+  code: '',
+  key: '',
+  names: { en: '', uk: '', et: '' },
+  icon: '',
+  scoring_type: 'classic',
+  roles: [],
+  min_players: 2,
+  max_players: 6,
+  built_in: false,
+  version: 0
+};
 
-const gameTypes = ref(Array<GameType>());
-const currentGameType = ref( {...defaultGameType} as GameTypeUI);
+const defaultRole: RoleUI = {
+  key: '',
+  names: { en: '', uk: '' },
+  color: '#4CAF50',
+  icon: '',
+  role_type: 'optional_one',
+  showPicker: false
+};
+
+const gameTypes = ref<GameType[]>([]);
+const currentGameType = ref<GameTypeUI>({ ...defaultGameType, names: { ...defaultGameType.names }, roles: [] });
 const isEditing = ref(false);
 
+const roleTypeOptions = [
+  { value: 'optional' },
+  { value: 'optional_one' },
+  { value: 'exactly_one' },
+  { value: 'required' },
+  { value: 'multiple' },
+  { value: 'moderator' },
+];
+
+const getGameTypeName = (gameType: GameType): string => {
+  return getLocalizedName(gameType.names, locale.value);
+};
+
 const cancelEdit = () => {
-  currentGameType.value = {...defaultGameType};
+  currentGameType.value = { ...defaultGameType, names: { ...defaultGameType.names }, roles: [] };
   isEditing.value = false;
 };
 
@@ -152,25 +276,41 @@ const fetchGameTypes = async () => {
   } catch (error) {
     console.error('Error fetching game types:', error);
   }
-
 };
+
 const saveGameType = async () => {
   try {
+    // Clean up roles - remove showPicker property
+    const cleanRoles = currentGameType.value.roles.map(({ showPicker: _showPicker, ...role }) => role);
+    const gameTypeToSave = {
+      ...currentGameType.value,
+      roles: cleanRoles
+    };
+
     if (isEditing.value) {
-      await GameApi.updateGameType(currentGameType.value.code, currentGameType.value);
+      await GameApi.updateGameType(currentGameType.value.code, gameTypeToSave);
     } else {
-      await GameApi.createGameType(currentGameType.value);
+      await GameApi.createGameType(gameTypeToSave);
     }
     await fetchGameTypes();
-    currentGameType.value = {...defaultGameType};
-    isEditing.value = false;
+    cancelEdit();
   } catch (error) {
     console.error('Error saving game type:', error);
   }
 };
 
 const editGameType = (gameType: GameType) => {
-  currentGameType.value = {...gameType} as GameTypeUI;
+  const rolesWithPicker: RoleUI[] = (gameType.roles || []).map(role => ({
+    ...role,
+    names: { ...role.names },
+    showPicker: false
+  }));
+  
+  currentGameType.value = {
+    ...gameType,
+    names: { ...gameType.names },
+    roles: rolesWithPicker
+  };
   isEditing.value = true;
 };
 
@@ -183,37 +323,35 @@ const deleteGameType = async (code: string) => {
   }
 };
 
-const addLabel = () => {
-  if (!currentGameType.value.labels) {
-    currentGameType.value.labels = [];
-  }
-  currentGameType.value.labels.push({ ...defaultLabel });
+const addRole = () => {
+  currentGameType.value.roles.push({ 
+    ...defaultRole, 
+    names: { ...defaultRole.names },
+    showPicker: false 
+  });
 };
 
-const removeLabel = (index: number) => {
-  currentGameType.value.labels.splice(index, 1);
+const removeRole = (index: number) => {
+  currentGameType.value.roles.splice(index, 1);
 };
-
-const addTeam = () => {
-  if (!currentGameType.value.teams) {
-    currentGameType.value.teams = [];
-  }
-  currentGameType.value.teams.push({ ...defaultTeam });
-};
-
-const removeTeam = (index: number) => {
-  currentGameType.value.teams.splice(index, 1);
-};
-
-const showLabels = computed(() => {
-  const labelScoringTypes: ScoringType[] = ['classic', 'custom'];
-  return labelScoringTypes.includes(currentGameType.value.scoring_type);
-});
-
-const showTeams = computed(() => {
-  const teamScoringTypes: ScoringType[] = ['mafia', 'custom', 'team_vs_team'];
-  return teamScoringTypes.includes(currentGameType.value.scoring_type);
-});
 
 onMounted(fetchGameTypes);
 </script>
+
+<style scoped>
+.color-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+}
+
+.role-item {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.border {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+</style>
