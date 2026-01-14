@@ -42,7 +42,7 @@ Wizard для створення ігрового раунду з інтелек
 
 ### Зміни в моделях (Backend)
 
-#### 1. `LeagueMembership` - додати поле кешу
+#### 1. `LeagueMembership` - додати нові поля
 
 ```go
 type RecentCoPlayer struct {
@@ -53,8 +53,16 @@ type RecentCoPlayer struct {
 type LeagueMembership struct {
     // ... existing fields ...
     RecentCoPlayers []RecentCoPlayer `bson:"recent_co_players,omitempty"` // max 10 items
+    LastActivityAt  time.Time        `bson:"last_activity_at,omitempty"` // дата останньої активності
 }
 ```
+
+#### Коли оновлювати `LastActivityAt`:
+
+| Подія | Оновити для |
+|-------|-------------|
+| Створення іменованого інвайту | Нового pending membership (`time.Now()`) |
+| Фіналізація гри | Всіх учасників гри (`time.Now()`) |
 
 ### API endpoints
 
@@ -114,20 +122,25 @@ Endpoint `POST /api/leagues/{code}/invitations` вже реалізує:
 #### 1.1 Оновити модель `LeagueMembership`
 - [ ] Додати структуру `RecentCoPlayer`
 - [ ] Додати поле `RecentCoPlayers []RecentCoPlayer` (max 10)
-- [ ] Міграція існуючих даних (поле буде пустим)
+- [ ] Додати поле `LastActivityAt time.Time`
+- [ ] Міграція існуючих даних (поля будуть пустими, `last_activity_at` = `joined_at` для існуючих)
 
 #### 1.2 Оновити `LeagueMembershipRepository`
 - [ ] Метод `UpdateRecentCoPlayers(ctx, membershipID, coPlayers []RecentCoPlayer)`
 - [ ] Метод `AddRecentCoPlayer(ctx, membershipID, coPlayerMembershipID)` - додає на останнє місце
 - [ ] Метод `GetMembershipWithRecentPlayers(ctx, leagueID, userID)`
+- [ ] Метод `UpdateLastActivity(ctx, membershipID, timestamp)` - оновлює `last_activity_at`
+- [ ] Метод `FindByLeagueSortedByActivity(ctx, leagueID, limit)` - для `other_players`
 
-#### 1.3 Сервіс оновлення кешу
-- [ ] Створити функцію `UpdateCoPlayersCache(ctx, gameRound)` 
+#### 1.3 Сервіс оновлення при фіналізації раунду
+- [ ] Створити функцію `UpdatePlayersAfterGame(ctx, gameRound)` 
 - [ ] Викликати при фіналізації раунду (`finalizeGameRound`)
-- [ ] Логіка: для кожного гравця раунду оновити його `recent_co_players`:
-  - Додати всіх інших гравців раунду з `last_played_at = now`
-  - Якщо гравець вже є в списку - оновити `last_played_at`
-  - Тримати max 10 записів, сортованих за `last_played_at` desc
+- [ ] Логіка для кожного гравця раунду:
+  1. Оновити `last_activity_at = now`
+  2. Оновити `recent_co_players`:
+     - Додати всіх інших гравців раунду з `last_played_at = now`
+     - Якщо гравець вже є в списку - оновити `last_played_at`
+     - Тримати max 10 записів, сортованих за `last_played_at` desc
 
 ---
 
@@ -137,13 +150,25 @@ Endpoint `POST /api/leagues/{code}/invitations` вже реалізує:
 - [ ] Перевірка прав: член ліги АБО суперадмін
 - [ ] Отримати поточного користувача та його membership (якщо є)
 - [ ] Отримати `recent_co_players` з membership поточного користувача
-- [ ] Отримати всіх інших членів ліги
+- [ ] Отримати інших членів ліги (excluding current + recent), сортованих за `last_activity_at DESC`
 - [ ] Сформувати відповідь з трьома секціями:
-  - `current_player` (null якщо немає membership)
-  - `recent_players` (до 10, сортовані за `last_played_at`)
-  - `other_players` (решта членів ліги)
+
+**Для члена ліги:**
+| Секція | Джерело | Ліміт | Сортування |
+|--------|---------|-------|------------|
+| `current_player` | membership поточного користувача | 1 | - |
+| `recent_players` | `recent_co_players` з membership | до 10 | `last_played_at` DESC |
+| `other_players` | решта членів ліги | до 10 | `last_activity_at` DESC |
+
+**Для суперадміна без membership:**
+| Секція | Джерело | Ліміт | Сортування |
+|--------|---------|-------|------------|
+| `current_player` | null | - | - |
+| `recent_players` | пусто | 0 | - |
+| `other_players` | всі члени ліги | до **20** | `last_activity_at` DESC |
 
 #### 2.2 Розширити існуючий `POST /api/leagues/{code}/invitations`
+- [ ] Встановити `last_activity_at = now` для нового pending membership
 - [ ] Після створення invitation додати нового гравця в кеш `recent_co_players` поточного користувача
 - [ ] Додавати на **останнє** місце в кеші
 - [ ] Якщо кеш повний (10 записів) - видалити найстаріший запис
@@ -367,7 +392,9 @@ function autoFillPlayers(gameType: GameType, suggestedPlayers: SuggestedPlayersR
 
 ## ⚠️ Важливі примітки
 
-1. **Міграція**: Поле `recent_co_players` буде пустим для існуючих користувачів. Кеш заповниться автоматично при фіналізації нових раундів.
+1. **Міграція**: 
+   - Поле `recent_co_players` буде пустим для існуючих користувачів (заповниться при фіналізації нових раундів)
+   - Поле `last_activity_at` для існуючих membership встановити = `joined_at`
 
 2. **Суперадмін**: Може створювати раунди без membership, але не буде автоматично доданий до списку гравців.
 
