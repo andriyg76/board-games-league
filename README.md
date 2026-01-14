@@ -48,20 +48,18 @@ A platform for board game players to organize games, manage leagues, and track c
 ## Documentation
 
 ### English
-- [Session Management](docs/SESSION_MANAGEMENT.md) - Session and account management guide
-- [League System API](docs/LEAGUE_API.md) - Complete API reference for leagues
-- [League Test Plan](docs/LEAGUE_TEST_PLAN.md) - Comprehensive testing procedures
-- [League UX Improvements](docs/LEAGUE_UX_IMPROVEMENTS.md) - UX enhancement guidelines
-- [API Reference](docs/API_REFERENCE.md) - General API documentation
-- [Documentation Index](docs/README.md) - Complete documentation index
+- [Session Management](docs/SESSION_MANAGEMENT.en.md) - Session and account management guide
+- [League System](docs/LEAGUES.en.md) - Complete League System documentation (API, architecture, UX)
+- [Wizard Game Scoring](docs/WIZARD_GAME_SCORING.en.md) - Wizard card game scoring system documentation
+- [API Reference](docs/API_REFERENCE.en.md) - General API documentation
+- [Documentation Index](docs/README.en.md) - Complete documentation index
 
 ### Українська
-- [Керування сесіями](docs/SESSION_MANAGEMENT.uk.md) - Посібник керування сесіями
-- [Система ліг API](docs/LEAGUE_API.md) - Повний довідник API для ліг
-- [План тестування ліг](docs/LEAGUE_TEST_PLAN.md) - Комплексні процедури тестування
-- [Покращення UX ліг](docs/LEAGUE_UX_IMPROVEMENTS.md) - Рекомендації з покращення UX
-- [Довідник API](docs/API_REFERENCE.uk.md) - Загальна документація API
-- [Індекс документації](docs/README.uk.md) - Повний індекс документації
+- [Керування сесіями](docs/SESSION_MANAGEMENT.md) - Посібник керування сесіями
+- [Система ліг](docs/LEAGUES.md) - Повна документація системи ліг (API, архітектура, UX)
+- [Система підрахунку очок Wizard](docs/WIZARD_GAME_SCORING.md) - Документація системи підрахунку очок для гри Wizard
+- [Довідник API](docs/API_REFERENCE.md) - Загальна документація API
+- [Індекс документації](docs/README.md) - Повний індекс документації
 
 ## Quick Start
 

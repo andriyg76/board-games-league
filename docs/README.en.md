@@ -37,6 +37,34 @@
   - API examples
   - Database collections
 
+## League System
+
+- **[LEAGUES.md](LEAGUES.md)** - Complete League System documentation:
+  - Concept and requirements
+  - Data models architecture
+  - API documentation (all endpoints)
+  - Invitation and membership system
+  - Standings and points system
+  - Player recommendations based on game history
+  - Virtual players and invitations
+  - Database collections
+  - Frontend integration
+  - UX improvements and recommendations
+  - Important notes and implementation details
+
+## Specialized Games
+
+- **[WIZARD_GAME_SCORING.en.md](WIZARD_GAME_SCORING.en.md)** - Wizard card game scoring system documentation:
+  - Concept and functionality
+  - Architecture (Backend and Frontend)
+  - API endpoints and examples
+  - Scoring logic
+  - Vue components and TypeScript types
+  - Game flow (creation, rounds, finalization)
+  - Key features and technical details
+  - Testing checklist
+  - Future enhancements
+
 ## Key Features
 
 ### Game Management
@@ -78,6 +106,15 @@
 - Geographic location display
 - Session activity tracking
 - Player profile management
+
+### League System
+- Isolated competitive contexts for competitions
+- Invitation and membership system
+- Leaderboards with points and rankings
+- Points system (participation, position, moderation)
+- Player recommendations based on co-play history
+- Virtual players and invitations
+- Recent co-players caching
 
 ## Getting Started
 

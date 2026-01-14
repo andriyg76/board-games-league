@@ -1,15 +1,69 @@
-# Wizard Game Implementation Summary
+# Wizard Game Scoring System
+
+*[Українська версія](WIZARD_GAME_SCORING.md)*
 
 ## Overview
-Successfully implemented complete Wizard card game scoring interface for the Board Games League platform. The implementation provides full game lifecycle management from creation to finalization with automatic league standings integration.
 
-## Implementation Completed: 2026-01-13
+Complete interface for Wizard card game in the Board Games League system. Wizard integrates as a specialized interface for a regular game - results are automatically displayed in league standings.
+
+**Implementation Date:** 2026-01-13
+
+---
+
+## Concept and Functionality
+
+### Game Setup
+
+- **Players**: 3-6 players
+- **First Dealer**: Manual selection (index 0-N)
+- **Bid Restrictions**:
+  - `NO_RESTRICTIONS` - bids are not restricted
+  - `CANNOT_MATCH_CARDS` - sum of bids cannot equal number of cards
+  - `MUST_MATCH_CARDS` - sum of bids must equal number of cards
+- **Game Variant**:
+  - Standard (current implementation)
+  - Anniversary (future expansion)
+
+### Game Flow
+
+- **Dynamic number of rounds**: `60 / number_of_players`
+  - 3 players → 20 rounds
+  - 4 players → 15 rounds
+  - 5 players → 12 rounds
+  - 6 players → 10 rounds
+- **Round number** = **Cards dealt** (1 card in round 1, N cards in round N)
+- **Dealer rotation** (dealer changes each round)
+
+**Each round consists of:**
+1. **Bid Phase**: players enter their bids
+2. **Play Phase**: game is played offline
+3. **Result Phase**: enter actual results (actual tricks)
+4. **Scoring**: automatic score calculation
+
+### Scoring Rules
+
+```
+IF bid == actual:
+  points = 20 + (10 × actual)
+
+IF bid ≠ actual:
+  points = -10 × |bid - actual|
+```
+
+**Examples:**
+- Bid: 0, Actual: 0 → **+20 points**
+- Bid: 1, Actual: 1 → **+30 points** (20 + 10)
+- Bid: 3, Actual: 3 → **+50 points** (20 + 30)
+- Bid: 0, Actual: 1 → **-10 points**
+- Bid: 4, Actual: 5 → **-10 points**
+- Bid: 1, Actual: 0 → **-10 points**
 
 ---
 
 ## Architecture
 
 ### Single BSON Document Design
+
 All game state stored in one MongoDB document (`wizard_games` collection):
 - Embedded config, players, and rounds arrays
 - No complex JOINs required
@@ -17,6 +71,7 @@ All game state stored in one MongoDB document (`wizard_games` collection):
 - Efficient queries
 
 ### Integration with Existing System
+
 - **Creates `game_round`** on game start
 - **Stores detailed game data** in `wizard_games`
 - **Writes final scores back** to `game_round` on completion
@@ -26,24 +81,57 @@ All game state stored in one MongoDB document (`wizard_games` collection):
 
 ## Backend Implementation (Go)
 
-### Models (`backend/models/wizard_game.go`)
+### Data Model (`backend/models/wizard_game.go`)
+
 ```go
 type WizardGame struct {
-    Code        string             // Unique game code for URL
-    GameRoundID primitive.ObjectID // Link to game_rounds
+    ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+    Code         string             `bson:"code" json:"code"` // Unique code for URL
 
+    // Link to main game_round
+    GameRoundID  primitive.ObjectID `bson:"game_round_id" json:"game_round_id"` // REQUIRED
+
+    // Game configuration
     Config struct {
-        BidRestriction   string // NO_RESTRICTIONS, CANNOT_MATCH_CARDS, MUST_MATCH_CARDS
-        GameVariant      string // STANDARD (Anniversary reserved for future)
-        FirstDealerIndex int    // 0-based index in Players array
-    }
+        BidRestriction   string `bson:"bid_restriction" json:"bid_restriction"` // NO_RESTRICTIONS, CANNOT_MATCH_CARDS, MUST_MATCH_CARDS
+        GameVariant      string `bson:"game_variant" json:"game_variant"`       // STANDARD (for now)
+        FirstDealerIndex int    `bson:"first_dealer_index" json:"first_dealer_index"` // 0-based index in Players array
+    } `bson:"config" json:"config"`
 
-    Players []WizardPlayer      // Fixed order for entire game
-    Rounds  []WizardRound       // Length = 60 / len(Players)
+    // Players (fixed order, index corresponds to GameRound.Players)
+    Players []struct {
+        MembershipID primitive.ObjectID `bson:"membership_id" json:"membership_id"`
+        PlayerName   string             `bson:"player_name" json:"player_name"`
+        TotalScore   int                `bson:"total_score" json:"total_score"` // Cumulative score
+    } `bson:"players" json:"players"`
 
-    CurrentRound int             // 1 to MaxRounds
-    MaxRounds    int             // Dynamic: 60 / player_count
-    Status       string          // SETUP, IN_PROGRESS, COMPLETED
+    // Rounds (array, length = 60 / len(Players))
+    Rounds []struct {
+        RoundNumber int `bson:"round_number" json:"round_number"` // 1 to MaxRounds
+        DealerIndex int `bson:"dealer_index" json:"dealer_index"` // Index in Players
+        CardsCount  int `bson:"cards_count" json:"cards_count"`   // = RoundNumber
+
+        // Player results (index corresponds to Players index)
+        PlayerResults []struct {
+            Bid        int `bson:"bid" json:"bid"`              // -1 = not set
+            Actual     int `bson:"actual" json:"actual"`        // -1 = not set
+            Score      int `bson:"score" json:"score"`          // Points for round
+            Delta      int `bson:"delta" json:"delta"`          // Change from previous round
+            TotalScore int `bson:"total_score" json:"total_score"` // Cumulative score after this round
+        } `bson:"player_results" json:"player_results"`
+
+        Status      string    `bson:"status" json:"status"` // BIDDING, PLAYING, COMPLETED
+        CompletedAt time.Time `bson:"completed_at,omitempty" json:"completed_at,omitempty"`
+    } `bson:"rounds" json:"rounds"`
+
+    // Game state
+    CurrentRound int    `bson:"current_round" json:"current_round"` // 1 to MaxRounds
+    MaxRounds    int    `bson:"max_rounds" json:"max_rounds"`       // 60 / len(Players)
+    Status       string `bson:"status" json:"status"`               // SETUP, IN_PROGRESS, COMPLETED
+
+    // Metadata
+    CreatedAt time.Time `bson:"created_at" json:"created_at"`
+    UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
 ```
 
@@ -52,7 +140,15 @@ type WizardGame struct {
 - Dealer rotation: `(firstDealerIndex + roundNumber - 1) % playerCount`
 - All rounds pre-created with `bid: -1`, `actual: -1` (not set)
 
+**Indexes:**
+```go
+- wizard_games.code (unique)
+- wizard_games.game_round_id (unique) // One wizard_game per game_round
+- wizard_games.status
+```
+
 ### Repository (`backend/repositories/wizard_game_repository.go`)
+
 - CRUD operations
 - Unique indexes on `code` and `game_round_id`
 - `FindByCode()`, `FindByGameRoundID()` lookups
@@ -62,22 +158,127 @@ type WizardGame struct {
 
 **Game Management:**
 - `POST /api/wizard/games` - Create game + GameRound
-- `GET /api/wizard/games/:code` - Get game details
-- `GET /api/wizard/games/by-round/:gameRoundId` - Get by GameRound ID
+- `GET /api/wizard/games/:code` - Get game details by code
+- `GET /api/wizard/games/by-round/:game_round_id` - Get game by GameRound ID
 - `DELETE /api/wizard/games/:code` - Delete game (also deletes GameRound)
 
 **Round Operations:**
-- `PUT /api/wizard/games/:code/rounds/:round/bids` - Submit bids (array)
-- `PUT /api/wizard/games/:code/rounds/:round/results` - Submit results (array)
-- `POST /api/wizard/games/:code/rounds/:round/complete` - Calculate scores
-- `POST /api/wizard/games/:code/rounds/:round/restart` - Clear + recalculate
-- `PUT /api/wizard/games/:code/rounds/:round/edit` - Fix mistakes + cascade recalc
+- `PUT /api/wizard/games/:code/rounds/:round/bids` - Submit bids for round (bulk)
+- `PUT /api/wizard/games/:code/rounds/:round/results` - Submit results for round (bulk)
+- `POST /api/wizard/games/:code/rounds/:round/complete` - Complete round & calculate scores
+- `POST /api/wizard/games/:code/rounds/:round/restart` - Restart round (clear bids/results)
+- `PUT /api/wizard/games/:code/rounds/:round/edit` - Edit bid/actual after completion (recalculates all subsequent rounds)
 
 **Game State:**
-- `GET /api/wizard/games/:code/scoreboard` - Full game state
-- `POST /api/wizard/games/:code/finalize` - Complete + update league
-- `POST /api/wizard/games/:code/next-round` - Navigate forward
-- `POST /api/wizard/games/:code/prev-round` - Navigate backward
+- `GET /api/wizard/games/:code/scoreboard` - Get full scoreboard (all rounds)
+- `POST /api/wizard/games/:code/finalize` - Finalize game → update GameRound scores
+- `POST /api/wizard/games/:code/next-round` - Move to next round
+- `POST /api/wizard/games/:code/prev-round` - Move to previous round (view only)
+
+### Request/Response Examples
+
+**Create Game:**
+```json
+POST /api/wizard/games
+{
+  "league_id": "67abc123...",
+  "game_name": "Friday Wizard Night",
+  "bid_restriction": "NO_RESTRICTIONS",
+  "game_variant": "STANDARD",
+  "first_dealer_index": 0,
+  "player_membership_ids": [
+    "67def456...",
+    "67def789...",
+    "67defabc...",
+    "67defdef..."
+  ]
+}
+
+Response:
+{
+  "code": "abc123xyz",
+  "game_round_id": "67ghi123...",
+  "current_round": 1,
+  "max_rounds": 15,
+  "status": "IN_PROGRESS",
+  "players": [...]
+}
+```
+
+**Submit Bids:**
+```json
+PUT /api/wizard/games/abc123xyz/rounds/1/bids
+{
+  "bids": [0, 1, 0, 0]
+}
+
+Response: 200 OK
+```
+
+**Submit Results:**
+```json
+PUT /api/wizard/games/abc123xyz/rounds/1/results
+{
+  "results": [0, 0, 1, 0]
+}
+
+Response: 200 OK
+```
+
+**Complete Round:**
+```json
+POST /api/wizard/games/abc123xyz/rounds/1/complete
+
+Response:
+{
+  "round_number": 1,
+  "player_results": [
+    {
+      "bid": 0,
+      "actual": 0,
+      "score": 20,
+      "delta": 20,
+      "total_score": 20
+    },
+    ...
+  ]
+}
+```
+
+**Edit Round:**
+```json
+PUT /api/wizard/games/abc123xyz/rounds/3/edit
+{
+  "bids": [1, 2, 1, 0],
+  "results": [1, 1, 1, 0]
+}
+
+Response:
+{
+  "round_number": 3,
+  "recalculated_rounds": [3, 4, 5, ...],
+  "message": "Round 3 updated, recalculated 7 subsequent rounds"
+}
+```
+
+**Finalize Game:**
+```json
+POST /api/wizard/games/abc123xyz/finalize
+
+Response:
+{
+  "wizard_game_code": "abc123xyz",
+  "game_round_id": "67ghi123...",
+  "final_standings": [
+    {
+      "player_name": "Lena",
+      "total_score": 320,
+      "position": 1
+    },
+    ...
+  ]
+}
+```
 
 ### Scoring Logic (`backend/wizardapi/scoring.go`)
 
@@ -92,13 +293,6 @@ func CalculateRoundScore(bid int, actual int) int {
     return -10 * difference         // Failure: -10 per trick difference
 }
 ```
-
-**Examples:**
-- Bid 0, Actual 0 → **+20**
-- Bid 1, Actual 1 → **+30**
-- Bid 3, Actual 3 → **+50**
-- Bid 0, Actual 1 → **-10**
-- Bid 5, Actual 2 → **-30**
 
 **Bid Validation:**
 - `NO_RESTRICTIONS`: No validation
@@ -119,12 +313,14 @@ func CalculateRoundScore(bid int, actual int) int {
 ## Frontend Implementation (Vue 3 + TypeScript)
 
 ### TypeScript Types (`frontend/src/wizard/types.ts`)
+
 Complete type definitions for:
 - Enums: `BidRestriction`, `GameVariant`, `GameStatus`, `RoundStatus`
 - Interfaces: `WizardGame`, `WizardPlayer`, `WizardRound`, `WizardPlayerResult`
 - API types: Request/Response for all endpoints
 
 ### API Client (`frontend/src/api/WizardApi.ts`)
+
 - 12 methods covering all backend endpoints
 - Error handling with meaningful messages
 - Integration with `apiFetch` (auth-aware HTTP client)
@@ -168,15 +364,6 @@ Complete type definitions for:
 - Error handling
 - Auto-navigation to game on creation
 
-**UI Elements:**
-- League dropdown
-- Game name text field
-- Bid restriction select
-- Player list with checkboxes
-- Dealer indicator chips
-- Summary card with all settings
-- Create/Cancel buttons
-
 #### 2. WizardGamePlay.vue
 **Purpose:** Main game interface
 
@@ -197,12 +384,6 @@ Complete type definitions for:
 - Error alerts
 - Loading states
 
-**State Management:**
-- Auto-loads game from route parameter
-- Reloads after every action
-- Displays validation errors
-- Shows completion progress
-
 #### 3. WizardBidDialog.vue
 **Purpose:** Interactive bid entry
 
@@ -219,12 +400,6 @@ Complete type definitions for:
 - Pre-fill with existing bids (for editing)
 - Submit/Cancel actions
 
-**Validation:**
-- Shows restriction rule at top
-- Live validation feedback
-- Submit button disabled if invalid
-- Clear error messages
-
 #### 4. WizardResultDialog.vue
 **Purpose:** Actual tricks entry
 
@@ -240,12 +415,6 @@ Complete type definitions for:
 - Success alert when valid
 - Pre-fill with existing results
 - Submit/Cancel actions
-
-**Visual Feedback:**
-- Clear bid reference for each player
-- Immediate validation
-- Total progress (X / cards_count)
-- Submit button disabled if invalid
 
 #### 5. WizardScoreboard.vue
 **Purpose:** Comprehensive score table
@@ -273,16 +442,7 @@ Complete type definitions for:
 - Auto-load on open
 - Close button
 
-**Layout:**
-- Responsive design
-- Professional styling
-- Easy navigation with sticky columns
-- Clear visual hierarchy
-- Mobile-friendly
-
----
-
-## Routes (`frontend/src/router/index.ts`)
+### Routes (`frontend/src/router/index.ts`)
 
 Added routes:
 - `/ui/wizard/new` → WizardGameSetup
@@ -295,6 +455,7 @@ Both use lazy loading with code splitting.
 ## Game Flow
 
 ### 1. Game Creation
+
 ```
 User → WizardGameSetup
   ↓ Select league
@@ -312,6 +473,7 @@ Frontend:
 ```
 
 ### 2. Playing Rounds
+
 ```
 For each round (1 to MaxRounds):
 
@@ -345,6 +507,7 @@ For each round (1 to MaxRounds):
 ```
 
 ### 3. Game Finalization
+
 ```
 After all rounds completed:
   ↓ Click "Finalize Game"
@@ -460,7 +623,7 @@ Round 3: (firstDealerIndex + 2) % playerCount
 
 **Total Backend:** ~1,397 lines
 
-### Frontend (7 files)
+### Frontend (8 files)
 1. `frontend/src/wizard/types.ts` - TypeScript types (120 lines)
 2. `frontend/src/api/WizardApi.ts` - API client (267 lines)
 3. `frontend/src/store/wizard.ts` - Pinia store (324 lines)
@@ -471,10 +634,6 @@ Round 3: (firstDealerIndex + 2) % playerCount
 8. `frontend/src/wizard/WizardScoreboard.vue` - Score table (380 lines)
 
 **Total Frontend:** ~2,264 lines
-
-### Documentation (2 files)
-1. `WIZARD_IMPLEMENTATION_PLAN.md` - Original plan (860 lines)
-2. `WIZARD_IMPLEMENTATION_SUMMARY.md` - This file (600+ lines)
 
 **Grand Total:** ~4,100+ lines of code + documentation
 
@@ -564,7 +723,7 @@ Round 3: (firstDealerIndex + 2) % playerCount
 
 ---
 
-## Success Metrics
+## Success Criteria
 
 ✅ **Functional Requirements Met:**
 - [x] Game creation with 3-6 players
@@ -599,14 +758,9 @@ The Wizard game scoring interface has been successfully implemented with:
 
 The system is **production-ready** and can handle complete game lifecycles from creation through finalization with automatic league standings updates.
 
-**Implementation Time:** ~1 day
-**Lines of Code:** ~4,100+
-**Commits:** 8 major commits
-**Files Created:** 15 new files
+**Implementation Time:** ~1 day  
+**Lines of Code:** ~4,100+  
+**Commits:** 8 major commits  
+**Files Created:** 15 new files  
 **Zero breaking changes** to existing codebase
 
----
-
-*Implemented by: Claude (Anthropic)*
-*Date: January 13, 2026*
-*Branch: `claude/wizard-score-interface-IFHw1`*

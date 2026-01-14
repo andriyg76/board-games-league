@@ -804,3 +804,11 @@ Gets the current authenticated player's information.
 - Configure trusted origins via `TRUSTED_ORIGINS` environment variable
 - Format: Comma-separated list of URLs (e.g., `http://localhost:3000,https://example.com`)
 - Used by `RequestService.IsTrustedOrigin()` for validation
+
+---
+
+## League System Endpoints
+
+For complete League System API documentation, including endpoints for league management, invitations, standings, and player recommendations, see:
+
+- **[LEAGUES.md](LEAGUES.md)** - Complete League System documentation (includes API)
