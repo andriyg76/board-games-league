@@ -123,7 +123,7 @@ Endpoint `POST /api/leagues/{code}/invitations` вже реалізує:
 - [ ] Додати структуру `RecentCoPlayer`
 - [ ] Додати поле `RecentCoPlayers []RecentCoPlayer` (max 10)
 - [ ] Додати поле `LastActivityAt time.Time`
-- [ ] Міграція існуючих даних (поля будуть пустими, `last_activity_at` = `joined_at` для існуючих)
+- [ ] Міграція не потрібна - пусті значення обробляються в сортуванні (NULLS LAST)
 
 #### 1.2 Оновити `LeagueMembershipRepository`
 - [ ] Метод `UpdateRecentCoPlayers(ctx, membershipID, coPlayers []RecentCoPlayer)`
@@ -158,14 +158,14 @@ Endpoint `POST /api/leagues/{code}/invitations` вже реалізує:
 |--------|---------|-------|------------|
 | `current_player` | membership поточного користувача | 1 | - |
 | `recent_players` | `recent_co_players` з membership | до 10 | `last_played_at` DESC |
-| `other_players` | решта членів ліги | до 10 | `last_activity_at` DESC |
+| `other_players` | решта членів ліги | до 10 | `last_activity_at` DESC NULLS LAST |
 
 **Для суперадміна без membership:**
 | Секція | Джерело | Ліміт | Сортування |
 |--------|---------|-------|------------|
 | `current_player` | null | - | - |
 | `recent_players` | пусто | 0 | - |
-| `other_players` | всі члени ліги | до **20** | `last_activity_at` DESC |
+| `other_players` | всі члени ліги | до **20** | `last_activity_at` DESC NULLS LAST |
 
 #### 2.2 Розширити існуючий `POST /api/leagues/{code}/invitations`
 - [ ] Встановити `last_activity_at = now` для нового pending membership
@@ -392,9 +392,9 @@ function autoFillPlayers(gameType: GameType, suggestedPlayers: SuggestedPlayersR
 
 ## ⚠️ Важливі примітки
 
-1. **Міграція**: 
-   - Поле `recent_co_players` буде пустим для існуючих користувачів (заповниться при фіналізації нових раундів)
-   - Поле `last_activity_at` для існуючих membership встановити = `joined_at`
+1. **Міграція не потрібна**: 
+   - Пусті `recent_co_players` заповняться автоматично при фіналізації нових раундів
+   - Пусті `last_activity_at` сортуються в кінець списку (NULLS LAST)
 
 2. **Суперадмін**: Може створювати раунди без membership, але не буде автоматично доданий до списку гравців.
 
