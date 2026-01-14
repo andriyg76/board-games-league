@@ -45,6 +45,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/{code}", h.getLeague)                      // Get league details
 		r.Get("/{code}/members", h.getLeagueMembers)       // Get league members
 		r.Get("/{code}/standings", h.getLeagueStandings)   // Get league standings
+		r.Get("/{code}/suggested-players", h.getSuggestedPlayers)  // Get suggested players for game
 		r.Post("/{code}/invitations", h.createInvitation)  // Create invitation
 		r.Get("/{code}/invitations", h.listMyInvitations)  // List my active invitations
 		r.Get("/{code}/invitations/expired", h.listMyExpiredInvitations)  // List my expired invitations

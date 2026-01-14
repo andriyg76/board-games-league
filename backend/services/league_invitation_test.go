@@ -216,6 +216,8 @@ func TestCreateInvitation(t *testing.T) {
 		mockMembershipRepo.On("Create", ctx, mock.AnythingOfType("*models.LeagueMembership")).Return(nil)
 		mockInvitationRepo.On("Create", ctx, mock.AnythingOfType("*models.LeagueInvitation")).Return(nil)
 		mockMembershipRepo.On("Update", ctx, mock.AnythingOfType("*models.LeagueMembership")).Return(nil)
+		mockMembershipRepo.On("FindByLeagueAndUser", ctx, leagueID, userID).Return(nil, nil) // Creator not a member yet
+		mockMembershipRepo.On("AddRecentCoPlayer", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		invitation, err := service.CreateInvitation(ctx, leagueID, userID, playerAlias)
 

@@ -684,3 +684,54 @@ func getIDFromURL(r *http.Request, paramName string) (primitive.ObjectID, error)
 
 	return id, nil
 }
+
+// GET /api/leagues/:code/suggested-players - Get suggested players for game creation
+func (h *Handler) getSuggestedPlayers(w http.ResponseWriter, r *http.Request) {
+	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	if err != nil {
+		http.Error(w, "Invalid league code", http.StatusBadRequest)
+		return
+	}
+
+	// Get current user
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := utils.CodeToID(profile.Code)
+	if err != nil {
+		http.Error(w, "Invalid user code", http.StatusBadRequest)
+		return
+	}
+
+	// Check if user is a member of the league or superadmin
+	user, err := h.userService.FindByCode(r.Context(), profile.Code)
+	if err != nil || user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	isSuperAdmin := auth.IsSuperAdmin(user)
+	if !isSuperAdmin {
+		isMember, err := h.leagueService.IsUserMember(r.Context(), leagueID, userID)
+		if err != nil {
+			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to check membership")
+			return
+		}
+		if !isMember {
+			http.Error(w, "Forbidden: not a member of this league", http.StatusForbidden)
+			return
+		}
+	}
+
+	// Get suggested players
+	response, err := h.leagueService.GetSuggestedPlayers(r.Context(), leagueID, userID, isSuperAdmin)
+	if err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to get suggested players")
+		return
+	}
+
+	utils.WriteJSON(w, response, http.StatusOK)
+}

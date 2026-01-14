@@ -336,11 +336,14 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 
 	var membership *models.LeagueMembership
 
+	now := time.Now()
+
 	if existingMembership != nil {
 		// Alias exists - check if it's a virtual member that can be reused
 		if existingMembership.Status == models.MembershipVirtual {
 			// Reuse virtual membership - convert back to pending
 			existingMembership.Status = models.MembershipPending
+			existingMembership.LastActivityAt = now
 			if err := s.membershipRepo.Update(ctx, existingMembership); err != nil {
 				return nil, fmt.Errorf("failed to update virtual membership: %w", err)
 			}
@@ -352,10 +355,11 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 	} else {
 		// Create new pending membership
 		membership = &models.LeagueMembership{
-			LeagueID: leagueID,
-			Alias:    playerAlias,
-			Status:   models.MembershipPending,
-			JoinedAt: time.Now(),
+			LeagueID:       leagueID,
+			Alias:          playerAlias,
+			Status:         models.MembershipPending,
+			JoinedAt:       now,
+			LastActivityAt: now,
 		}
 
 		if err := s.membershipRepo.Create(ctx, membership); err != nil {
@@ -386,6 +390,13 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 	membership.InvitationID = invitation.ID
 	if err := s.membershipRepo.Update(ctx, membership); err != nil {
 		return nil, fmt.Errorf("failed to link membership to invitation: %w", err)
+	}
+
+	// Add the new member to creator's recent_co_players cache
+	creatorMembership, _ := s.membershipRepo.FindByLeagueAndUser(ctx, leagueID, createdBy)
+	if creatorMembership != nil {
+		// Add to the end of the cache (will push out oldest if at max)
+		_ = s.membershipRepo.AddRecentCoPlayer(ctx, creatorMembership.ID, membership.ID, now)
 	}
 
 	return invitation, nil
