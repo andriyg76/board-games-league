@@ -228,19 +228,38 @@ interface SuggestedPlayersResponse {
 - [ ] При успіху: toast + копіювання посилання в буфер
 - [ ] Автоматично додати до списку обраних
 
-#### 4.3 Оновити `GameroundEdit.vue` → Wizard
-- [ ] **Крок 1**: Вибір типу гри
+#### 4.3 Компоненти Wizard (РЕАЛІЗОВАНО)
+
+**Структура:**
+```
+frontend/src/gametypes/
+├── GameRoundWizard.vue      # Головний контейнер wizard
+├── GameroundEdit.vue        # Тільки для редагування завершених
+└── steps/
+    ├── Step1GameType.vue    # Вибір типу гри
+    ├── Step2Players.vue     # Вибір гравців
+    ├── Step3Roles.vue       # Призначення ролей
+    └── Step4Scoring.vue     # Введення очок
+
+frontend/src/wizard/
+└── WizardGameConfig.vue     # Налаштування для Wizard гри
+```
+
+- [x] **Крок 1** (`Step1GameType.vue`): Вибір типу гри
   - Список типів ігор (використовувати `getLocalizedName(gameType.names, lang)`)
   - Після вибору → перехід до кроку 2
-- [ ] **Крок 2**: Вибір гравців (`PlayerSelector`)
+- [x] **Крок 2** (`Step2Players.vue`): Вибір гравців
+  - Інтеграція з `PlayerSelector`
   - Автозаповнення на основі `suggested-players`
-  - Можливість виділити гравця для модератора (якщо є роль з `role_type: moderator`)
+  - Можливість виділити гравця для модератора
   - Кнопка "Далі"
-- [ ] **Крок 3**: Налаштування раунду
-  - Назва раунду
-  - Призначення **ролей** гравцям (на основі `gameType.roles`)
-  - Модератор = виділений гравець з кроку 2 (для ролі з `role_type: moderator`)
-  - Кнопка "Зберегти"
+- [x] **Крок 3** (`Step3Roles.vue` / `WizardGameConfig.vue`): Налаштування раунду
+  - Для стандартних ігор: назва раунду, призначення ролей
+  - Для Wizard: обмеження ставок, перший дилер
+  - Кнопка "Зберегти" та "Далі"
+- [x] **Крок 4** (`Step4Scoring.vue`): Введення очок
+  - Таблиця очок та позицій гравців
+  - Кнопка "Зберегти" та "Завершити гру"
 
 **Нова структура GameType (з main):**
 ```typescript
@@ -458,13 +477,22 @@ function autoFillPlayers(gameType: GameType, suggestedPlayers: SuggestedPlayersR
 ### Backend
 - `backend/models/league_membership.go` - модель membership
 - `backend/models/game_type.go` - модель GameType з Roles
+- `backend/models/game_round.go` - модель GameRound зі статусами
 - `backend/repositories/league_membership_repository.go` - репозиторій
+- `backend/repositories/game_round_repository.go` - репозиторій раундів
 - `backend/services/league_service.go` - сервіс ліг (CreateInvitation)
-- `backend/gameapi/league.go` - API handlers інвайтів
-- `backend/gameapi/gameround.go` - логіка раундів
+- `backend/gameapi/league.go` - API handlers інвайтів та раундів ліги
+- `backend/gameapi/gameround.go` - логіка раундів (roles, scores, status)
 
 ### Frontend
-- `frontend/src/gametypes/GameroundEdit.vue` - поточний компонент редагування
+- `frontend/src/gametypes/GameRoundWizard.vue` - головний wizard створення раунду
+- `frontend/src/gametypes/GameroundEdit.vue` - редагування завершених раундів
+- `frontend/src/gametypes/steps/Step1GameType.vue` - крок вибору типу гри
+- `frontend/src/gametypes/steps/Step2Players.vue` - крок вибору гравців
+- `frontend/src/gametypes/steps/Step3Roles.vue` - крок призначення ролей
+- `frontend/src/gametypes/steps/Step4Scoring.vue` - крок введення очок
+- `frontend/src/wizard/WizardGameConfig.vue` - налаштування Wizard гри
+- `frontend/src/components/game/PlayerSelector.vue` - компонент вибору гравців
 - `frontend/src/api/LeagueApi.ts` - API клієнт ліг
 - `frontend/src/api/GameApi.ts` - API клієнт ігор (Role, RoleType, getLocalizedName)
 - `frontend/src/store/player.ts` - store гравців
