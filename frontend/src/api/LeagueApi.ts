@@ -1,5 +1,5 @@
 // League API types and methods
-import { apiFetch } from './apiClient';
+import { apiFetch, apiJson, apiJsonPost } from './apiClient';
 
 export type LeagueStatus = 'active' | 'archived';
 export type LeagueMembershipStatus = 'active' | 'banned' | 'pending' | 'virtual';
@@ -96,102 +96,50 @@ export default {
     /**
      * Create a new league (superadmin only)
      */
-    async createLeague(name: string): Promise<League> {
-        const response = await apiFetch('/api/leagues', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ name }),
-        });
-        if (!response.ok) {
-            throw new Error('Failed to create league');
-        }
-        return await response.json();
-    },
+    createLeague: (name: string): Promise<League> =>
+        apiJsonPost('/api/leagues', { name }),
 
     /**
      * Get all leagues
      */
-    async listLeagues(): Promise<League[]> {
-        const response = await apiFetch('/api/leagues');
-        if (!response.ok) {
-            throw new Error('Failed to load leagues');
-        }
-        return await response.json();
-    },
+    listLeagues: (): Promise<League[]> =>
+        apiJson('/api/leagues'),
 
     /**
      * Get league details by code
      */
-    async getLeague(code: string): Promise<League> {
-        const response = await apiFetch(`/api/leagues/${code}`);
-        if (!response.ok) {
-            throw new Error('Failed to get league');
-        }
-        return await response.json();
-    },
+    getLeague: (code: string): Promise<League> =>
+        apiJson(`/api/leagues/${code}`),
 
     /**
      * Get league members
      */
-    async getLeagueMembers(code: string): Promise<LeagueMember[]> {
-        const response = await apiFetch(`/api/leagues/${code}/members`);
-        if (!response.ok) {
-            throw new Error('Failed to get league members');
-        }
-        return await response.json();
-    },
+    getLeagueMembers: (code: string): Promise<LeagueMember[]> =>
+        apiJson(`/api/leagues/${code}/members`),
 
     /**
      * Get league standings
      */
-    async getLeagueStandings(code: string): Promise<LeagueStanding[]> {
-        const response = await apiFetch(`/api/leagues/${code}/standings`);
-        if (!response.ok) {
-            throw new Error('Failed to get league standings');
-        }
-        return await response.json();
-    },
+    getLeagueStandings: (code: string): Promise<LeagueStanding[]> =>
+        apiJson(`/api/leagues/${code}/standings`),
 
     /**
      * Create an invitation for a league (members only)
      */
-    async createInvitation(leagueCode: string, alias: string): Promise<LeagueInvitation> {
-        const response = await apiFetch(`/api/leagues/${leagueCode}/invitations`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ alias }),
-        });
-        if (!response.ok) {
-            throw new Error('Failed to create invitation');
-        }
-        return await response.json();
-    },
+    createInvitation: (leagueCode: string, alias: string): Promise<LeagueInvitation> =>
+        apiJsonPost(`/api/leagues/${leagueCode}/invitations`, { alias }),
 
     /**
      * List my active invitations for a league
      */
-    async listMyInvitations(leagueCode: string): Promise<LeagueInvitation[]> {
-        const response = await apiFetch(`/api/leagues/${leagueCode}/invitations`);
-        if (!response.ok) {
-            throw new Error('Failed to list invitations');
-        }
-        return await response.json();
-    },
+    listMyInvitations: (leagueCode: string): Promise<LeagueInvitation[]> =>
+        apiJson(`/api/leagues/${leagueCode}/invitations`),
 
     /**
      * List my expired invitations for a league
      */
-    async listMyExpiredInvitations(leagueCode: string): Promise<LeagueInvitation[]> {
-        const response = await apiFetch(`/api/leagues/${leagueCode}/invitations/expired`);
-        if (!response.ok) {
-            throw new Error('Failed to list expired invitations');
-        }
-        return await response.json();
-    },
+    listMyExpiredInvitations: (leagueCode: string): Promise<LeagueInvitation[]> =>
+        apiJson(`/api/leagues/${leagueCode}/invitations/expired`),
 
     /**
      * Cancel an invitation by token
@@ -199,9 +147,6 @@ export default {
     async cancelInvitation(leagueCode: string, token: string): Promise<void> {
         const response = await apiFetch(`/api/leagues/${leagueCode}/invitations/${encodeURIComponent(token)}/cancel`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
         });
         if (!response.ok) {
             throw new Error('Failed to cancel invitation');
@@ -211,18 +156,8 @@ export default {
     /**
      * Extend an invitation by 7 days
      */
-    async extendInvitation(leagueCode: string, token: string): Promise<LeagueInvitation> {
-        const response = await apiFetch(`/api/leagues/${leagueCode}/invitations/${encodeURIComponent(token)}/extend`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-        if (!response.ok) {
-            throw new Error('Failed to extend invitation');
-        }
-        return await response.json();
-    },
+    extendInvitation: (leagueCode: string, token: string): Promise<LeagueInvitation> =>
+        apiJsonPost(`/api/leagues/${leagueCode}/invitations/${encodeURIComponent(token)}/extend`, {}),
 
     /**
      * Update pending member alias
@@ -230,9 +165,7 @@ export default {
     async updatePendingMemberAlias(leagueCode: string, memberCode: string, alias: string): Promise<void> {
         const response = await apiFetch(`/api/leagues/${leagueCode}/members/${memberCode}/alias`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ alias }),
         });
         if (!response.ok) {
@@ -257,9 +190,6 @@ export default {
     async acceptInvitation(token: string): Promise<AcceptInvitationResponse> {
         const response = await apiFetch(`/api/leagues/join/${encodeURIComponent(token)}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
         });
         if (!response.ok) {
             // Check for already member error (409 Conflict)
@@ -281,9 +211,6 @@ export default {
     async banUserFromLeague(leagueCode: string, userCode: string): Promise<void> {
         const response = await apiFetch(`/api/leagues/${leagueCode}/ban/${userCode}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
         });
         if (!response.ok) {
             throw new Error('Failed to ban user from league');
@@ -296,9 +223,6 @@ export default {
     async archiveLeague(code: string): Promise<void> {
         const response = await apiFetch(`/api/leagues/${code}/archive`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
         });
         if (!response.ok) {
             throw new Error('Failed to archive league');
@@ -311,9 +235,6 @@ export default {
     async unarchiveLeague(code: string): Promise<void> {
         const response = await apiFetch(`/api/leagues/${code}/unarchive`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
         });
         if (!response.ok) {
             throw new Error('Failed to unarchive league');
@@ -322,13 +243,7 @@ export default {
 
     /**
      * Get suggested players for game creation
-     * Returns current player, recent co-players, and other league members
      */
-    async getSuggestedPlayers(leagueCode: string): Promise<SuggestedPlayersResponse> {
-        const response = await apiFetch(`/api/leagues/${leagueCode}/suggested-players`);
-        if (!response.ok) {
-            throw new Error('Failed to get suggested players');
-        }
-        return await response.json();
-    },
+    getSuggestedPlayers: (leagueCode: string): Promise<SuggestedPlayersResponse> =>
+        apiJson(`/api/leagues/${leagueCode}/suggested-players`),
 };

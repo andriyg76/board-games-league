@@ -2,7 +2,6 @@ package gameapi
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // POST /api/leagues - Create league (superadmin only)
@@ -605,12 +603,6 @@ type leagueResponse struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
-type playerResponse struct {
-	Code   string `json:"code"`
-	Alias  string `json:"alias"`
-	Avatar string `json:"avatar"`
-	Name   string `json:"name"`
-}
 
 type memberResponse struct {
 	Code       string `json:"code"`
@@ -672,20 +664,6 @@ func invitationToResponse(inv *models.LeagueInvitation) invitationResponse {
 	return resp
 }
 
-// getIDFromURL extracts and validates ObjectID from URL parameter
-func getIDFromURL(r *http.Request, paramName string) (primitive.ObjectID, error) {
-	code := chi.URLParam(r, paramName)
-	if code == "" {
-		return primitive.NilObjectID, fmt.Errorf("missing %s parameter", paramName)
-	}
-
-	id, err := utils.CodeToID(code)
-	if err != nil {
-		return primitive.NilObjectID, fmt.Errorf("invalid %s: %w", paramName, err)
-	}
-
-	return id, nil
-}
 
 // GET /api/leagues/:code/game_rounds - List game rounds for league
 func (h *Handler) listLeagueGameRounds(w http.ResponseWriter, r *http.Request) {

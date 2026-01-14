@@ -24,9 +24,6 @@ var config = struct {
 	}(),
 }
 
-func Test() {
-
-}
 
 type UserProfile struct {
 	//ID is a player unique in database
