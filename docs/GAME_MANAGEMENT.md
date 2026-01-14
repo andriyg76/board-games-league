@@ -48,11 +48,30 @@ Backend                          Frontend
 
 Тип гри визначає правила та механізм підрахунку очок для конкретної настільної гри. Кожен тип гри має:
 
-- **Назва**: Відображувана назва гри
+- **Ключ (key)**: Унікальний ідентифікатор типу гри
+- **Локалізовані назви**: Назви різними мовами (en, uk, et)
 - **Тип підрахунку**: Як розраховуються очки та визначаються переможці
-- **Мітки**: Опціональні теги категоризації з кольорами та іконками
-- **Команди**: Опціональні визначення команд для командних ігор
+- **Ролі**: Визначення ролей/команд/кольорів для гравців
 - **Обмеження гравців**: Мінімальна та максимальна кількість гравців
+- **Вбудований (built_in)**: Чи є тип вбудованим у систему (захищений від видалення)
+
+### Доступ
+
+**Важливо:** Тільки супер-адміністратори можуть створювати, редагувати та видаляти типи ігор. Типи ігор є глобальними для всієї платформи.
+
+### Вбудовані типи ігор
+
+Система автоматично завантажує вбудовані типи ігор при старті:
+- **Mafia** - командна гра з модератором
+- **Wizard** - карткова гра
+- **Catan** - класична гра з кольоровими фішками
+- **Ticket to Ride** - залізнична гра
+- **Carcassonne** - гра з мішками
+- **Codenames** - командна словесна гра
+- **Dixit** - асоціативна гра
+- **Uno** - карткова гра
+- **Wingspan** - гра про птахів
+- **1000 (Тисяча)** - карткова гра
 
 ### Типи підрахунку очок
 
@@ -60,54 +79,74 @@ Backend                          Frontend
 
 | Тип підрахунку | Опис | Приклад використання |
 |----------------|------|----------------------|
-| `classic` | Традиційний змагальний підрахунок - виграє найвища сума | Більшість настільних ігор (Catan, Ticket to Ride) |
+| `classic` | Традиційний змагальний підрахунок - виграє найвища сума | Catan, Ticket to Ride, Wingspan |
 | `cooperative` | Всі гравці виграють або програють разом | Pandemic, Forbidden Island |
 | `cooperative_with_moderator` | Кооперативна гра з окремим модератором | Ігри з ведучим |
-| `team_vs_team` | Команди змагаються одна з одною | Командні ігри |
+| `team_vs_team` | Команди змагаються одна з одною | Codenames |
 | `mafia` | Команда проти команди з прихованими ролями та модератором | Мафія, Вовкулаки |
 | `custom` | Без попередньо визначеної схеми - пряме введення очок | Будь-який власний підрахунок |
 
-### Мітки
+### Ролі
 
-Мітки використовуються для категоризації гравців у грі (наприклад, ролі, стартові позиції). Кожна мітка має:
+Ролі замінюють попередні "мітки" та "команди" і використовуються для:
+- Кольорових фішок/фігур у грі (червоний, синій, зелений)
+- Ігрових ролей (Мафія, Цивільний, Шериф)
+- Команд (Червона команда, Синя команда)
 
-- **Назва**: Ідентифікатор мітки
+Кожна роль має:
+
+- **Ключ (key)**: Унікальний ідентифікатор ролі
+- **Локалізовані назви**: Назви різними мовами
 - **Колір**: Колір відображення (формат hex)
 - **Іконка**: Назва іконки Material Design
+- **Тип ролі**: Обмеження кількості гравців
 
-Мітки доступні для типів підрахунку: `classic`, `custom`
+### Типи ролей (RoleType)
 
-### Команди
-
-Команди групують гравців для командних ігор. Кожна команда має:
-
-- **Назва**: Ідентифікатор команди
-- **Колір**: Колір команди (формат hex)
-- **Іконка**: Іконка команди
-
-Команди доступні для типів підрахунку: `mafia`, `custom`, `team_vs_team`
+| Тип ролі | Опис | Кількість гравців | Приклад |
+|----------|------|-------------------|---------|
+| `optional` | Необов'язкова роль | 0+ | Спостерігач |
+| `optional_one` | Необов'язкова, максимум один | 0-1 | Кольорова фішка в Catan |
+| `exactly_one` | Рівно один гравець | 1 | Шериф, Дон |
+| `required` | Обов'язково хоча б один | 1+ | Мафія |
+| `multiple` | Обов'язково кілька | 2+ | Цивільні, Команди |
+| `moderator` | Модератор гри | 1 | Ведучий |
 
 ### Структура моделі
 
 ```go
-type GameType struct {
-    ID          primitive.ObjectID `bson:"_id,omitempty"`
-    Version     int64              `bson:"version"`
-    Name        string             `bson:"name"`
-    ScoringType string             `bson:"scoring_type"`
-    Icon        string             `bson:"icon"`
-    Labels      []Label            `bson:"labels"`
-    Teams       []Label            `bson:"teams"`
-    MinPlayers  int                `bson:"min_players"`
-    MaxPlayers  int                `bson:"max_players"`
-    CreatedAt   time.Time          `bson:"created_at"`
-    UpdatedAt   time.Time          `bson:"updated_at"`
+type RoleType string
+
+const (
+    RoleTypeOptional    RoleType = "optional"      // 0+
+    RoleTypeOptionalOne RoleType = "optional_one"  // 0-1
+    RoleTypeExactlyOne  RoleType = "exactly_one"   // 1
+    RoleTypeRequired    RoleType = "required"      // 1+
+    RoleTypeMultiple    RoleType = "multiple"      // 2+
+    RoleTypeModerator   RoleType = "moderator"     // 1 (модератор)
+)
+
+type Role struct {
+    Key      string            `bson:"key"`       // унікальний ключ
+    Names    map[string]string `bson:"names"`     // {"en": "Red", "uk": "Червоний"}
+    Color    string            `bson:"color"`     // "#F44336"
+    Icon     string            `bson:"icon"`      // "mdi-account"
+    RoleType RoleType          `bson:"role_type"` // тип ролі
 }
 
-type Label struct {
-    Name  string `bson:"name"`
-    Color string `bson:"color"`
-    Icon  string `bson:"icon"`
+type GameType struct {
+    ID          primitive.ObjectID `bson:"_id,omitempty"`
+    Key         string             `bson:"key"`          // унікальний ключ
+    Names       map[string]string  `bson:"names"`        // локалізовані назви
+    Icon        string             `bson:"icon"`         // іконка гри
+    ScoringType ScoringType        `bson:"scoring_type"` // тип підрахунку
+    Roles       []Role             `bson:"roles"`        // ролі гравців
+    MinPlayers  int                `bson:"min_players"`  // мін. гравців
+    MaxPlayers  int                `bson:"max_players"`  // макс. гравців
+    BuiltIn     bool               `bson:"built_in"`     // вбудований тип
+    Version     int64              `bson:"version"`      // версія
+    CreatedAt   time.Time          `bson:"created_at"`
+    UpdatedAt   time.Time          `bson:"updated_at"`
 }
 ```
 
@@ -294,14 +333,31 @@ type Player struct {
 ### Створення типу гри
 
 ```typescript
-const gameType: GameType = {
-    name: "Catan",
+const gameType: Partial<GameType> = {
+    key: "my_custom_game",
+    names: {
+        en: "My Custom Game",
+        uk: "Моя власна гра"
+    },
+    icon: "mdi-dice-6",
     scoring_type: "classic",
-    labels: [
-        { name: "Перший гравець", color: "#FF0000", icon: "mdi-flag" }
+    roles: [
+        {
+            key: "red",
+            names: { en: "Red", uk: "Червоний" },
+            color: "#F44336",
+            icon: "",
+            role_type: "optional_one"
+        },
+        {
+            key: "blue",
+            names: { en: "Blue", uk: "Синій" },
+            color: "#2196F3",
+            icon: "",
+            role_type: "optional_one"
+        }
     ],
-    teams: [],
-    min_players: 3,
+    min_players: 2,
     max_players: 4
 };
 
@@ -313,12 +369,12 @@ await GameApi.createGameType(gameType);
 ```typescript
 const round: GameRound = {
     name: "П'ятнична гра в Catan",
-    game_type: "Catan",
+    game_type: "catan",  // використовуємо key типу гри
     start_time: new Date().toISOString(),
     players: [
-        { user_id: "player1_code", is_moderator: false },
-        { user_id: "player2_code", is_moderator: false },
-        { user_id: "player3_code", is_moderator: false }
+        { user_id: "player1_code", is_moderator: false, team_name: "red" },
+        { user_id: "player2_code", is_moderator: false, team_name: "blue" },
+        { user_id: "player3_code", is_moderator: false, team_name: "white" }
     ]
 };
 
@@ -339,32 +395,78 @@ const finalizationData: FinalizeGameRoundRequest = {
 await GameApi.finalizeGameRound(roundCode, finalizationData);
 ```
 
-### Приклад командної гри
+### Приклад командної гри (Мафія)
 
 ```typescript
-// Тип гри з командами
+// Тип гри Мафія вже вбудований, але ось як він виглядає:
 const mafiaGame: GameType = {
-    name: "Мафія",
+    key: "mafia",
+    names: {
+        en: "Mafia",
+        uk: "Мафія",
+        et: "Maffia"
+    },
+    icon: "mdi-account-group",
     scoring_type: "mafia",
-    labels: [],
-    teams: [
-        { name: "Мирні", color: "#00FF00", icon: "mdi-account-group" },
-        { name: "Мафія", color: "#FF0000", icon: "mdi-skull" }
+    roles: [
+        {
+            key: "civilian",
+            names: { en: "Civilian", uk: "Цивільний" },
+            color: "#4CAF50",
+            role_type: "multiple"
+        },
+        {
+            key: "mafia",
+            names: { en: "Mafia", uk: "Мафія" },
+            color: "#F44336",
+            role_type: "required"
+        },
+        {
+            key: "sheriff",
+            names: { en: "Sheriff", uk: "Шериф" },
+            color: "#2196F3",
+            role_type: "optional_one"
+        },
+        {
+            key: "moderator",
+            names: { en: "Moderator", uk: "Ведучий" },
+            color: "#FF9800",
+            role_type: "moderator"
+        }
     ],
     min_players: 6,
-    max_players: 15
+    max_players: 20,
+    built_in: true
 };
 
-// Запуск гри з командами
+// Запуск гри з ролями
 const mafiaRound: GameRound = {
     name: "Епічна ніч мафії",
-    game_type: "Мафія",
+    game_type: "mafia",
     start_time: new Date().toISOString(),
     players: [
-        { user_id: "player1", is_moderator: true, team_name: "" },
-        { user_id: "player2", is_moderator: false, team_name: "Мирні" },
-        { user_id: "player3", is_moderator: false, team_name: "Мафія" },
+        { user_id: "player1", is_moderator: false, team_name: "moderator" },
+        { user_id: "player2", is_moderator: false, team_name: "civilian" },
+        { user_id: "player3", is_moderator: false, team_name: "mafia" },
+        { user_id: "player4", is_moderator: false, team_name: "sheriff" },
         // ... більше гравців
+    ]
+};
+```
+
+### Приклад гри Codenames (команди)
+
+```typescript
+// Codenames з двома командами
+const codenamesRound: GameRound = {
+    name: "Битва розумів",
+    game_type: "codenames",
+    start_time: new Date().toISOString(),
+    players: [
+        { user_id: "player1", is_moderator: false, team_name: "red_team" },
+        { user_id: "player2", is_moderator: false, team_name: "red_team" },
+        { user_id: "player3", is_moderator: false, team_name: "blue_team" },
+        { user_id: "player4", is_moderator: false, team_name: "blue_team" },
     ]
 };
 ```

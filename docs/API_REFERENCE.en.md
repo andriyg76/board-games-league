@@ -348,6 +348,7 @@ Most endpoints require authentication via the `auth_token` cookie (JWT action to
 ## Game Type Endpoints
 
 All game type endpoints require authentication (action token cookie).
+**Important:** Create, update, and delete operations are restricted to super-administrators only.
 
 ### GET /api/game_types
 
@@ -364,22 +365,44 @@ Gets all game types.
 [
   {
     "code": "abc123",
-    "name": "Catan",
+    "key": "catan",
+    "names": {
+      "en": "Catan",
+      "uk": "Катан",
+      "et": "Catan"
+    },
+    "icon": "mdi-hexagon-multiple",
     "scoring_type": "classic",
-    "version": 1,
-    "labels": [
-      { "name": "First Player", "color": "#FF0000", "icon": "mdi-flag" }
+    "roles": [
+      {
+        "key": "red",
+        "names": { "en": "Red", "uk": "Червоний" },
+        "color": "#F44336",
+        "icon": "",
+        "role_type": "optional_one"
+      }
     ],
-    "teams": []
+    "min_players": 3,
+    "max_players": 6,
+    "built_in": true,
+    "version": 1
   }
 ]
 ```
+
+**Role Types (role_type):**
+- `optional` - optional, any number (0+)
+- `optional_one` - optional, maximum one (0-1)
+- `exactly_one` - exactly one player
+- `required` - at least one required (1+)
+- `multiple` - multiple required (2+)
+- `moderator` - game moderator (exactly 1)
 
 ---
 
 ### POST /api/game_types
 
-Creates a new game type.
+Creates a new game type. **Super-admin only.**
 
 **Request:**
 - Method: POST
@@ -389,36 +412,39 @@ Creates a new game type.
 - Body:
 ```json
 {
-  "name": "Catan",
+  "key": "my_game",
+  "names": {
+    "en": "My Game",
+    "uk": "Моя гра"
+  },
+  "icon": "mdi-dice-6",
   "scoring_type": "classic",
-  "labels": [
-    { "name": "First Player", "color": "#FF0000", "icon": "mdi-flag" }
+  "roles": [
+    {
+      "key": "player",
+      "names": { "en": "Player", "uk": "Гравець" },
+      "color": "#4CAF50",
+      "icon": "",
+      "role_type": "optional_one"
+    }
   ],
-  "teams": []
+  "min_players": 2,
+  "max_players": 6
 }
 ```
 
 **Response:**
 - Status: 201 Created
-- Body:
-```json
-{
-  "code": "abc123",
-  "name": "Catan",
-  "scoring_type": "classic",
-  "version": 1,
-  "labels": [...],
-  "teams": []
-}
-```
+- Body: Created game type object
 
 **Error Responses:**
-- 400 Bad Request: Invalid request body or duplicate label/team names
+- 400 Bad Request: Invalid request body or duplicate role keys
 - 401 Unauthorized: Invalid or expired token
+- 403 Forbidden: Not a super-administrator
 
 **Notes:**
 - `scoring_type` must be one of: `classic`, `mafia`, `custom`, `cooperative`, `cooperative_with_moderator`, `team_vs_team`
-- Label and team names must be unique within their respective arrays
+- Role keys must be unique
 
 ---
 
@@ -443,7 +469,7 @@ Gets a specific game type by code.
 
 ### PUT /api/game_types/{code}
 
-Updates an existing game type.
+Updates an existing game type. **Super-admin only.**
 
 **Request:**
 - Method: PUT
@@ -458,14 +484,15 @@ Updates an existing game type.
 - Body: Updated game type object
 
 **Error Responses:**
-- 400 Bad Request: Invalid request body or duplicate label/team names
+- 400 Bad Request: Invalid request body or duplicate role keys
+- 403 Forbidden: Not a super-administrator
 - 404 Not Found: Game type not found
 
 ---
 
 ### DELETE /api/game_types/{code}
 
-Deletes a game type.
+Deletes a game type. **Super-admin only.**
 
 **Request:**
 - Method: DELETE
@@ -477,7 +504,11 @@ Deletes a game type.
 
 **Error Responses:**
 - 400 Bad Request: Invalid code format
+- 403 Forbidden: Not a super-administrator or game type is built-in
 - 404 Not Found: Game type not found
+
+**Notes:**
+- Built-in game types (built_in: true) cannot be deleted
 
 ---
 
