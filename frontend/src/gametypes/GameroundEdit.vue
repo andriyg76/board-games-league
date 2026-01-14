@@ -106,7 +106,76 @@
                     class="mb-4"
                   />
 
-                  <div v-if="gameRoles.length > 0">
+                  <!-- Wizard-specific options -->
+                  <template v-if="isWizardGame">
+                    <v-select
+                      v-model="bidRestriction"
+                      :items="bidRestrictions"
+                      :item-title="(item) => $t(item.title)"
+                      item-value="value"
+                      :label="$t('wizard.bidRestriction')"
+                      variant="outlined"
+                      class="mb-4"
+                    >
+                      <template #prepend>
+                        <v-icon>mdi-shield-alert</v-icon>
+                      </template>
+                    </v-select>
+
+                    <h4 class="mb-2">{{ $t('wizard.selectFirstDealer') }}</h4>
+                    <v-list density="compact" class="mb-4">
+                      <v-list-item
+                        v-for="(player, index) in roundPlayers"
+                        :key="player.membership_id"
+                        :class="{ 'bg-primary-lighten-4': firstDealerIndex === index }"
+                        @click="firstDealerIndex = index"
+                      >
+                        <template #prepend>
+                          <v-icon v-if="firstDealerIndex === index" color="primary">
+                            mdi-cards-playing
+                          </v-icon>
+                          <span v-else class="text-grey ml-2 mr-3">{{ index + 1 }}</span>
+                        </template>
+                        <v-list-item-title>
+                          {{ getPlayerAlias(player.membership_id) }}
+                          <v-chip v-if="isCurrentPlayer(player.membership_id)" size="x-small" color="primary" class="ml-1">
+                            {{ $t('game.you') }}
+                          </v-chip>
+                        </v-list-item-title>
+                        <template #append v-if="firstDealerIndex === index">
+                          <v-chip size="small" color="primary">
+                            {{ $t('wizard.firstDealer') }}
+                          </v-chip>
+                        </template>
+                      </v-list-item>
+                    </v-list>
+
+                    <!-- Wizard game summary -->
+                    <v-card variant="outlined" class="pa-4">
+                      <h4 class="text-subtitle-1 mb-2">{{ $t('wizard.gameSummary') }}</h4>
+                      <v-row dense>
+                        <v-col cols="6">
+                          <div class="text-caption text-grey">{{ $t('game.selectedPlayers') }}</div>
+                          <div class="text-body-1">{{ roundPlayers.length }}</div>
+                        </v-col>
+                        <v-col cols="6">
+                          <div class="text-caption text-grey">{{ $t('wizard.rounds') }}</div>
+                          <div class="text-body-1">{{ wizardMaxRounds }}</div>
+                        </v-col>
+                        <v-col cols="6">
+                          <div class="text-caption text-grey">{{ $t('wizard.firstDealer') }}</div>
+                          <div class="text-body-1">{{ getPlayerAlias(roundPlayers[firstDealerIndex]?.membership_id) || '-' }}</div>
+                        </v-col>
+                        <v-col cols="6">
+                          <div class="text-caption text-grey">{{ $t('wizard.bidRestriction') }}</div>
+                          <div class="text-body-1 text-truncate">{{ $t(bidRestrictions.find(r => r.value === bidRestriction)?.title || '') }}</div>
+                        </v-col>
+                      </v-row>
+                    </v-card>
+                  </template>
+
+                  <!-- Non-wizard games: roles assignment -->
+                  <template v-else-if="gameRoles.length > 0">
                     <h4 class="mb-2">{{ $t('game.assignRoles') }}</h4>
                     <v-table>
                       <thead>
@@ -148,7 +217,7 @@
                         </tr>
                       </tbody>
                     </v-table>
-                  </div>
+                  </template>
                 </v-card-text>
                 <v-card-actions>
                   <v-btn variant="text" @click="step = 2">
@@ -222,12 +291,14 @@ import { ref, computed, onMounted } from 'vue';
 import { useGameStore } from '@/store/game';
 import { usePlayerStore } from '@/store/player';
 import { useLeagueStore } from '@/store/league';
+import { useWizardStore } from '@/store/wizard';
 import { useRouter, useRoute } from 'vue-router';
 import { GameRound, GameRoundPlayer, Player, GameType, getLocalizedName, Role } from '@/api/GameApi';
 import GameApi from '@/api/GameApi';
 import LeagueApi, { SuggestedPlayer, SuggestedPlayersResponse } from '@/api/LeagueApi';
 import PlayerSelector from '@/components/game/PlayerSelector.vue';
 import { useI18n } from 'vue-i18n';
+import { BidRestriction, GameVariant } from '@/wizard/types';
 
 const props = defineProps<{
   id?: string;
@@ -239,6 +310,7 @@ const { locale } = useI18n();
 const gameStore = useGameStore();
 const playerStore = usePlayerStore();
 const leagueStore = useLeagueStore();
+const wizardStore = useWizardStore();
 
 const loadingRound = ref(false);
 const loadingSuggested = ref(false);
@@ -270,6 +342,15 @@ interface RoundPlayerSetup {
   role_key?: string;
 }
 const roundPlayers = ref<RoundPlayerSetup[]>([]);
+
+// Wizard-specific options
+const bidRestriction = ref<BidRestriction>(BidRestriction.NO_RESTRICTIONS);
+const firstDealerIndex = ref<number>(0);
+const bidRestrictions = [
+  { value: BidRestriction.NO_RESTRICTIONS, title: 'wizard.noRestrictions' },
+  { value: BidRestriction.CANNOT_MATCH_CARDS, title: 'wizard.cannotMatchCards' },
+  { value: BidRestriction.MUST_MATCH_CARDS, title: 'wizard.mustMatchCards' },
+];
 
 // Wizard step items
 const stepItems = computed(() => [
@@ -303,6 +384,20 @@ const isEditing = computed(() => !!round.value.code);
 const selectedGameType = computed(() =>
   gameTypes.value.find(gt => gt.code === round.value.game_type)
 );
+
+// Check if selected game type is Wizard
+const isWizardGame = computed(() => {
+  if (!selectedGameType.value) return false;
+  // Check by key 'wizard' (from games.yaml)
+  return selectedGameType.value.code === 'wizard' || 
+         (selectedGameType.value as unknown as { key?: string }).key === 'wizard';
+});
+
+// Max rounds for Wizard game (60 cards / players)
+const wizardMaxRounds = computed(() => {
+  if (selectedPlayersList.value.length === 0) return 0;
+  return Math.floor(60 / selectedPlayersList.value.length);
+});
 
 // Check if game type has moderator role
 const hasModerator = computed(() => {
@@ -425,8 +520,27 @@ const saveRound = async () => {
         name: 'GameRounds',
         params: { code: savedRound.code }
       });
+    } else if (isWizardGame.value) {
+      // Create wizard game
+      const wizardRequest = {
+        league_id: leagueCode.value,
+        game_name: round.value.name || `Wizard ${new Date().toLocaleDateString()}`,
+        bid_restriction: bidRestriction.value,
+        game_variant: GameVariant.STANDARD,
+        first_dealer_index: firstDealerIndex.value,
+        player_membership_ids: roundPlayers.value.map(p => p.membership_id),
+      };
+
+      await wizardStore.createGame(wizardRequest);
+      
+      // Navigate to wizard game
+      if (wizardStore.currentGame) {
+        await router.push(`/ui/wizard/${wizardStore.currentGame.code}`);
+      } else {
+        await router.push({ name: 'GameRounds' });
+      }
     } else {
-      // Create new round with players
+      // Create new generic game round with players
       const players: GameRoundPlayer[] = roundPlayers.value.map((p, index) => ({
         membership_id: p.membership_id,
         user_id: '',  // Will be resolved on backend
@@ -474,6 +588,20 @@ onMounted(async () => {
     // If editing, load the game round
     if (props.id) {
       await loadGameRound();
+    } else {
+      // Check for preselected game type from query params
+      const preselectedGameType = route.query.gameType as string;
+      if (preselectedGameType) {
+        const gameType = gameTypes.value.find(
+          gt => gt.code === preselectedGameType || 
+                (gt as unknown as { key?: string }).key === preselectedGameType
+        );
+        if (gameType) {
+          round.value.game_type = gameType.code;
+          // Automatically go to step 2 if game type is preselected
+          await goToStep2();
+        }
+      }
     }
   } catch (error) {
     console.error('Failed to load data:', error);

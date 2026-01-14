@@ -195,6 +195,14 @@ const messages = {
         },
         wizard: {
             newGame: 'New Wizard Game',
+            bidRestriction: 'Bid Restriction',
+            noRestrictions: 'No Restrictions',
+            cannotMatchCards: 'Total Bids Cannot Match Cards',
+            mustMatchCards: 'Total Bids Must Match Cards',
+            selectFirstDealer: 'Select First Dealer',
+            firstDealer: 'First Dealer',
+            gameSummary: 'Game Summary',
+            rounds: 'Rounds',
         },
         admin: {
             user: 'User',
@@ -494,6 +502,14 @@ const messages = {
         },
         wizard: {
             newGame: 'Нова гра Wizard',
+            bidRestriction: 'Обмеження ставок',
+            noRestrictions: 'Без обмежень',
+            cannotMatchCards: 'Сума ставок не може дорівнювати кількості карт',
+            mustMatchCards: 'Сума ставок має дорівнювати кількості карт',
+            selectFirstDealer: 'Оберіть першого роздаючого',
+            firstDealer: 'Перший роздаючий',
+            gameSummary: 'Підсумок гри',
+            rounds: 'Раундів',
         },
         admin: {
             user: 'Користувач',
@@ -793,6 +809,14 @@ const messages = {
         },
         wizard: {
             newGame: 'Uus Wizard mäng',
+            bidRestriction: 'Pakkumise piirang',
+            noRestrictions: 'Piiranguteta',
+            cannotMatchCards: 'Pakkumiste summa ei tohi võrduda kaartide arvuga',
+            mustMatchCards: 'Pakkumiste summa peab võrduma kaartide arvuga',
+            selectFirstDealer: 'Vali esimene jagaja',
+            firstDealer: 'Esimene jagaja',
+            gameSummary: 'Mängu kokkuvõte',
+            rounds: 'Voorud',
         },
         admin: {
             user: 'Kasutaja',

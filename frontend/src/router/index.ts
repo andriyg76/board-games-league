@@ -67,7 +67,16 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/ui/wizard/new',
     name: 'NewWizardGame',
-    component: () => import('@/wizard/WizardGameSetup.vue')
+    // Redirect to the unified GameroundEdit with wizard preselection
+    redirect: to => {
+      return { 
+        name: 'NewGameRound', 
+        query: { 
+          ...to.query,
+          gameType: 'wizard' 
+        } 
+      };
+    }
   },
   {
     path: '/ui/wizard/:code',
