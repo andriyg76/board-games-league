@@ -1,0 +1,284 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate branch
+        run: |
+          BRANCH_NAME="${{ github.ref_name }}"
+          if [[ "$BRANCH_NAME" != "main" && ! "$BRANCH_NAME" =~ ^release/v ]]; then
+            echo "Error: Workflow must be run from 'main' or 'release/v*' branch"
+            echo "Current branch: $BRANCH_NAME"
+            exit 1
+          fi
+          echo "Branch validation passed: $BRANCH_NAME"
+
+      - name: Fetch all tags
+        run: git fetch --tags
+
+      - name: Get latest version from branch
+        id: version
+        run: |
+          # Get tags that are in the current branch history
+          LATEST_TAG=$(git tag --merged HEAD -l 'v*.*.*' | sort -V | tail -1 || echo "")
+          
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No tags found in branch history, starting from v0.0.0"
+            LATEST_TAG="v0.0.0"
+          else
+            echo "Latest tag in branch: $LATEST_TAG"
+          fi
+          
+          # Remove 'v' prefix for parsing
+          VERSION="${LATEST_TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          
+          BUMP_TYPE="${{ inputs.version_bump }}"
+          
+          case "$BUMP_TYPE" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+            *)
+              echo "Error: Invalid bump type: $BUMP_TYPE"
+              exit 1
+              ;;
+          esac
+          
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "New version: $NEW_VERSION"
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.new_version }}
+
+      - name: Set build variables
+        id: build-vars
+        run: |
+          GIT_SHA="${{ github.sha }}"
+          echo "version=${{ steps.version.outputs.new_version }}" >> $GITHUB_OUTPUT
+          echo "commit=$GIT_SHA" >> $GITHUB_OUTPUT
+          echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BUILD_VERSION=${{ steps.build-vars.outputs.version }}
+            BUILD_COMMIT=${{ steps.build-vars.outputs.commit }}
+            BUILD_BRANCH=${{ steps.build-vars.outputs.branch }}
+            BUILD_DATE=${{ steps.build-vars.outputs.date }}
+
+      - name: Get previous tag for changelog
+        id: prev-tag
+        run: |
+          # Get the previous tag from branch history (before creating new tag)
+          PREV_TAG=$(git tag --merged HEAD -l 'v*.*.*' | sort -V | tail -1 || echo "")
+          echo "Previous tag: ${PREV_TAG:-none}"
+          echo "prev_tag=${PREV_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          PREV_TAG="${{ steps.prev-tag.outputs.prev_tag }}"
+          
+          if [ -z "$PREV_TAG" ] || [ "$PREV_TAG" = "none" ]; then
+            echo "No previous tag found, generating changelog from all commits"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" | head -50)
+          else
+            echo "Generating changelog from $PREV_TAG to HEAD"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD)
+          fi
+          
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- No changes"
+          fi
+          
+          {
+            echo "## Changes"
+            echo ""
+            echo "$CHANGELOG"
+          } > /tmp/changelog.md
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/changelog.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION"
+          git push origin "$NEW_VERSION"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.new_version }}
+          release_name: Release ${{ steps.version.outputs.new_version }}
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            
+            NEW_VERSION="${{ steps.version.outputs.new_version }}"
+            
+            # Navigate to deployment directory
+            mkdir -p ~/board-games-league
+            cd ~/board-games-league
+            
+            # Update .env file with new version
+            if [ -f .env ] && grep -q "^BACKEND_VERSION=" .env; then
+              # Replace existing BACKEND_VERSION
+              sed -i "s|^BACKEND_VERSION=.*|BACKEND_VERSION=${NEW_VERSION}|" .env
+              echo "Updated BACKEND_VERSION in .env to ${NEW_VERSION}"
+            else
+              # Add or create BACKEND_VERSION
+              if [ -f .env ]; then
+                echo "BACKEND_VERSION=${NEW_VERSION}" >> .env
+              else
+                echo "BACKEND_VERSION=${NEW_VERSION}" > .env
+              fi
+              echo "Added BACKEND_VERSION=${NEW_VERSION} to .env"
+            fi
+            
+            echo ""
+            echo "=========================================="
+            echo "Pulling images and starting containers..."
+            echo "=========================================="
+            docker compose pull
+            docker compose up -d
+            
+            echo ""
+            echo "Waiting 10 seconds for containers to start..."
+            sleep 10
+            
+            echo ""
+            echo "=========================================="
+            echo "Backend logs (last 50 lines):"
+            echo "=========================================="
+            docker compose logs backend --tail 50
+
+      - name: Check backend container health
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ~/board-games-league
+            
+            echo "=========================================="
+            echo "Checking backend container status..."
+            echo "=========================================="
+            
+            # Get container status (format: name,status)
+            CONTAINER_INFO=$(docker compose ps backend --format "{{.Name}},{{.Status}}" | head -1)
+            
+            if [ -z "$CONTAINER_INFO" ]; then
+              echo "ERROR: Backend container not found!"
+              docker compose ps
+              exit 1
+            fi
+            
+            CONTAINER_STATUS=$(echo "$CONTAINER_INFO" | cut -d',' -f2)
+            echo "Container status: $CONTAINER_STATUS"
+            
+            # Check for unhealthy states
+            if echo "$CONTAINER_STATUS" | grep -qE "(Exited|Dead|Restarting)"; then
+              echo "ERROR: Backend container is not in a healthy state!"
+              echo "Status: $CONTAINER_STATUS"
+              docker compose ps backend
+              exit 1
+            fi
+            
+            # Check if container is running
+            if ! echo "$CONTAINER_STATUS" | grep -q "Up"; then
+              echo "ERROR: Backend container is not running!"
+              echo "Status: $CONTAINER_STATUS"
+              docker compose ps backend
+              exit 1
+            fi
+            
+            echo "✓ Backend container is running successfully"
+
