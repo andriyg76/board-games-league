@@ -1,232 +1,129 @@
 <template>
   <div>
-    <v-alert v-if="standings.length === 0" type="info" variant="tonal">
+    <n-alert v-if="standings.length === 0" type="info" style="margin-bottom: 16px;">
       {{ t('leagues.noLeagueData') }}
-    </v-alert>
+    </n-alert>
 
-    <v-data-table
+    <n-data-table
       v-else
-      :headers="headers"
-      :items="standings"
-      :items-per-page="10"
-      class="elevation-1"
-    >
-      <template #[`item.position`]="{ index }">
-        <div class="d-flex align-center">
-          <v-icon
-            v-if="index === 0"
-            color="gold"
-            size="small"
-            class="mr-2"
-          >
-            mdi-medal
-          </v-icon>
-          <v-icon
-            v-else-if="index === 1"
-            color="silver"
-            size="small"
-            class="mr-2"
-          >
-            mdi-medal
-          </v-icon>
-          <v-icon
-            v-else-if="index === 2"
-            color="bronze"
-            size="small"
-            class="mr-2"
-          >
-            mdi-medal
-          </v-icon>
-          <span>{{ index + 1 }}</span>
-        </div>
-      </template>
-
-      <template #[`item.user`]="{ item }">
-        <div class="d-flex align-center py-2">
-          <v-avatar
-            :image="item.user_avatar"
-            size="32"
-            class="mr-3"
-          />
-          <span>{{ item.user_name }}</span>
-        </div>
-      </template>
-
-      <template #[`item.total_points`]="{ item }">
-        <v-chip color="primary" variant="flat">
-          {{ item.total_points }}
-        </v-chip>
-      </template>
-
-      <template #[`item.podiums`]="{ item }">
-        <div class="d-flex gap-1">
-          <v-chip
-            v-if="item.first_place_count > 0"
-            color="gold"
-            size="small"
-            variant="flat"
-          >
-            <v-icon start size="small">mdi-trophy</v-icon>
-            {{ item.first_place_count }}
-          </v-chip>
-          <v-chip
-            v-if="item.second_place_count > 0"
-            color="silver"
-            size="small"
-            variant="flat"
-          >
-            <v-icon start size="small">mdi-trophy</v-icon>
-            {{ item.second_place_count }}
-          </v-chip>
-          <v-chip
-            v-if="item.third_place_count > 0"
-            color="bronze"
-            size="small"
-            variant="flat"
-          >
-            <v-icon start size="small">mdi-trophy</v-icon>
-            {{ item.third_place_count }}
-          </v-chip>
-        </div>
-      </template>
-
-      <template #[`item.details`]="{ item }">
-        <v-btn
-          icon="mdi-information"
-          size="small"
-          variant="text"
-          @click="showDetails(item)"
-        />
-      </template>
-    </v-data-table>
+      :columns="columns"
+      :data="standings"
+      :pagination="{ pageSize: 10 }"
+    />
 
     <!-- Details Dialog -->
-    <v-dialog v-model="detailsDialog" max-width="600">
-      <v-card v-if="selectedPlayer">
-        <v-card-title>
-          <div class="d-flex align-center">
-            <v-avatar
-              :image="selectedPlayer.user_avatar"
-              size="48"
-              class="mr-3"
-            />
-            <div>
-              <div>{{ selectedPlayer.user_name }}</div>
-              <div class="text-caption text-medium-emphasis">
-                {{ t('leagues.detailedStats') }}
-              </div>
-            </div>
+    <n-modal v-model:show="detailsDialog" preset="card" :title="selectedPlayer?.user_name" style="max-width: 600px;">
+      <template v-if="selectedPlayer">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <n-avatar :src="selectedPlayer.user_avatar" :size="48" round />
+          <div>
+            <div style="font-weight: 500;">{{ selectedPlayer.user_name }}</div>
+            <div style="font-size: 0.875rem; opacity: 0.7;">{{ t('leagues.detailedStats') }}</div>
           </div>
-        </v-card-title>
-        <v-divider />
-        <v-card-text>
-          <v-row dense>
-            <v-col cols="6">
-              <v-card variant="tonal" color="primary">
-                <v-card-text class="text-center">
-                  <div class="text-h4">{{ selectedPlayer.total_points }}</div>
-                  <div class="text-caption">{{ t('leagues.totalPoints') }}</div>
-                </v-card-text>
-              </v-card>
-            </v-col>
-            <v-col cols="6">
-              <v-card variant="tonal" color="secondary">
-                <v-card-text class="text-center">
-                  <div class="text-h4">{{ selectedPlayer.games_played }}</div>
-                  <div class="text-caption">{{ t('leagues.gamesPlayed') }}</div>
-                </v-card-text>
-              </v-card>
-            </v-col>
-          </v-row>
+        </div>
 
-          <v-divider class="my-4" />
+        <n-divider />
 
-          <div class="text-subtitle-2 mb-2">{{ t('leagues.pointsBreakdown') }}</div>
-          <v-list density="compact">
-            <v-list-item>
-              <template v-slot:prepend>
-                <v-icon color="success">mdi-account-check</v-icon>
-              </template>
-              <v-list-item-title>{{ t('leagues.participationPoints') }}</v-list-item-title>
-              <template v-slot:append>
-                <v-chip size="small">{{ selectedPlayer.participation_points }}</v-chip>
-              </template>
-            </v-list-item>
-            <v-list-item>
-              <template v-slot:prepend>
-                <v-icon color="warning">mdi-trophy</v-icon>
-              </template>
-              <v-list-item-title>{{ t('leagues.positionPoints') }}</v-list-item-title>
-              <template v-slot:append>
-                <v-chip size="small">{{ selectedPlayer.position_points }}</v-chip>
-              </template>
-            </v-list-item>
-            <v-list-item>
-              <template v-slot:prepend>
-                <v-icon color="info">mdi-gavel</v-icon>
-              </template>
-              <v-list-item-title>{{ t('leagues.moderationPoints') }}</v-list-item-title>
-              <template v-slot:append>
-                <v-chip size="small">{{ selectedPlayer.moderation_points }}</v-chip>
-              </template>
-            </v-list-item>
-          </v-list>
+        <n-grid :cols="24" :x-gap="16" style="margin-bottom: 16px;">
+          <n-gi :span="12">
+            <n-card style="text-align: center; background: rgba(32, 128, 240, 0.1);">
+              <div style="font-size: 2rem; font-weight: 500;">{{ selectedPlayer.total_points }}</div>
+              <div style="font-size: 0.875rem; opacity: 0.7;">{{ t('leagues.totalPoints') }}</div>
+            </n-card>
+          </n-gi>
+          <n-gi :span="12">
+            <n-card style="text-align: center; background: rgba(24, 160, 88, 0.1);">
+              <div style="font-size: 2rem; font-weight: 500;">{{ selectedPlayer.games_played }}</div>
+              <div style="font-size: 0.875rem; opacity: 0.7;">{{ t('leagues.gamesPlayed') }}</div>
+            </n-card>
+          </n-gi>
+        </n-grid>
 
-          <v-divider class="my-4" />
+        <n-divider style="margin: 16px 0;" />
 
-          <div class="text-subtitle-2 mb-2">{{ t('leagues.podiums') }}:</div>
-          <v-row dense>
-            <v-col cols="4">
-              <v-card variant="tonal" color="gold">
-                <v-card-text class="text-center">
-                  <v-icon size="large">mdi-trophy</v-icon>
-                  <div class="text-h6">{{ selectedPlayer.first_place_count }}</div>
-                  <div class="text-caption">{{ t('leagues.firstPlace') }}</div>
-                </v-card-text>
-              </v-card>
-            </v-col>
-            <v-col cols="4">
-              <v-card variant="tonal" color="silver">
-                <v-card-text class="text-center">
-                  <v-icon size="large">mdi-trophy</v-icon>
-                  <div class="text-h6">{{ selectedPlayer.second_place_count }}</div>
-                  <div class="text-caption">{{ t('leagues.secondPlace') }}</div>
-                </v-card-text>
-              </v-card>
-            </v-col>
-            <v-col cols="4">
-              <v-card variant="tonal" color="bronze">
-                <v-card-text class="text-center">
-                  <v-icon size="large">mdi-trophy</v-icon>
-                  <div class="text-h6">{{ selectedPlayer.third_place_count }}</div>
-                  <div class="text-caption">{{ t('leagues.thirdPlace') }}</div>
-                </v-card-text>
-              </v-card>
-            </v-col>
-          </v-row>
+        <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.pointsBreakdown') }}</div>
+        <n-list>
+          <n-list-item>
+            <template #prefix>
+              <n-icon color="#18a058"><PersonCheckIcon /></n-icon>
+            </template>
+            <div>{{ t('leagues.participationPoints') }}</div>
+            <template #suffix>
+              <n-tag size="small">{{ selectedPlayer.participation_points }}</n-tag>
+            </template>
+          </n-list-item>
+          <n-list-item>
+            <template #prefix>
+              <n-icon color="#f0a020"><TrophyIcon /></n-icon>
+            </template>
+            <div>{{ t('leagues.positionPoints') }}</div>
+            <template #suffix>
+              <n-tag size="small">{{ selectedPlayer.position_points }}</n-tag>
+            </template>
+          </n-list-item>
+          <n-list-item>
+            <template #prefix>
+              <n-icon color="#2080f0"><GavelIcon /></n-icon>
+            </template>
+            <div>{{ t('leagues.moderationPoints') }}</div>
+            <template #suffix>
+              <n-tag size="small">{{ selectedPlayer.moderation_points }}</n-tag>
+            </template>
+          </n-list-item>
+        </n-list>
 
-          <v-divider class="my-4" />
+        <n-divider style="margin: 16px 0;" />
 
-          <v-list density="compact">
-            <v-list-item>
-              <v-list-item-title>{{ t('leagues.gamesAsModerator') }}</v-list-item-title>
-              <template v-slot:append>
-                <v-chip size="small">{{ selectedPlayer.games_moderated }}</v-chip>
-              </template>
-            </v-list-item>
-          </v-list>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn @click="detailsDialog = false">{{ t('leagues.close') }}</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.podiums') }}:</div>
+        <n-grid :cols="24" :x-gap="16">
+          <n-gi :span="8">
+            <n-card style="text-align: center; background: rgba(255, 215, 0, 0.1);">
+              <n-icon size="32" color="#ffd700" style="margin-bottom: 8px;">
+                <TrophyIcon />
+              </n-icon>
+              <div style="font-size: 1.25rem; font-weight: 500;">{{ selectedPlayer.first_place_count }}</div>
+              <div style="font-size: 0.875rem; opacity: 0.7;">{{ t('leagues.firstPlace') }}</div>
+            </n-card>
+          </n-gi>
+          <n-gi :span="8">
+            <n-card style="text-align: center; background: rgba(192, 192, 192, 0.1);">
+              <n-icon size="32" color="#c0c0c0" style="margin-bottom: 8px;">
+                <TrophyIcon />
+              </n-icon>
+              <div style="font-size: 1.25rem; font-weight: 500;">{{ selectedPlayer.second_place_count }}</div>
+              <div style="font-size: 0.875rem; opacity: 0.7;">{{ t('leagues.secondPlace') }}</div>
+            </n-card>
+          </n-gi>
+          <n-gi :span="8">
+            <n-card style="text-align: center; background: rgba(205, 127, 50, 0.1);">
+              <n-icon size="32" color="#cd7f32" style="margin-bottom: 8px;">
+                <TrophyIcon />
+              </n-icon>
+              <div style="font-size: 1.25rem; font-weight: 500;">{{ selectedPlayer.third_place_count }}</div>
+              <div style="font-size: 0.875rem; opacity: 0.7;">{{ t('leagues.thirdPlace') }}</div>
+            </n-card>
+          </n-gi>
+        </n-grid>
+
+        <n-divider style="margin: 16px 0;" />
+
+        <n-list>
+          <n-list-item>
+            <div>{{ t('leagues.gamesAsModerator') }}</div>
+            <template #suffix>
+              <n-tag size="small">{{ selectedPlayer.games_moderated }}</n-tag>
+            </template>
+          </n-list-item>
+        </n-list>
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, h } from 'vue';
+import { NAlert, NDataTable, NModal, NAvatar, NDivider, NGrid, NGi, NCard, NIcon, NList, NListItem, NTag, NButton, DataTableColumns } from 'naive-ui';
+import { Medal as MedalIcon, Trophy as TrophyIcon, Information as InformationIcon, CheckmarkCircle as PersonCheckIcon, Hammer as GavelIcon } from '@vicons/ionicons5';
 import { useI18n } from 'vue-i18n';
 import type { LeagueStanding } from '@/api/LeagueApi';
 
@@ -235,15 +132,100 @@ interface Props {
 }
 
 const { t } = useI18n();
-defineProps<Props>();
+const props = defineProps<Props>();
 
-const headers = computed(() => [
-  { title: '#', key: 'position', sortable: false, width: 80 },
-  { title: t('leagues.player'), key: 'user', sortable: false },
-  { title: t('leagues.points'), key: 'total_points', align: 'center' as const },
-  { title: t('leagues.games'), key: 'games_played', align: 'center' as const },
-  { title: t('leagues.podiums'), key: 'podiums', sortable: false, align: 'center' as const },
-  { title: '', key: 'details', sortable: false, width: 60 },
+const columns = computed<DataTableColumns<LeagueStanding>>(() => [
+  { 
+    title: '#', 
+    key: 'position', 
+    width: 80,
+    render: (_row: LeagueStanding, index: number) => {
+      const position = index + 1;
+      let icon = null;
+      let color = '';
+      
+      if (index === 0) {
+        icon = h(MedalIcon);
+        color = '#ffd700';
+      } else if (index === 1) {
+        icon = h(MedalIcon);
+        color = '#c0c0c0';
+      } else if (index === 2) {
+        icon = h(MedalIcon);
+        color = '#cd7f32';
+      }
+      
+      return h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+        icon ? h(NIcon, { color, size: 16 }, { default: () => icon }) : null,
+        h('span', position.toString())
+      ]);
+    }
+  },
+  { 
+    title: t('leagues.player'), 
+    key: 'user',
+    render: (row: LeagueStanding) => {
+      return h('div', { style: 'display: flex; align-items: center; gap: 12px; padding: 8px 0;' }, [
+        h(NAvatar, { src: row.user_avatar, size: 32, round: true }),
+        h('span', row.user_name)
+      ]);
+    }
+  },
+  { 
+    title: t('leagues.points'), 
+    key: 'total_points',
+    align: 'center',
+    render: (row: LeagueStanding) => {
+      return h(NTag, { type: 'primary' }, { default: () => row.total_points.toString() });
+    }
+  },
+  { 
+    title: t('leagues.games'), 
+    key: 'games_played',
+    align: 'center'
+  },
+  { 
+    title: t('leagues.podiums'), 
+    key: 'podiums',
+    align: 'center',
+    render: (row: LeagueStanding) => {
+      return h('div', { style: 'display: flex; gap: 4px; justify-content: center;' }, [
+        row.first_place_count > 0 ? h(NTag, { style: 'background: #ffd700; color: #000;' }, { 
+          default: () => h('div', { style: 'display: flex; align-items: center; gap: 4px;' }, [
+            h(NIcon, { size: 14 }, { default: () => h(TrophyIcon) }),
+            h('span', row.first_place_count.toString())
+          ])
+        }) : null,
+        row.second_place_count > 0 ? h(NTag, { style: 'background: #c0c0c0; color: #000;' }, { 
+          default: () => h('div', { style: 'display: flex; align-items: center; gap: 4px;' }, [
+            h(NIcon, { size: 14 }, { default: () => h(TrophyIcon) }),
+            h('span', row.second_place_count.toString())
+          ])
+        }) : null,
+        row.third_place_count > 0 ? h(NTag, { style: 'background: #cd7f32; color: #fff;' }, { 
+          default: () => h('div', { style: 'display: flex; align-items: center; gap: 4px;' }, [
+            h(NIcon, { size: 14 }, { default: () => h(TrophyIcon) }),
+            h('span', row.third_place_count.toString())
+          ])
+        }) : null,
+      ]);
+    }
+  },
+  { 
+    title: '', 
+    key: 'details',
+    width: 60,
+    render: (row: LeagueStanding) => {
+      return h(NButton, { 
+        quaternary: true,
+        circle: true,
+        size: 'small',
+        onClick: () => showDetails(row)
+      }, {
+        icon: () => h(NIcon, { size: 16 }, { default: () => h(InformationIcon) })
+      });
+    }
+  },
 ]);
 
 const detailsDialog = ref(false);
@@ -254,9 +236,3 @@ const showDetails = (player: LeagueStanding) => {
   detailsDialog.value = true;
 };
 </script>
-
-<style scoped>
-.gap-1 {
-  gap: 4px;
-}
-</style>

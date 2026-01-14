@@ -1,101 +1,103 @@
 <template>
-  <v-card flat>
-    <v-card-title>{{ $t('game.configureRound') }}</v-card-title>
-    <v-card-text>
-      <v-text-field
-        :model-value="gameName"
-        @update:model-value="$emit('update:gameName', $event)"
-        :label="$t('game.roundName')"
-        variant="outlined"
-        class="mb-4"
+  <n-card>
+    <template #header>
+      {{ $t('game.configureRound') }}
+    </template>
+    <n-form-item :label="$t('game.roundName')">
+      <n-input
+        :value="gameName"
+        @update:value="$emit('update:gameName', $event)"
       />
+    </n-form-item>
 
-      <v-select
-        :model-value="bidRestriction"
-        @update:model-value="$emit('update:bidRestriction', $event)"
-        :items="bidRestrictions"
-        :item-title="(item) => $t(item.title)"
-        item-value="value"
-        :label="$t('wizard.bidRestriction')"
-        variant="outlined"
-        class="mb-4"
+    <n-form-item :label="$t('wizard.bidRestriction')">
+      <n-select
+        :value="bidRestriction"
+        @update:value="$emit('update:bidRestriction', $event)"
+        :options="bidRestrictions.map(r => ({ label: $t(r.title), value: r.value }))"
+      />
+    </n-form-item>
+
+    <h4 style="margin-bottom: 8px; font-size: 1rem; font-weight: 500;">{{ $t('wizard.selectFirstDealer') }}</h4>
+    <n-list style="margin-bottom: 16px;">
+      <n-list-item
+        v-for="(player, index) in players"
+        :key="player.membership_id"
+        :class="{ 'selected-dealer': firstDealerIndex === index }"
+        clickable
+        @click="$emit('update:firstDealerIndex', index)"
       >
-        <template #prepend>
-          <v-icon>mdi-shield-alert</v-icon>
+        <template #prefix>
+          <n-icon v-if="firstDealerIndex === index" color="#2080f0" :size="24">
+            <CardsIcon />
+          </n-icon>
+          <span v-else style="color: #999; margin-right: 8px;">{{ index + 1 }}</span>
         </template>
-      </v-select>
-
-      <h4 class="mb-2">{{ $t('wizard.selectFirstDealer') }}</h4>
-      <v-list density="compact" class="mb-4">
-        <v-list-item
-          v-for="(player, index) in players"
-          :key="player.membership_id"
-          :class="{ 'bg-primary-lighten-4': firstDealerIndex === index }"
-          @click="$emit('update:firstDealerIndex', index)"
-        >
-          <template #prepend>
-            <v-icon v-if="firstDealerIndex === index" color="primary">
-              mdi-cards-playing
-            </v-icon>
-            <span v-else class="text-grey ml-2 mr-3">{{ index + 1 }}</span>
-          </template>
-          <v-list-item-title>
-            {{ player.alias }}
-            <v-chip v-if="player.isCurrentUser" size="x-small" color="primary" class="ml-1">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: 500;">{{ player.alias }}</span>
+            <n-tag v-if="player.isCurrentUser" size="small" type="primary">
               {{ $t('game.you') }}
-            </v-chip>
-          </v-list-item-title>
-          <template #append v-if="firstDealerIndex === index">
-            <v-chip size="small" color="primary">
-              {{ $t('wizard.firstDealer') }}
-            </v-chip>
-          </template>
-        </v-list-item>
-      </v-list>
+            </n-tag>
+          </div>
+        </div>
+        <template #suffix v-if="firstDealerIndex === index">
+          <n-tag size="small" type="primary">
+            {{ $t('wizard.firstDealer') }}
+          </n-tag>
+        </template>
+      </n-list-item>
+    </n-list>
 
-      <!-- Wizard game summary -->
-      <v-card variant="outlined" class="pa-4">
-        <h4 class="text-subtitle-1 mb-2">{{ $t('wizard.gameSummary') }}</h4>
-        <v-row dense>
-          <v-col cols="6">
-            <div class="text-caption text-grey">{{ $t('game.selectedPlayers') }}</div>
-            <div class="text-body-1">{{ players.length }}</div>
-          </v-col>
-          <v-col cols="6">
-            <div class="text-caption text-grey">{{ $t('wizard.rounds') }}</div>
-            <div class="text-body-1">{{ maxRounds }}</div>
-          </v-col>
-          <v-col cols="6">
-            <div class="text-caption text-grey">{{ $t('wizard.firstDealer') }}</div>
-            <div class="text-body-1">{{ players[firstDealerIndex]?.alias || '-' }}</div>
-          </v-col>
-          <v-col cols="6">
-            <div class="text-caption text-grey">{{ $t('wizard.bidRestriction') }}</div>
-            <div class="text-body-1 text-truncate">{{ $t(bidRestrictions.find(r => r.value === bidRestriction)?.title || '') }}</div>
-          </v-col>
-        </v-row>
-      </v-card>
-    </v-card-text>
-    <v-card-actions>
-      <v-btn variant="text" @click="$emit('back')" :disabled="saving">
-        <v-icon start>mdi-arrow-left</v-icon>
-        {{ $t('game.back') }}
-      </v-btn>
-      <v-spacer />
-      <v-btn
-        color="success"
-        :loading="saving"
-        @click="$emit('start')"
-      >
-        <v-icon start>mdi-play</v-icon>
-        {{ $t('game.startGame') }}
-      </v-btn>
-    </v-card-actions>
-  </v-card>
+    <!-- Wizard game summary -->
+    <n-card style="padding: 16px;">
+      <h4 style="font-size: 1rem; font-weight: 500; margin-bottom: 8px;">{{ $t('wizard.gameSummary') }}</h4>
+      <n-grid :cols="24" :x-gap="8">
+        <n-gi :span="24" :responsive="{ m: 6 }">
+          <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px;">{{ $t('game.selectedPlayers') }}</div>
+          <div style="font-size: 1rem;">{{ players.length }}</div>
+        </n-gi>
+        <n-gi :span="24" :responsive="{ m: 6 }">
+          <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px;">{{ $t('wizard.rounds') }}</div>
+          <div style="font-size: 1rem;">{{ maxRounds }}</div>
+        </n-gi>
+        <n-gi :span="24" :responsive="{ m: 6 }">
+          <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px;">{{ $t('wizard.firstDealer') }}</div>
+          <div style="font-size: 1rem;">{{ players[firstDealerIndex]?.alias || '-' }}</div>
+        </n-gi>
+        <n-gi :span="24" :responsive="{ m: 6 }">
+          <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px;">{{ $t('wizard.bidRestriction') }}</div>
+          <div style="font-size: 1rem; overflow: hidden; text-overflow: ellipsis;">{{ $t(bidRestrictions.find(r => r.value === bidRestriction)?.title || '') }}</div>
+        </n-gi>
+      </n-grid>
+    </n-card>
+    <template #action>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px;">
+        <n-button quaternary @click="$emit('back')" :disabled="saving">
+          <template #icon>
+            <n-icon><ChevronBackIcon /></n-icon>
+          </template>
+          {{ $t('game.back') }}
+        </n-button>
+        <n-button
+          type="success"
+          :loading="saving"
+          @click="$emit('start')"
+        >
+          <template #icon>
+            <n-icon><PlayIcon /></n-icon>
+          </template>
+          {{ $t('game.startGame') }}
+        </n-button>
+      </div>
+    </template>
+  </n-card>
 </template>
 
 <script lang="ts" setup>
 import { computed } from 'vue';
+import { NCard, NFormItem, NInput, NSelect, NIcon, NList, NListItem, NTag, NGrid, NGi, NButton } from 'naive-ui';
+import { Shield as ShieldIcon, ChevronBack as ChevronBackIcon, Play as PlayIcon, Card as CardsIcon } from '@vicons/ionicons5';
 import { BidRestriction } from './types';
 
 export interface WizardPlayer {
@@ -133,7 +135,7 @@ const maxRounds = computed(() => {
 </script>
 
 <style scoped>
-.bg-primary-lighten-4 {
-  background-color: rgba(var(--v-theme-primary), 0.1);
+.selected-dealer {
+  background-color: rgba(32, 128, 240, 0.1);
 }
 </style>

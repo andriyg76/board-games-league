@@ -1,93 +1,102 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col>
-        <h2>{{ $t('home.newGameRound') }}</h2>
+  <n-grid :cols="24" :x-gap="16">
+    <n-gi :span="24">
+      <h2 style="font-size: 2rem; margin-bottom: 16px;">{{ $t('home.newGameRound') }}</h2>
 
-        <div v-if="loading" class="text-center pa-4">
-          <v-progress-circular indeterminate color="primary" size="64" />
-          <p class="mt-4">{{ $t('common.loading') }}</p>
+      <n-spin v-if="loading" size="large" style="display: flex; justify-content: center; padding: 64px;">
+        <template #description>
+          {{ $t('common.loading') }}
+        </template>
+      </n-spin>
+
+      <div v-else>
+        <!-- Step Indicator -->
+        <n-steps :current="step - 1" :status="'process'" style="margin-bottom: 24px;">
+          <n-step
+            v-for="(item, index) in stepItems"
+            :key="item.value"
+            :title="$t(item.title)"
+          />
+        </n-steps>
+
+        <!-- Step 1: Select Game Type -->
+        <div v-if="step === 1">
+          <Step1GameType
+            :game-types="gameTypes"
+            :selected-game-type="selectedGameTypeCode"
+            @select="selectGameType"
+            @next="goToStep2"
+          />
         </div>
 
-        <v-stepper v-else v-model="step" :items="stepItems" class="mb-4">
-          <!-- Step 1: Select Game Type -->
-          <template #[`item.1`]>
-            <Step1GameType
-              :game-types="gameTypes"
-              :selected-game-type="selectedGameTypeCode"
-              @select="selectGameType"
-              @next="goToStep2"
-            />
-          </template>
+        <!-- Step 2: Select Players -->
+        <div v-if="step === 2">
+          <Step2Players
+            :suggested-players="suggestedPlayers"
+            :min-players="selectedGameType?.min_players || 2"
+            :max-players="selectedGameType?.max_players || 10"
+            :has-moderator="hasModerator"
+            :league-code="leagueCode"
+            :loading="loadingSuggested"
+            :saving="saving"
+            :can-proceed="canProceedFromStep2"
+            @update:selected-players="onPlayersSelected"
+            @update:moderator-id="onModeratorSelected"
+            @back="step = 1"
+            @next="goToStep3"
+          />
+        </div>
 
-          <!-- Step 2: Select Players -->
-          <template #[`item.2`]>
-            <Step2Players
-              :suggested-players="suggestedPlayers"
-              :min-players="selectedGameType?.min_players || 2"
-              :max-players="selectedGameType?.max_players || 10"
-              :has-moderator="hasModerator"
-              :league-code="leagueCode"
-              :loading="loadingSuggested"
-              :saving="saving"
-              :can-proceed="canProceedFromStep2"
-              @update:selected-players="onPlayersSelected"
-              @update:moderator-id="onModeratorSelected"
-              @back="step = 1"
-              @next="goToStep3"
-            />
-          </template>
+        <!-- Step 3: Configure Round / Wizard Config -->
+        <div v-if="step === 3">
+          <WizardGameConfig
+            v-if="isWizardGame"
+            v-model:game-name="roundName"
+            v-model:bid-restriction="bidRestriction"
+            v-model:first-dealer-index="firstDealerIndex"
+            :players="wizardPlayers"
+            :saving="saving"
+            @back="step = 2"
+            @start="startWizardGame"
+          />
+          <Step3Roles
+            v-else
+            v-model:round-name="roundName"
+            :players="rolePlayers"
+            :roles="gameRoles"
+            :assignable-roles="assignableRoles"
+            :has-moderator="hasModerator"
+            :saving="saving"
+            @update-role="updatePlayerRole"
+            @update-moderator="updatePlayerModerator"
+            @back="step = 2"
+            @save="saveRoles"
+            @next="goToStep4"
+          />
+        </div>
 
-          <!-- Step 3: Configure Round / Wizard Config -->
-          <template #[`item.3`]>
-            <WizardGameConfig
-              v-if="isWizardGame"
-              v-model:game-name="roundName"
-              v-model:bid-restriction="bidRestriction"
-              v-model:first-dealer-index="firstDealerIndex"
-              :players="wizardPlayers"
-              :saving="saving"
-              @back="step = 2"
-              @start="startWizardGame"
-            />
-            <Step3Roles
-              v-else
-              v-model:round-name="roundName"
-              :players="rolePlayers"
-              :roles="gameRoles"
-              :assignable-roles="assignableRoles"
-              :has-moderator="hasModerator"
-              :saving="saving"
-              @update-role="updatePlayerRole"
-              @update-moderator="updatePlayerModerator"
-              @back="step = 2"
-              @save="saveRoles"
-              @next="goToStep4"
-            />
-          </template>
-
-          <!-- Step 4: Enter Scores (non-wizard only) -->
-          <template v-if="!isWizardGame" #[`item.4`]>
-            <Step4Scoring
-              :players="scoringPlayers"
-              :scores="playerScores"
-              :positions="playerPositions"
-              :saving="saving"
-              @update-score="updatePlayerScore"
-              @update-position="updatePlayerPosition"
-              @back="step = 3"
-              @save="saveScores"
-              @finish="finishGame"
-            />
-          </template>
-        </v-stepper>
-      </v-col>
-    </v-row>
-  </v-container>
+        <!-- Step 4: Enter Scores (non-wizard only) -->
+        <div v-if="step === 4 && !isWizardGame">
+          <Step4Scoring
+            :players="scoringPlayers"
+            :scores="playerScores"
+            :positions="playerPositions"
+            :saving="saving"
+            @update-score="updatePlayerScore"
+            @update-position="updatePlayerPosition"
+            @back="step = 3"
+            @save="saveScores"
+            @finish="finishGame"
+          />
+        </div>
+      </div>
+    </n-gi>
+  </n-grid>
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue';
+import { NGrid, NGi, NSpin, NSteps, NStep } from 'naive-ui';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useGameStore } from '@/store/game';

@@ -1,146 +1,158 @@
 <template>
-  <v-dialog
-    :model-value="modelValue"
-    max-width="500"
-    @update:model-value="$emit('update:modelValue', $event)"
+  <n-modal
+    :show="modelValue"
+    preset="card"
+    :title="t('leagues.invitationDetails')"
+    style="max-width: 500px;"
+    @update:show="$emit('update:modelValue', $event)"
   >
-    <v-card>
-      <v-card-title class="d-flex align-center bg-primary">
-        <v-icon start>mdi-link-variant</v-icon>
-        {{ t('leagues.invitationDetails') }}
-      </v-card-title>
+    <template v-if="invitation">
+      <!-- Player Alias -->
+      <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.playerAlias') }}</div>
+      <n-card style="margin-bottom: 16px;" bordered>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <n-input
+            v-if="editingAlias"
+            v-model:value="newAlias"
+            :placeholder="t('leagues.playerAlias')"
+            size="small"
+            style="flex: 1;"
+            @keyup.enter="saveAlias"
+            @keyup.escape="cancelEditAlias"
+          />
+          <span v-else style="flex: 1;">{{ invitation?.player_alias }}</span>
+          <n-button
+            v-if="editingAlias"
+            quaternary
+            circle
+            size="small"
+            type="success"
+            :loading="savingAlias"
+            @click="saveAlias"
+          >
+            <template #icon>
+              <n-icon><CheckIcon /></n-icon>
+            </template>
+          </n-button>
+          <n-button
+            v-if="editingAlias"
+            quaternary
+            circle
+            size="small"
+            @click="cancelEditAlias"
+          >
+            <template #icon>
+              <n-icon><CloseIcon /></n-icon>
+            </template>
+          </n-button>
+          <n-button
+            v-if="!editingAlias"
+            quaternary
+            circle
+            size="small"
+            @click="startEditAlias"
+          >
+            <template #icon>
+              <n-icon><PencilIcon /></n-icon>
+            </template>
+          </n-button>
+        </div>
+      </n-card>
 
-      <v-card-text class="py-6">
-        <!-- Player Alias -->
-        <div class="text-subtitle-2 mb-2">{{ t('leagues.playerAlias') }}</div>
-        <v-card variant="outlined" class="mb-4">
-          <v-card-text class="pa-2">
-            <div class="d-flex align-center gap-2">
-              <v-text-field
-                v-if="editingAlias"
-                v-model="newAlias"
-                :label="t('leagues.playerAlias')"
-                hide-details
-                variant="outlined"
-                density="compact"
-                class="flex-grow-1"
-                @keyup.enter="saveAlias"
-                @keyup.escape="cancelEditAlias"
-              />
-              <span v-else class="text-body-1 flex-grow-1">{{ invitation?.player_alias }}</span>
-              <v-btn
-                v-if="editingAlias"
-                icon="mdi-check"
-                variant="tonal"
-                color="success"
-                size="small"
-                :loading="savingAlias"
-                @click="saveAlias"
-              />
-              <v-btn
-                v-if="editingAlias"
-                icon="mdi-close"
-                variant="tonal"
-                size="small"
-                @click="cancelEditAlias"
-              />
-              <v-btn
-                v-if="!editingAlias"
-                icon="mdi-pencil"
-                variant="tonal"
-                size="small"
-                @click="startEditAlias"
-              />
-            </div>
-          </v-card-text>
-        </v-card>
+      <!-- Invitation URL -->
+      <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.invitationLink') }}</div>
+      <n-card style="margin-bottom: 16px;" bordered>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <n-input
+            :value="invitationLink"
+            readonly
+            size="small"
+            style="flex: 1;"
+          />
+          <n-button
+            quaternary
+            circle
+            size="small"
+            @click="copyToClipboard"
+          >
+            <template #icon>
+              <n-icon><CopyIcon /></n-icon>
+            </template>
+          </n-button>
+        </div>
+      </n-card>
 
-        <!-- Invitation URL -->
-        <div class="text-subtitle-2 mb-2">{{ t('leagues.invitationLink') }}</div>
-        <v-card variant="outlined" class="mb-4">
-          <v-card-text class="pa-2">
-            <div class="d-flex align-center gap-2">
-              <v-text-field
-                :model-value="invitationLink"
-                readonly
-                hide-details
-                variant="plain"
-                density="compact"
-                class="flex-grow-1"
-              />
-              <v-btn
-                icon="mdi-content-copy"
-                variant="tonal"
-                size="small"
-                @click="copyToClipboard"
-              />
-            </div>
-          </v-card-text>
-        </v-card>
+      <n-alert
+        v-if="copied"
+        type="success"
+        size="small"
+        style="margin-bottom: 16px;"
+      >
+        <template #icon>
+          <n-icon><CheckCircleIcon /></n-icon>
+        </template>
+        {{ t('leagues.linkCopied') }}
+      </n-alert>
 
-        <v-alert
-          v-if="copied"
-          type="success"
-          variant="tonal"
-          density="compact"
-          class="mb-4"
-        >
-          <v-icon start size="small">mdi-check-circle</v-icon>
-          {{ t('leagues.linkCopied') }}
-        </v-alert>
+      <!-- QR Code -->
+      <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.qrCode') }}</div>
+      <div style="display: flex; justify-content: center; margin-bottom: 16px;">
+        <div style="padding: 16px; background: white; border-radius: 8px; border: 1px solid rgba(0, 0, 0, 0.12);">
+          <qrcode-vue
+            :value="invitationLink"
+            :size="200"
+            level="M"
+          />
+        </div>
+      </div>
 
-        <!-- QR Code -->
-        <div class="text-subtitle-2 mb-2">{{ t('leagues.qrCode') }}</div>
-        <div class="d-flex justify-center mb-4">
-          <div class="qr-container pa-4 bg-white rounded-lg">
-            <qrcode-vue
-              :value="invitationLink"
-              :size="200"
-              level="M"
-            />
+      <!-- Expiry info -->
+      <n-card style="background: rgba(240, 160, 32, 0.1);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <n-icon color="#f0a020" size="16"><ClockAlertIcon /></n-icon>
+          <div style="font-size: 0.875rem;">
+            {{ t('leagues.validUntil') }} {{ formatExpiryDate(invitation?.expires_at) }}
           </div>
         </div>
+      </n-card>
+    </template>
 
-        <!-- Expiry info -->
-        <v-card variant="tonal" color="warning">
-          <v-card-text class="py-2">
-            <div class="d-flex align-center">
-              <v-icon start size="small">mdi-clock-alert</v-icon>
-              <div class="text-caption">
-                {{ t('leagues.validUntil') }} {{ formatExpiryDate(invitation?.expires_at) }}
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-card-text>
-
-      <v-divider />
-
-      <v-card-actions class="pa-4">
-        <v-btn
-          color="error"
-          variant="text"
+    <template #action>
+      <div style="display: flex; justify-content: space-between; width: 100%;">
+        <n-button
+          type="error"
+          quaternary
           :loading="cancelling"
           @click="handleCancel"
         >
-          <v-icon start>mdi-cancel</v-icon>
+          <template #icon>
+            <n-icon><CancelIcon /></n-icon>
+          </template>
           {{ t('leagues.cancelInvitation') }}
-        </v-btn>
-        <v-spacer />
-        <v-btn
-          color="primary"
-          variant="flat"
+        </n-button>
+        <n-button
+          type="primary"
           @click="$emit('update:modelValue', false)"
         >
           {{ t('common.close') }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </n-button>
+      </div>
+    </template>
+  </n-modal>
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, watch } from 'vue';
+import { NModal, NCard, NInput, NButton, NIcon, NAlert } from 'naive-ui';
+import { 
+  Checkmark as CheckIcon,
+  Close as CloseIcon,
+  Pencil as PencilIcon,
+  Copy as CopyIcon,
+  CheckmarkCircle as CheckCircleIcon,
+  TimeOutline as ClockAlertIcon,
+  CloseCircle as CancelIcon
+} from '@vicons/ionicons5';
 import { useI18n } from 'vue-i18n';
 import QrcodeVue from 'qrcode.vue';
 import { useLeagueStore } from '@/store/league';
@@ -242,16 +254,3 @@ const formatExpiryDate = (dateStr: string | undefined) => {
   });
 };
 </script>
-
-<style scoped>
-.gap-2 {
-  gap: 8px;
-}
-
-.qr-container {
-  display: inline-block;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-}
-</style>
-
-

@@ -1,101 +1,75 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col cols="12">
-        <v-card elevation="2">
-          <v-card-title>
-            <span class="text-h5">{{ t('leagues.title') }}</span>
-            <v-spacer />
-            <v-btn
-              v-if="canCreateLeague"
-              color="primary"
-              @click="showCreateDialog = true"
-            >
-              <v-icon start>mdi-plus</v-icon>
-              {{ t('leagues.createLeague') }}
-            </v-btn>
-          </v-card-title>
-          <v-divider />
+  <div>
+    <n-grid :cols="24" :x-gap="16">
+      <n-gi :span="24">
+        <n-card>
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 1.25rem; font-weight: 500;">{{ t('leagues.title') }}</span>
+              <n-button
+                v-if="canCreateLeague"
+                type="primary"
+                @click="showCreateDialog = true"
+              >
+                <template #icon>
+                  <n-icon><AddIcon /></n-icon>
+                </template>
+                {{ t('leagues.createLeague') }}
+              </n-button>
+            </div>
+          </template>
+          <n-divider />
 
-          <v-card-text v-if="loading">
-            <v-progress-linear indeterminate color="primary" />
-          </v-card-text>
+          <n-spin v-if="loading" style="padding: 24px;" />
 
-          <v-card-text v-else-if="error">
-            <v-alert type="error" variant="tonal">
-              {{ error }}
-            </v-alert>
-          </v-card-text>
+          <n-alert v-else-if="error" type="error" style="margin: 16px 0;">
+            {{ error }}
+          </n-alert>
 
-          <v-card-text v-else-if="activeLeagues.length === 0">
-            <v-alert type="info" variant="tonal">
-              {{ t('leagues.noActiveLeagues') }}
-            </v-alert>
-          </v-card-text>
+          <n-alert v-else-if="activeLeagues.length === 0" type="info" style="margin: 16px 0;">
+            {{ t('leagues.noActiveLeagues') }}
+          </n-alert>
 
-          <v-list v-else>
+          <n-list v-else>
             <league-card
               v-for="league in activeLeagues"
               :key="league.code"
               :league="league"
               @click="selectLeague(league.code)"
             />
-          </v-list>
+          </n-list>
 
-          <v-divider v-if="archivedLeagues.length > 0" />
+          <n-divider v-if="archivedLeagues.length > 0" />
 
-          <v-expansion-panels v-if="archivedLeagues.length > 0">
-            <v-expansion-panel>
-              <v-expansion-panel-title>
-                {{ t('leagues.archivedLeagues') }} ({{ archivedLeagues.length }})
-              </v-expansion-panel-title>
-              <v-expansion-panel-text>
-                <v-list>
-                  <league-card
-                    v-for="league in archivedLeagues"
-                    :key="league.code"
-                    :league="league"
-                    @click="selectLeague(league.code)"
-                  />
-                </v-list>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
-        </v-card>
-      </v-col>
-    </v-row>
+          <n-collapse v-if="archivedLeagues.length > 0">
+            <n-collapse-item :title="`${t('leagues.archivedLeagues')} (${archivedLeagues.length})`" name="archived">
+              <n-list>
+                <league-card
+                  v-for="league in archivedLeagues"
+                  :key="league.code"
+                  :league="league"
+                  @click="selectLeague(league.code)"
+                />
+              </n-list>
+            </n-collapse-item>
+          </n-collapse>
+        </n-card>
+      </n-gi>
+    </n-grid>
 
     <!-- Create League Dialog -->
-    <v-dialog v-model="showCreateDialog" max-width="500">
-      <v-card>
-        <v-card-title>{{ t('leagues.createLeague') }}</v-card-title>
-        <v-card-text>
-          <v-text-field
-            v-model="newLeagueName"
-            :label="t('leagues.leagueName')"
-            :rules="[v => !!v || t('leagues.nameRequired')]"
-            required
-          />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn @click="showCreateDialog = false">{{ t('leagues.cancel') }}</v-btn>
-          <v-btn
-            color="primary"
-            :disabled="!newLeagueName"
-            :loading="creating"
-            @click="createLeague"
-          >
-            {{ t('leagues.create') }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </v-container>
+    <n-modal v-model:show="showCreateDialog" preset="dialog" :title="t('leagues.createLeague')" positive-text="Create" negative-text="Cancel" @positive-click="handleCreate" @negative-click="showCreateDialog = false">
+      <n-form-item :label="t('leagues.leagueName')" :required="true">
+        <n-input v-model:value="newLeagueName" :placeholder="t('leagues.leagueName')" />
+      </n-form-item>
+    </n-modal>
+  </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue';
+import { NGrid, NGi, NCard, NButton, NIcon, NDivider, NList, NAlert, NSpin, NCollapse, NCollapseItem, NModal, NFormItem, NInput } from 'naive-ui';
+import { Add as AddIcon } from '@vicons/ionicons5';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
@@ -122,8 +96,8 @@ const selectLeague = (code: string) => {
   router.push({ name: 'LeagueDetails', params: { code } });
 };
 
-const createLeague = async () => {
-  if (!newLeagueName.value) return;
+const handleCreate = async () => {
+  if (!newLeagueName.value) return false;
 
   creating.value = true;
   try {
@@ -131,12 +105,16 @@ const createLeague = async () => {
     showCreateDialog.value = false;
     newLeagueName.value = '';
     router.push({ name: 'LeagueDetails', params: { code: league.code } });
+    return true;
   } catch (error) {
     console.error('Error creating league:', error);
+    return false;
   } finally {
     creating.value = false;
   }
 };
+
+const createLeague = handleCreate;
 
 onMounted(async () => {
   try {

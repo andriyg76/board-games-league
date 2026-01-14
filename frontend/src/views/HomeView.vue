@@ -1,137 +1,123 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col cols="12">
-        <h1 class="text-h3 mb-4">{{ t('home.title') }}</h1>
-        <p class="text-h6 text-medium-emphasis mb-6">
+  <div>
+    <n-grid :cols="24" :x-gap="16" style="margin-bottom: 24px;">
+      <n-gi :span="24">
+        <h1 style="font-size: 2rem; margin-bottom: 16px;">{{ t('home.title') }}</h1>
+        <p style="font-size: 1.25rem; color: rgba(0, 0, 0, 0.6); margin-bottom: 24px;">
           {{ t('home.welcome') }}
         </p>
-      </v-col>
-    </v-row>
+      </n-gi>
+    </n-grid>
 
-    <v-row v-if="loading">
-      <v-col cols="12" class="text-center">
-        <v-progress-circular indeterminate color="primary" size="64" />
-      </v-col>
-    </v-row>
+    <n-spin v-if="loading" size="large" style="display: flex; justify-content: center; padding: 64px;" />
 
-    <v-row v-else>
-      <v-col cols="12" md="4">
-        <v-card elevation="2">
-          <v-card-text>
-            <div class="text-overline mb-1">{{ t('home.totalGameRounds') }}</div>
-            <div class="text-h4">{{ totalRounds }}</div>
-            <div class="text-caption">{{ t('common.allTime') }}</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
+    <n-grid v-else :cols="24" :x-gap="16" style="margin-bottom: 24px;">
+      <n-gi :span="24" :responsive="{ m: 8 }">
+        <n-card>
+          <div style="font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; opacity: 0.7;">{{ t('home.totalGameRounds') }}</div>
+          <div style="font-size: 2rem; font-weight: 500;">{{ totalRounds }}</div>
+          <div style="font-size: 0.75rem; opacity: 0.7;">{{ t('common.allTime') }}</div>
+        </n-card>
+      </n-gi>
 
-      <v-col cols="12" md="4">
-        <v-card elevation="2">
-          <v-card-text>
-            <div class="text-overline mb-1">{{ t('home.activeGames') }}</div>
-            <div class="text-h4">{{ activeRounds }}</div>
-            <div class="text-caption">{{ t('common.inProgress') }}</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
+      <n-gi :span="24" :responsive="{ m: 8 }">
+        <n-card>
+          <div style="font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; opacity: 0.7;">{{ t('home.activeGames') }}</div>
+          <div style="font-size: 2rem; font-weight: 500;">{{ activeRounds }}</div>
+          <div style="font-size: 0.75rem; opacity: 0.7;">{{ t('common.inProgress') }}</div>
+        </n-card>
+      </n-gi>
 
-      <v-col cols="12" md="4">
-        <v-card elevation="2">
-          <v-card-text>
-            <div class="text-overline mb-1">{{ t('home.gameTypes') }}</div>
-            <div class="text-h4">{{ totalGameTypes }}</div>
-            <div class="text-caption">{{ t('common.available') }}</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+      <n-gi :span="24" :responsive="{ m: 8 }">
+        <n-card>
+          <div style="font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; opacity: 0.7;">{{ t('home.gameTypes') }}</div>
+          <div style="font-size: 2rem; font-weight: 500;">{{ totalGameTypes }}</div>
+          <div style="font-size: 0.75rem; opacity: 0.7;">{{ t('common.available') }}</div>
+        </n-card>
+      </n-gi>
+    </n-grid>
 
-    <v-row class="mt-4">
-      <v-col cols="12">
-        <v-card elevation="2">
-          <v-card-title>
-            <span class="text-h5">{{ t('home.recentGameRounds') }}</span>
-            <v-spacer />
-            <v-btn
-              color="primary"
-              @click="navigateToAllRounds"
-              variant="text"
-            >
-              {{ t('common.viewAll') }}
-            </v-btn>
-          </v-card-title>
-          <v-divider />
+    <n-grid :cols="24" :x-gap="16" style="margin-bottom: 24px;">
+      <n-gi :span="24">
+        <n-card>
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 1.25rem; font-weight: 500;">{{ t('home.recentGameRounds') }}</span>
+              <n-button quaternary @click="navigateToAllRounds">
+                {{ t('common.viewAll') }}
+              </n-button>
+            </div>
+          </template>
+          <n-divider />
 
-          <v-card-text v-if="recentRounds.length === 0">
-            <v-alert type="info" variant="tonal">
-              {{ t('home.noGameRoundsYet') }}
-            </v-alert>
-          </v-card-text>
+          <n-alert v-if="recentRounds.length === 0" type="info" style="margin-top: 16px;">
+            {{ t('home.noGameRoundsYet') }}
+          </n-alert>
 
-          <v-list v-else>
-            <v-list-item
+          <n-list v-else>
+            <n-list-item
               v-for="round in recentRounds"
               :key="round.code"
+              clickable
               @click="navigateToRound(round.code)"
             >
-              <template v-slot:prepend>
-                <v-icon v-if="round.end_time" color="success">mdi-check-circle</v-icon>
-                <v-icon v-else color="primary">mdi-play-circle</v-icon>
+              <template #prefix>
+                <n-icon v-if="round.end_time" color="#18a058" size="20">
+                  <CheckCircleIcon />
+                </n-icon>
+                <n-icon v-else color="#2080f0" size="20">
+                  <PlayCircleIcon />
+                </n-icon>
               </template>
+              <div>
+                <div style="font-weight: 500;">{{ round.name }}</div>
+                <div style="font-size: 0.875rem; opacity: 0.7;">
+                  {{ formatDate(round.start_time) }}
+                  <span v-if="round.end_time"> - {{ t('common.completed') }}</span>
+                  <span v-else> - {{ t('common.inProgress') }}</span>
+                </div>
+              </div>
+            </n-list-item>
+          </n-list>
+        </n-card>
+      </n-gi>
+    </n-grid>
 
-              <v-list-item-title>{{ round.name }}</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ formatDate(round.start_time) }}
-                <span v-if="round.end_time"> - {{ t('common.completed') }}</span>
-                <span v-else> - {{ t('common.inProgress') }}</span>
-              </v-list-item-subtitle>
-            </v-list-item>
-          </v-list>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <v-row class="mt-4">
-      <v-col cols="12" md="6">
-        <v-card elevation="2" class="text-center pa-4" color="primary" variant="tonal">
-          <v-card-title class="text-h6">{{ t('home.createNewGameRound') }}</v-card-title>
-          <v-card-text>
-            {{ t('home.startTracking') }}
-          </v-card-text>
-          <v-btn
-            color="primary"
-            size="large"
-            @click="navigateToNewRound"
-          >
-            <v-icon start>mdi-plus-circle</v-icon>
+    <n-grid :cols="24" :x-gap="16">
+      <n-gi :span="24" :responsive="{ m: 12 }">
+        <n-card style="text-align: center; padding: 24px;" theme-overrides="{ colorPrimary: '#2080f0' }">
+          <div style="font-size: 1.125rem; font-weight: 500; margin-bottom: 8px;">{{ t('home.createNewGameRound') }}</div>
+          <div style="margin-bottom: 16px; opacity: 0.8;">{{ t('home.startTracking') }}</div>
+          <n-button type="primary" size="large" @click="navigateToNewRound">
+            <template #icon>
+              <n-icon><AddCircleIcon /></n-icon>
+            </template>
             {{ t('home.newGameRound') }}
-          </v-btn>
-        </v-card>
-      </v-col>
+          </n-button>
+        </n-card>
+      </n-gi>
 
-      <v-col cols="12" md="6">
-        <v-card elevation="2" class="text-center pa-4" color="secondary" variant="tonal">
-          <v-card-title class="text-h6">{{ t('home.manageGameTypes') }}</v-card-title>
-          <v-card-text>
-            {{ t('home.configureCollection') }}
-          </v-card-text>
-          <v-btn
-            color="secondary"
-            size="large"
-            @click="navigateToGameTypes"
-          >
-            <v-icon start>mdi-dice-multiple</v-icon>
+      <n-gi :span="24" :responsive="{ m: 12 }">
+        <n-card style="text-align: center; padding: 24px;" theme-overrides="{ colorPrimary: '#18a058' }">
+          <div style="font-size: 1.125rem; font-weight: 500; margin-bottom: 8px;">{{ t('home.manageGameTypes') }}</div>
+          <div style="margin-bottom: 16px; opacity: 0.8;">{{ t('home.configureCollection') }}</div>
+          <n-button type="success" size="large" @click="navigateToGameTypes">
+            <template #icon>
+              <n-icon><DiceIcon /></n-icon>
+            </template>
             {{ t('gameTypes.title') }}
-          </v-btn>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+          </n-button>
+        </n-card>
+      </n-gi>
+    </n-grid>
+  </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, onMounted, computed } from 'vue';
+import { NGrid, NGi, NCard, NSpin, NButton, NList, NListItem, NIcon, NAlert, NDivider } from 'naive-ui';
+import { CheckmarkCircle as CheckCircleIcon, PlayCircleOutline as PlayCircleIcon, AddCircleOutline as AddCircleIcon } from '@vicons/ionicons5';
+import { Dice as DiceIcon } from '@vicons/ionicons5';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import GameApi from '@/api/GameApi';
@@ -183,7 +169,7 @@ onMounted(async () => {
       GameApi.listGameRounds(),
       GameApi.getGameTypes()
     ]);
-    gameRounds.value = roundsData;
+    gameRounds.value = roundsData as GameRoundView[];
     gameTypes.value = typesData;
   } catch (error) {
     console.error('Error loading dashboard data:', error);

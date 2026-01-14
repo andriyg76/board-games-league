@@ -1,137 +1,125 @@
 <template>
-  <v-dialog v-model="isOpen" max-width="1200" scrollable>
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <v-icon start>mdi-table</v-icon>
-        Wizard Scoreboard
-        <v-spacer />
-        <v-btn icon="mdi-close" variant="text" @click="close" />
-      </v-card-title>
+  <n-modal v-model:show="isOpen" preset="card" title="Wizard Scoreboard" style="max-width: 1200px;" :mask-closable="false">
+    <n-spin v-if="loading" size="large" style="display: flex; justify-content: center; padding: 64px;">
+      <template #description>
+        Loading scoreboard...
+      </template>
+    </n-spin>
 
-      <v-divider />
+    <div v-else-if="scoreboard" class="scoreboard-container">
+      <!-- Header Info -->
+      <div style="padding: 16px; background-color: #fafafa;">
+        <n-grid :cols="24" :x-gap="8">
+          <n-gi :span="24" :responsive="{ m: 8 }">
+            <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px;">Game Code</div>
+            <div style="font-size: 1rem; font-weight: 500;">{{ scoreboard.game_code }}</div>
+          </n-gi>
+          <n-gi :span="24" :responsive="{ m: 8 }">
+            <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px;">Current Round</div>
+            <div style="font-size: 1rem;">{{ scoreboard.current_round }} / {{ scoreboard.max_rounds }}</div>
+          </n-gi>
+          <n-gi :span="24" :responsive="{ m: 8 }">
+            <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px;">Players</div>
+            <div style="font-size: 1rem;">{{ scoreboard.players.length }}</div>
+          </n-gi>
+        </n-grid>
+      </div>
 
-      <v-card-text class="pa-0">
-        <div v-if="loading" class="text-center pa-8">
-          <v-progress-circular indeterminate color="primary" size="64" />
-          <p class="mt-4">Loading scoreboard...</p>
-        </div>
+      <n-divider />
 
-        <div v-else-if="scoreboard" class="scoreboard-container">
-          <!-- Header Info -->
-          <div class="pa-4 bg-grey-lighten-5">
-            <v-row dense>
-              <v-col cols="4">
-                <div class="text-caption text-grey">Game Code</div>
-                <div class="text-body-1 font-weight-bold">{{ scoreboard.game_code }}</div>
-              </v-col>
-              <v-col cols="4">
-                <div class="text-caption text-grey">Current Round</div>
-                <div class="text-body-1">{{ scoreboard.current_round }} / {{ scoreboard.max_rounds }}</div>
-              </v-col>
-              <v-col cols="4">
-                <div class="text-caption text-grey">Players</div>
-                <div class="text-body-1">{{ scoreboard.players.length }}</div>
-              </v-col>
-            </v-row>
-          </div>
-
-          <v-divider />
-
-          <!-- Scrollable Table -->
-          <div class="table-scroll">
-            <table class="wizard-table">
-              <thead>
-                <tr>
-                  <th class="sticky-col player-col">Player</th>
-                  <th class="sticky-col score-col">Total</th>
-                  <th
-                    v-for="round in scoreboard.rounds"
-                    :key="round.round_number"
-                    class="round-col"
-                    :class="{ 'current-round': round.round_number === scoreboard.current_round }"
-                  >
-                    <div class="round-header">
-                      <div class="round-number">R{{ round.round_number }}</div>
-                      <div class="round-info">{{ round.cards_count }} cards</div>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(player, playerIndex) in scoreboard.players"
-                  :key="player.membership_id"
+      <!-- Scrollable Table -->
+      <div class="table-scroll">
+        <table class="wizard-table">
+          <thead>
+            <tr>
+              <th class="sticky-col player-col">Player</th>
+              <th class="sticky-col score-col">Total</th>
+              <th
+                v-for="round in scoreboard.rounds"
+                :key="round.round_number"
+                class="round-col"
+                :class="{ 'current-round': round.round_number === scoreboard.current_round }"
+              >
+                <div class="round-header">
+                  <div class="round-number">R{{ round.round_number }}</div>
+                  <div class="round-info">{{ round.cards_count }} cards</div>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(player, playerIndex) in scoreboard.players"
+              :key="player.membership_id"
+            >
+              <td class="sticky-col player-col">
+                <div class="player-name">{{ player.player_name }}</div>
+              </td>
+              <td class="sticky-col score-col">
+                <div class="total-score">{{ player.total_score }}</div>
+              </td>
+              <td
+                v-for="round in scoreboard.rounds"
+                :key="`${player.membership_id}-${round.round_number}`"
+                class="round-col"
+                :class="{
+                  'current-round': round.round_number === scoreboard.current_round,
+                  'dealer-round': round.dealer_index === playerIndex
+                }"
+              >
+                <div
+                  v-if="round.player_results[playerIndex]"
+                  class="round-cell"
+                  :class="getCellClass(round.player_results[playerIndex])"
                 >
-                  <td class="sticky-col player-col">
-                    <div class="player-name">{{ player.player_name }}</div>
-                  </td>
-                  <td class="sticky-col score-col">
-                    <div class="total-score">{{ player.total_score }}</div>
-                  </td>
-                  <td
-                    v-for="round in scoreboard.rounds"
-                    :key="`${player.membership_id}-${round.round_number}`"
-                    class="round-col"
-                    :class="{
-                      'current-round': round.round_number === scoreboard.current_round,
-                      'dealer-round': round.dealer_index === playerIndex
-                    }"
-                  >
-                    <div
-                      v-if="round.player_results[playerIndex]"
-                      class="round-cell"
-                      :class="getCellClass(round.player_results[playerIndex])"
-                    >
-                      <div class="score-main">
-                        {{ getRoundScore(round.player_results[playerIndex]) }}
-                      </div>
-                      <div class="tricks-info">
-                        {{ getTricksInfo(round.player_results[playerIndex]) }}
-                      </div>
-                    </div>
-                    <div v-else class="round-cell pending">
-                      -
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                  <div class="score-main">
+                    {{ getRoundScore(round.player_results[playerIndex]) }}
+                  </div>
+                  <div class="tricks-info">
+                    {{ getTricksInfo(round.player_results[playerIndex]) }}
+                  </div>
+                </div>
+                <div v-else class="round-cell pending">
+                  -
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-          <v-divider />
+      <n-divider />
 
-          <!-- Legend -->
-          <div class="pa-4">
-            <div class="text-subtitle-2 mb-2">Legend:</div>
-            <div class="d-flex flex-wrap gap-3">
-              <v-chip size="small" class="cell-match">Match (bid = actual)</v-chip>
-              <v-chip size="small" class="cell-miss-small">Miss by 1</v-chip>
-              <v-chip size="small" class="cell-miss-large">Miss by 2+</v-chip>
-              <v-chip size="small" variant="outlined">Dealer (border)</v-chip>
-              <v-chip size="small" class="current-round-chip">Current Round</v-chip>
-            </div>
-          </div>
+      <!-- Legend -->
+      <div style="padding: 16px;">
+        <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 8px;">Legend:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <n-tag size="small" class="cell-match">Match (bid = actual)</n-tag>
+          <n-tag size="small" class="cell-miss-small">Miss by 1</n-tag>
+          <n-tag size="small" class="cell-miss-large">Miss by 2+</n-tag>
+          <n-tag size="small" type="default" style="border: 2px solid #1976d2;">Dealer (border)</n-tag>
+          <n-tag size="small" class="current-round-chip">Current Round</n-tag>
         </div>
+      </div>
+    </div>
 
-        <v-alert v-else type="info" class="ma-4">
-          No scoreboard data available
-        </v-alert>
-      </v-card-text>
+    <n-alert v-else type="info" style="margin: 16px;">
+      No scoreboard data available
+    </n-alert>
 
-      <v-divider />
-
-      <v-card-actions>
-        <v-spacer />
-        <v-btn color="primary" variant="text" @click="close">
+    <template #action>
+      <div style="display: flex; justify-content: flex-end;">
+        <n-button type="primary" @click="close">
           Close
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </n-button>
+      </div>
+    </template>
+  </n-modal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { NModal, NSpin, NGrid, NGi, NDivider, NTag, NAlert, NButton } from 'naive-ui'
 import { useWizardStore } from '@/store/wizard'
 import type { WizardPlayerResult } from './types'
 

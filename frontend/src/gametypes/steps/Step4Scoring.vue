@@ -1,79 +1,87 @@
 <template>
-  <v-card flat>
-    <v-card-title>{{ $t('game.enterScores') }}</v-card-title>
-    <v-card-text>
-      <v-table>
-        <thead>
-          <tr>
-            <th>{{ $t('leagues.player') }}</th>
-            <th>{{ $t('leagues.points') }}</th>
-            <th>{{ $t('game.position') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="player in players" :key="player.membership_id">
-            <td>
-              {{ player.alias }}
-              <v-chip v-if="player.is_moderator" size="x-small" color="orange" class="ml-1">
+  <n-card>
+    <template #header>
+      {{ $t('game.enterScores') }}
+    </template>
+    <n-table>
+      <thead>
+        <tr>
+          <th>{{ $t('leagues.player') }}</th>
+          <th>{{ $t('leagues.points') }}</th>
+          <th>{{ $t('game.position') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="player in players" :key="player.membership_id">
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>{{ player.alias }}</span>
+              <n-tag v-if="player.is_moderator" size="small" type="warning">
                 {{ $t('roleTypes.moderator') }}
-              </v-chip>
-            </td>
-            <td>
-              <v-text-field
-                :model-value="scores[player.membership_id] || 0"
-                @update:model-value="$emit('updateScore', player.membership_id, Number($event))"
-                type="number"
-                density="compact"
-                variant="outlined"
-                hide-details
-                style="max-width: 100px"
-              />
-            </td>
-            <td>
-              <v-select
-                :model-value="positions[player.membership_id] || 1"
-                @update:model-value="$emit('updatePosition', player.membership_id, $event)"
-                :items="positionOptions"
-                density="compact"
-                variant="outlined"
-                hide-details
-                style="max-width: 80px"
-              />
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
-    </v-card-text>
-    <v-card-actions>
-      <v-btn variant="text" @click="$emit('back')" :disabled="saving">
-        <v-icon start>mdi-arrow-left</v-icon>
-        {{ $t('game.back') }}
-      </v-btn>
-      <v-spacer />
-      <v-btn
-        variant="outlined"
-        color="primary"
-        :loading="saving"
-        @click="$emit('save')"
-        class="mr-2"
-      >
-        <v-icon start>mdi-content-save</v-icon>
-        {{ $t('common.save') }}
-      </v-btn>
-      <v-btn
-        color="success"
-        :loading="saving"
-        @click="$emit('finish')"
-      >
-        <v-icon start>mdi-check</v-icon>
-        {{ $t('game.finishGame') }}
-      </v-btn>
-    </v-card-actions>
-  </v-card>
+              </n-tag>
+            </div>
+          </td>
+          <td>
+            <n-input-number
+              :value="scores[player.membership_id] || 0"
+              @update:value="$emit('updateScore', player.membership_id, Number($event || 0))"
+              :min="0"
+              size="small"
+              style="max-width: 100px"
+            />
+          </td>
+          <td>
+            <n-select
+              :value="positions[player.membership_id] || 1"
+              @update:value="$emit('updatePosition', player.membership_id, $event)"
+              :options="positionOptions.map(p => ({ label: String(p), value: p }))"
+              size="small"
+              style="max-width: 80px"
+            />
+          </td>
+        </tr>
+      </tbody>
+    </n-table>
+    <template #action>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px;">
+        <n-button quaternary @click="$emit('back')" :disabled="saving">
+          <template #icon>
+            <n-icon><ChevronBackIcon /></n-icon>
+          </template>
+          {{ $t('game.back') }}
+        </n-button>
+        <div style="display: flex; gap: 8px;">
+          <n-button
+            secondary
+            type="primary"
+            :loading="saving"
+            @click="$emit('save')"
+          >
+            <template #icon>
+              <n-icon><SaveIcon /></n-icon>
+            </template>
+            {{ $t('common.save') }}
+          </n-button>
+          <n-button
+            type="success"
+            :loading="saving"
+            @click="$emit('finish')"
+          >
+            <template #icon>
+              <n-icon><CheckIcon /></n-icon>
+            </template>
+            {{ $t('game.finishGame') }}
+          </n-button>
+        </div>
+      </div>
+    </template>
+  </n-card>
 </template>
 
 <script lang="ts" setup>
 import { computed } from 'vue';
+import { NCard, NTable, NTag, NInputNumber, NSelect, NButton, NIcon } from 'naive-ui';
+import { ChevronBack as ChevronBackIcon, Save as SaveIcon, Checkmark as CheckIcon } from '@vicons/ionicons5';
 
 export interface ScoringPlayer {
   membership_id: string;

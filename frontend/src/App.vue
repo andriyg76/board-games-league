@@ -1,113 +1,146 @@
 <template>
-  <v-app>
-    <v-app-bar app>
-      <!-- Mobile menu icon -->
-      <v-app-bar-nav-icon
-          @click="drawer = !drawer"
-          class="d-flex d-md-none"
-      ></v-app-bar-nav-icon>
+  <n-config-provider>
+    <n-message-provider>
+      <n-notification-provider>
+        <n-dialog-provider>
+          <n-layout>
+            <n-layout-header bordered style="padding: 12px 16px; display: flex; align-items: center; gap: 8px;">
+              <!-- Mobile menu icon -->
+              <n-button
+                  v-if="isMobile"
+                  quaternary
+                  @click="drawer = !drawer"
+              >
+                <template #icon>
+                  <n-icon><MenuIcon /></n-icon>
+                </template>
+              </n-button>
 
-      <!-- Desktop menu -->
-      <div class="d-none d-md-flex">
-        <v-btn to="/" variant="text">{{ t('nav.home') }}</v-btn>
-        <v-btn
-            to="/ui/admin/game-types"
-            v-if="loggedIn"
-            variant="text"
-        >{{ t('nav.gameTypes') }}</v-btn>
-        <v-btn
-            to="/ui/leagues"
-            v-if="loggedIn"
-            variant="text"
-        >{{ t('nav.leagues') }}</v-btn>
-        <gameround-menu-item v-if="loggedIn" />
-        <v-btn
-            to="/ui/user"
-            v-if="loggedIn"
-            variant="text"
-        >{{ t('nav.user') }}</v-btn>
-        <v-btn
-            to="/ui/admin/diagnostics"
-            v-if="isSuperAdmin"
-            variant="text"
-        >{{ t('nav.diagnostics') }}</v-btn>
-      </div>
+              <!-- Desktop menu -->
+              <n-space v-if="!isMobile" :size="8">
+                <router-link to="/" style="text-decoration: none;">
+                  <n-button quaternary>{{ t('nav.home') }}</n-button>
+                </router-link>
+                <router-link v-if="loggedIn" to="/ui/admin/game-types" style="text-decoration: none;">
+                  <n-button quaternary>{{ t('nav.gameTypes') }}</n-button>
+                </router-link>
+                <router-link v-if="loggedIn" to="/ui/leagues" style="text-decoration: none;">
+                  <n-button quaternary>{{ t('nav.leagues') }}</n-button>
+                </router-link>
+                <gameround-menu-item v-if="loggedIn" />
+                <router-link v-if="loggedIn" to="/ui/user" style="text-decoration: none;">
+                  <n-button quaternary>{{ t('nav.user') }}</n-button>
+                </router-link>
+                <router-link v-if="isSuperAdmin" to="/ui/admin/diagnostics" style="text-decoration: none;">
+                  <n-button quaternary>{{ t('nav.diagnostics') }}</n-button>
+                </router-link>
+              </n-space>
 
-      <v-spacer></v-spacer>
-      <v-divider vertical class="mx-2"></v-divider>
-      <language-switcher />
-      <logout-button/>
-    </v-app-bar>
+              <div style="flex: 1;"></div>
+              <n-divider vertical style="margin: 0 8px;" />
+              <language-switcher />
+              <logout-button/>
+            </n-layout-header>
 
-    <!-- Mobile side menu -->
-    <v-navigation-drawer
-        v-model="drawer"
-        temporary
-        class="d-md-none"
-    >
-      <v-list>
-        <v-list-item to="/" :title="t('nav.home')" />
-        <v-list-item
-            v-if="loggedIn"
-            to="/ui/admin/game-types"
-            :title="t('nav.gameTypes')"
-        />
-        <v-list-item
-            v-if="loggedIn"
-            to="/ui/leagues"
-            :title="t('nav.leagues')"
-        />
-        <v-list-item
-            v-if="loggedIn"
-            to="/ui/game-rounds"
-            :title="t('gameRounds.title')"
-        />
-        <v-list-group v-if="loggedIn" value="Game Rounds">
-          <v-list-item to="/ui/game-rounds/new" :title="t('gameRounds.start')" />
-          <v-list-item to="/ui/game-rounds/new?gameType=wizard" :title="t('wizard.newGame')" prepend-icon="mdi-wizard-hat" />
-          <v-list-item to="/ui/game-rounds" :title="t('gameRounds.list')" />
-        </v-list-group>
-        <v-list-item
-            v-if="loggedIn"
-            to="/ui/user"
-            :title="t('nav.user')"
-        />
-        <v-list-item
-            v-if="isSuperAdmin"
-            to="/ui/admin/diagnostics"
-            :title="t('nav.diagnostics')"
-        />
-      </v-list>
-    </v-navigation-drawer>
+            <!-- Mobile side menu -->
+            <n-drawer
+                v-model:show="drawer"
+                :width="280"
+                placement="left"
+            >
+              <n-list>
+                <n-list-item>
+                  <router-link to="/" style="text-decoration: none; color: inherit;">
+                    {{ t('nav.home') }}
+                  </router-link>
+                </n-list-item>
+                <n-list-item v-if="loggedIn">
+                  <router-link to="/ui/admin/game-types" style="text-decoration: none; color: inherit;">
+                    {{ t('nav.gameTypes') }}
+                  </router-link>
+                </n-list-item>
+                <n-list-item v-if="loggedIn">
+                  <router-link to="/ui/leagues" style="text-decoration: none; color: inherit;">
+                    {{ t('nav.leagues') }}
+                  </router-link>
+                </n-list-item>
+                <n-list-item v-if="loggedIn">
+                  <router-link to="/ui/game-rounds" style="text-decoration: none; color: inherit;">
+                    {{ t('gameRounds.title') }}
+                  </router-link>
+                </n-list-item>
+                <n-list-item v-if="loggedIn">
+                  <router-link to="/ui/game-rounds/new" style="text-decoration: none; color: inherit;">
+                    {{ t('gameRounds.start') }}
+                  </router-link>
+                </n-list-item>
+                <n-list-item v-if="loggedIn">
+                  <router-link to="/ui/game-rounds/new?gameType=wizard" style="text-decoration: none; color: inherit;">
+                    {{ t('wizard.newGame') }}
+                  </router-link>
+                </n-list-item>
+                <n-list-item v-if="loggedIn">
+                  <router-link to="/ui/game-rounds" style="text-decoration: none; color: inherit;">
+                    {{ t('gameRounds.list') }}
+                  </router-link>
+                </n-list-item>
+                <n-list-item v-if="loggedIn">
+                  <router-link to="/ui/user" style="text-decoration: none; color: inherit;">
+                    {{ t('nav.user') }}
+                  </router-link>
+                </n-list-item>
+                <n-list-item v-if="isSuperAdmin">
+                  <router-link to="/ui/admin/diagnostics" style="text-decoration: none; color: inherit;">
+                    {{ t('nav.diagnostics') }}
+                  </router-link>
+                </n-list-item>
+              </n-list>
+            </n-drawer>
 
-    <v-main>
-      <v-container>
-        <router-view/>
-      </v-container>
-    </v-main>
-  </v-app>
+            <n-layout-content style="padding: 24px;">
+              <router-view/>
+            </n-layout-content>
+          </n-layout>
+        </n-dialog-provider>
+      </n-notification-provider>
+    </n-message-provider>
+  </n-config-provider>
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from "vue";
+import { 
+  NConfigProvider, 
+  NMessageProvider, 
+  NNotificationProvider, 
+  NDialogProvider,
+  NLayout, 
+  NLayoutHeader, 
+  NLayoutContent, 
+  NButton, 
+  NSpace, 
+  NDivider, 
+  NDrawer, 
+  NList, 
+  NListItem,
+  NIcon,
+} from 'naive-ui';
+import { Menu as MenuIcon } from '@vicons/ionicons5';
+import { RouterLink } from 'vue-router';
 import LogoutButton from "@/components/LogoutButton.vue";
-import {defineComponent, computed, ref} from "vue";
 import { useUserStore } from '@/store/user';
-const userStore = useUserStore();
 import GameroundMenuItem from "@/components/GameroundMenuItem.vue";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
-import {useI18n} from "vue-i18n";
+import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
+const userStore = useUserStore();
+import { useBreakpoints, breakpointsTailwind } from '@vueuse/core'
+
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isMobile = breakpoints.smaller('md')
 
 const drawer = ref(false);
 const loggedIn = computed(() => userStore.$state.loggedIn);
 const isSuperAdmin = computed(() => userStore.isSuperAdmin);
-
-defineComponent({
-  components: {
-    LogoutButton,
-    LanguageSwitcher,
-    GameroundMenuItem,
-  },
-});
 </script>

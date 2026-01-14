@@ -1,98 +1,92 @@
 <template>
-  <v-dialog v-model="dialog" max-width="800" persistent>
-    <v-card>
-      <v-card-title class="text-h5">
-        Finalize Game Round
-      </v-card-title>
+  <n-modal v-model:show="dialog" preset="card" title="Finalize Game Round" style="max-width: 800px;" :mask-closable="false">
+    <n-alert v-if="error" type="error" style="margin-bottom: 16px;" closable @close="error = null">
+      {{ error }}
+    </n-alert>
 
-      <v-card-text>
-        <v-alert v-if="error" type="error" class="mb-4">
-          {{ error }}
-        </v-alert>
+    <n-spin v-if="loading" size="large" style="display: flex; justify-content: center; padding: 64px;" />
 
-        <div v-if="loading" class="text-center pa-4">
-          <v-progress-circular indeterminate color="primary" />
-        </div>
+    <div v-else-if="roundData">
+      <p style="font-size: 1.125rem; font-weight: 500; margin-bottom: 16px;">{{ roundData.name }}</p>
 
-        <div v-else-if="roundData">
-          <p class="text-subtitle-1 mb-4">{{ roundData.name }}</p>
+      <n-card style="margin-bottom: 16px;">
+        <template #header>
+          Player Scores
+        </template>
+        <n-list>
+          <n-list-item v-for="player in players" :key="player.user_id">
+            <n-grid :cols="24" :x-gap="8">
+              <n-gi :span="24" :responsive="{ m: 12 }">
+                <div>
+                  <div style="font-weight: 500;">{{ getPlayerName(player.user_id) }}</div>
+                  <div style="font-size: 0.875rem; opacity: 0.7;">
+                    <span v-if="player.team_name">Team: {{ player.team_name }}</span>
+                    <span v-if="player.is_moderator">Moderator</span>
+                  </div>
+                </div>
+              </n-gi>
+              <n-gi :span="24" :responsive="{ m: 12 }">
+                <n-input-number
+                  v-if="!player.is_moderator"
+                  v-model:value="playerScores[player.user_id]"
+                  placeholder="Score"
+                  :min="0"
+                  size="small"
+                  style="width: 100%;"
+                />
+                <span v-else style="color: #999;">N/A</span>
+              </n-gi>
+            </n-grid>
+          </n-list-item>
+        </n-list>
+      </n-card>
 
-          <v-list>
-            <v-subheader>Player Scores</v-subheader>
-            <v-list-item v-for="player in players" :key="player.user_id">
-              <v-row align="center">
-                <v-col cols="6">
-                  <v-list-item-title>{{ getPlayerName(player.user_id) }}</v-list-item-title>
-                  <v-list-item-subtitle v-if="player.team_name">
-                    Team: {{ player.team_name }}
-                  </v-list-item-subtitle>
-                  <v-list-item-subtitle v-if="player.is_moderator">
-                    Moderator
-                  </v-list-item-subtitle>
-                </v-col>
-                <v-col cols="6">
-                  <v-text-field
-                    v-if="!player.is_moderator"
-                    v-model.number="playerScores[player.user_id]"
-                    label="Score"
-                    type="number"
-                    density="compact"
-                    hide-details
-                  />
-                  <span v-else class="text-disabled">N/A</span>
-                </v-col>
-              </v-row>
-            </v-list-item>
-          </v-list>
+      <n-card v-if="teams.length > 0">
+        <template #header>
+          Team Scores
+        </template>
+        <n-list>
+          <n-list-item v-for="team in teams" :key="team">
+            <n-grid :cols="24" :x-gap="8">
+              <n-gi :span="24" :responsive="{ m: 12 }">
+                <div style="font-weight: 500;">{{ team }}</div>
+              </n-gi>
+              <n-gi :span="24" :responsive="{ m: 12 }">
+                <n-input-number
+                  v-model:value="teamScores[team]"
+                  placeholder="Team Score"
+                  :min="0"
+                  size="small"
+                  style="width: 100%;"
+                />
+              </n-gi>
+            </n-grid>
+          </n-list-item>
+        </n-list>
+      </n-card>
+    </div>
 
-          <v-list v-if="teams.length > 0" class="mt-4">
-            <v-subheader>Team Scores</v-subheader>
-            <v-list-item v-for="team in teams" :key="team">
-              <v-row align="center">
-                <v-col cols="6">
-                  <v-list-item-title>{{ team }}</v-list-item-title>
-                </v-col>
-                <v-col cols="6">
-                  <v-text-field
-                    v-model.number="teamScores[team]"
-                    label="Team Score"
-                    type="number"
-                    density="compact"
-                    hide-details
-                  />
-                </v-col>
-              </v-row>
-            </v-list-item>
-          </v-list>
-        </div>
-      </v-card-text>
-
-      <v-card-actions>
-        <v-spacer />
-        <v-btn
-          color="grey"
-          variant="text"
-          @click="closeDialog"
-          :disabled="submitting"
-        >
+    <template #action>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <n-button quaternary @click="closeDialog" :disabled="submitting">
           Cancel
-        </v-btn>
-        <v-btn
-          color="primary"
-          variant="elevated"
+        </n-button>
+        <n-button
+          type="primary"
           @click="submitFinalization"
           :loading="submitting"
           :disabled="!canSubmit"
         >
           Finalize
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </n-button>
+      </div>
+    </template>
+  </n-modal>
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, watch } from 'vue';
+import { NModal, NAlert, NSpin, NCard, NList, NListItem, NGrid, NGi, NInputNumber, NButton } from 'naive-ui';
 import GameApi, { FinalizeGameRoundRequest } from '@/api/GameApi';
 import { GameRoundView } from './types';
 
@@ -147,11 +141,11 @@ const loadGameRound = async () => {
   error.value = null;
 
   try {
-    roundData.value = await GameApi.getGameRound(props.roundCode);
+    roundData.value = await GameApi.getGameRound(props.roundCode) as any;
 
     // Initialize player scores
     playerScores.value = {};
-    roundData.value.players.forEach(player => {
+    roundData.value?.players.forEach(player => {
       if (!player.is_moderator) {
         playerScores.value[player.user_id] = player.score || 0;
       }

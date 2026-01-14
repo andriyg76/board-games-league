@@ -1,218 +1,210 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col>
-        <h2>{{ t('gameTypes.title') }}</h2>
-        <v-list>
-          <v-list-item v-for="gameType in gameTypes" :key="gameType.code">
-            <template v-slot:prepend>
-              <v-icon v-if="gameType.icon">{{ gameType.icon }}</v-icon>
-              <v-chip v-if="gameType.built_in" size="x-small" color="info" class="ml-2">
-                {{ t('gameTypes.builtIn') }}
-              </v-chip>
-            </template>
-            <v-list-item-title>
+  <n-grid :cols="24" :x-gap="16">
+    <n-gi :span="24">
+      <h2 style="font-size: 2rem; margin-bottom: 16px;">{{ t('gameTypes.title') }}</h2>
+      <n-list>
+        <n-list-item v-for="gameType in gameTypes" :key="gameType.code">
+          <template #prefix>
+            <n-icon v-if="gameType.icon" :size="24">
+              <DiceIcon />
+            </n-icon>
+            <n-tag v-if="gameType.built_in" type="info" size="small" style="margin-left: 8px;">
+              {{ t('gameTypes.builtIn') }}
+            </n-tag>
+          </template>
+          <div>
+            <div style="font-weight: 500;">
               {{ getGameTypeName(gameType) }} — {{ t(`scoring.${gameType.scoring_type}`) }}
-            </v-list-item-title>
-            <v-list-item-subtitle>
+            </div>
+            <div style="font-size: 0.875rem; opacity: 0.7;">
               {{ t('gameTypes.players') }}: {{ gameType.min_players }}-{{ gameType.max_players }}
               <span v-if="gameType.roles?.length"> | {{ t('gameTypes.roles') }}: {{ gameType.roles.length }}</span>
-            </v-list-item-subtitle>
-            <template v-slot:append>
-              <v-btn @click="editGameType(gameType)" color="primary" size="small" class="mr-2">
+            </div>
+          </div>
+          <template #suffix>
+            <div style="display: flex; gap: 8px;">
+              <n-button size="small" type="primary" @click="editGameType(gameType)">
                 {{ t('gameTypes.edit') }}
-              </v-btn>
-              <v-btn 
-                @click="deleteGameType(gameType.code)" 
-                color="error" 
+              </n-button>
+              <n-button 
                 size="small"
+                type="error"
+                @click="deleteGameType(gameType.code)" 
                 :disabled="gameType.built_in"
               >
                 {{ t('gameTypes.delete') }}
-              </v-btn>
-            </template>
-          </v-list-item>
-        </v-list>
-      </v-col>
-    </v-row>
+              </n-button>
+            </div>
+          </template>
+        </n-list-item>
+      </n-list>
+    </n-gi>
+  </n-grid>
 
-    <v-divider class="my-4" />
+  <n-divider style="margin: 24px 0;" />
 
-    <v-row>
-      <v-col>
-        <h3>{{ isEditing ? t('gameTypes.edit') : t('gameTypes.create') }} {{ t('gameTypes.gameType') }}</h3>
-        <v-form @submit.prevent="saveGameType">
-          <!-- Key -->
-          <v-text-field 
-            v-model="currentGameType.key" 
-            :label="t('gameTypes.key')"
+  <n-grid :cols="24" :x-gap="16">
+    <n-gi :span="24">
+      <h3 style="font-size: 1.5rem; margin-bottom: 16px;">{{ isEditing ? t('gameTypes.edit') : t('gameTypes.create') }} {{ t('gameTypes.gameType') }}</h3>
+      <n-form @submit.prevent="saveGameType">
+        <!-- Key -->
+        <n-form-item :label="t('gameTypes.key')" required>
+          <n-input 
+            v-model:value="currentGameType.key" 
             :disabled="isEditing && currentGameType.built_in"
-            required
           />
+        </n-form-item>
 
-          <!-- Localized Names -->
-          <v-card class="mb-4">
-            <v-card-title>{{ t('gameTypes.localizedNames') }}</v-card-title>
-            <v-card-text>
-              <v-text-field 
-                v-model="currentGameType.names.en" 
-                label="English"
-                required
-              />
-              <v-text-field 
-                v-model="currentGameType.names.uk" 
-                label="Українська"
-              />
-              <v-text-field 
-                v-model="currentGameType.names.et" 
-                label="Eesti"
-              />
-            </v-card-text>
-          </v-card>
+        <!-- Localized Names -->
+        <n-card style="margin-bottom: 16px;">
+          <template #header>
+            {{ t('gameTypes.localizedNames') }}
+          </template>
+          <n-form-item label="English" required>
+            <n-input v-model:value="currentGameType.names.en" />
+          </n-form-item>
+          <n-form-item label="Українська">
+            <n-input v-model:value="currentGameType.names.uk" />
+          </n-form-item>
+          <n-form-item label="Eesti">
+            <n-input v-model:value="currentGameType.names.et" />
+          </n-form-item>
+        </n-card>
 
-          <!-- Icon -->
-          <v-text-field 
-            v-model="currentGameType.icon" 
-            :label="t('gameTypes.icon')"
+        <!-- Icon -->
+        <n-form-item :label="t('gameTypes.icon')">
+          <n-input 
+            v-model:value="currentGameType.icon" 
             placeholder="mdi-cards-playing"
           />
+        </n-form-item>
 
-          <!-- Scoring Type -->
-          <v-select
-            v-model="currentGameType.scoring_type"
-            :items="Object.keys(ScoringTypes)"
-            :item-title="(item) => t(`scoring.${item}`)"
-            :item-value="(item) => item"
-            :label="t('gameTypes.scoringType')"
-            required
+        <!-- Scoring Type -->
+        <n-form-item :label="t('gameTypes.scoringType')" required>
+          <n-select
+            v-model:value="currentGameType.scoring_type"
+            :options="Object.keys(ScoringTypes).map(key => ({ label: t(`scoring.${key}`), value: key }))"
           />
+        </n-form-item>
 
-          <!-- Min/Max Players -->
-          <v-row>
-            <v-col cols="6">
-              <v-text-field 
-                v-model.number="currentGameType.min_players" 
-                :label="t('gameTypes.minPlayers')"
-                type="number"
-                min="1"
+        <!-- Min/Max Players -->
+        <n-grid :cols="24" :x-gap="8">
+          <n-gi :span="24" :responsive="{ m: 12 }">
+            <n-form-item :label="t('gameTypes.minPlayers')">
+              <n-input-number 
+                v-model:value="currentGameType.min_players" 
+                :min="1"
+                style="width: 100%;"
               />
-            </v-col>
-            <v-col cols="6">
-              <v-text-field 
-                v-model.number="currentGameType.max_players" 
-                :label="t('gameTypes.maxPlayers')"
-                type="number"
-                min="1"
+            </n-form-item>
+          </n-gi>
+          <n-gi :span="24" :responsive="{ m: 12 }">
+            <n-form-item :label="t('gameTypes.maxPlayers')">
+              <n-input-number 
+                v-model:value="currentGameType.max_players" 
+                :min="1"
+                style="width: 100%;"
               />
-            </v-col>
-          </v-row>
+            </n-form-item>
+          </n-gi>
+        </n-grid>
 
-          <!-- Roles Section -->
-          <v-card class="mb-4">
-            <v-card-title>{{ t('gameTypes.roles') }}</v-card-title>
-            <v-card-text>
-              <div v-for="(role, index) in currentGameType.roles" :key="index" class="role-item mb-4 pa-3 border rounded">
-                <v-row>
-                  <v-col cols="12" md="3">
-                    <v-text-field 
-                      v-model="role.key" 
-                      :label="t('gameTypes.roleKey')"
-                      dense
-                    />
-                  </v-col>
-                  <v-col cols="12" md="3">
-                    <v-text-field 
-                      v-model="role.names.en" 
-                      label="Name (EN)"
-                      dense
-                    />
-                  </v-col>
-                  <v-col cols="12" md="3">
-                    <v-text-field 
-                      v-model="role.names.uk" 
-                      label="Назва (UK)"
-                      dense
-                    />
-                  </v-col>
-                  <v-col cols="12" md="3">
-                    <v-select
-                      v-model="role.role_type"
-                      :items="roleTypeOptions"
-                      :item-title="(item) => t(`roleTypes.${item.value}`)"
-                      item-value="value"
-                      :label="t('gameTypes.roleType')"
-                      dense
-                    />
-                  </v-col>
-                </v-row>
-                <v-row>
-                  <v-col cols="12" md="4">
-                    <div class="d-flex align-center">
-                      <div 
-                        class="color-box mr-2"
-                        :style="{ backgroundColor: role.color }"
-                        @click="() => role.showPicker = !role.showPicker"
-                      />
-                      <v-menu
-                        v-model="role.showPicker"
-                        :close-on-content-click="false"
-                        location="bottom"
-                      >
-                        <template v-slot:activator="{ props }">
-                          <v-text-field 
-                            v-model="role.color" 
-                            :label="t('gameTypes.color')"
-                            v-bind="props"
-                            dense
-                            readonly
-                          />
-                        </template>
-                        <v-card>
-                          <v-color-picker
-                            v-model="role.color"
-                            hide-inputs
-                            @update:model-value="() => role.showPicker = false"
-                          />
-                        </v-card>
-                      </v-menu>
-                    </div>
-                  </v-col>
-                  <v-col cols="12" md="4">
-                    <v-text-field 
-                      v-model="role.icon" 
-                      :label="t('gameTypes.icon')"
-                      dense
-                    />
-                  </v-col>
-                  <v-col cols="12" md="4" class="d-flex align-center">
-                    <v-btn icon color="error" @click="removeRole(index)" size="small">
-                      <v-icon>mdi-delete</v-icon>
-                    </v-btn>
-                  </v-col>
-                </v-row>
-              </div>
-              <v-btn color="primary" @click="addRole" prepend-icon="mdi-plus">
-                {{ t('gameTypes.addRole') }}
-              </v-btn>
-            </v-card-text>
-          </v-card>
-
-          <div class="d-flex gap-2">
-            <v-btn type="submit" color="success">
-              {{ isEditing ? t('gameTypes.update') : t('gameTypes.create') }}
-            </v-btn>
-            <v-btn @click="cancelEdit" color="error">
-              {{ t('gameTypes.cancel') }}
-            </v-btn>
+        <!-- Roles Section -->
+        <n-card style="margin-bottom: 16px;">
+          <template #header>
+            {{ t('gameTypes.roles') }}
+          </template>
+          <div v-for="(role, index) in currentGameType.roles" :key="index" class="role-item" style="margin-bottom: 16px; padding: 16px; border: 1px solid rgba(0, 0, 0, 0.12); border-radius: 4px; background-color: rgba(0, 0, 0, 0.02);">
+            <n-grid :cols="24" :x-gap="8">
+              <n-gi :span="24" :responsive="{ m: 6 }">
+                <n-form-item :label="t('gameTypes.roleKey')">
+                  <n-input v-model:value="role.key" size="small" />
+                </n-form-item>
+              </n-gi>
+              <n-gi :span="24" :responsive="{ m: 6 }">
+                <n-form-item label="Name (EN)">
+                  <n-input v-model:value="role.names.en" size="small" />
+                </n-form-item>
+              </n-gi>
+              <n-gi :span="24" :responsive="{ m: 6 }">
+                <n-form-item label="Назва (UK)">
+                  <n-input v-model:value="role.names.uk" size="small" />
+                </n-form-item>
+              </n-gi>
+              <n-gi :span="24" :responsive="{ m: 6 }">
+                <n-form-item :label="t('gameTypes.roleType')">
+                  <n-select
+                    v-model:value="role.role_type"
+                    :options="roleTypeOptions.map(opt => ({ label: t(`roleTypes.${opt.value}`), value: opt.value }))"
+                    size="small"
+                  />
+                </n-form-item>
+              </n-gi>
+            </n-grid>
+            <n-grid :cols="24" :x-gap="8">
+              <n-gi :span="24" :responsive="{ m: 8 }">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div 
+                    class="color-box"
+                    :style="{ backgroundColor: role.color }"
+                    @click="() => role.showPicker = !role.showPicker"
+                  />
+                  <n-input 
+                    v-model:value="role.color" 
+                    :placeholder="t('gameTypes.color')"
+                    size="small"
+                    readonly
+                    @click="() => role.showPicker = !role.showPicker"
+                    style="flex: 1;"
+                  />
+                  <n-color-picker
+                    v-if="role.showPicker"
+                    v-model:value="role.color"
+                    :show-alpha="false"
+                    @update:value="() => role.showPicker = false"
+                    style="position: absolute; z-index: 1000;"
+                  />
+                </div>
+              </n-gi>
+              <n-gi :span="24" :responsive="{ m: 8 }">
+                <n-form-item :label="t('gameTypes.icon')">
+                  <n-input v-model:value="role.icon" size="small" />
+                </n-form-item>
+              </n-gi>
+              <n-gi :span="24" :responsive="{ m: 8 }" style="display: flex; align-items: center;">
+                <n-button type="error" size="small" @click="removeRole(index)">
+                  <template #icon>
+                    <n-icon><DeleteIcon /></n-icon>
+                  </template>
+                </n-button>
+              </n-gi>
+            </n-grid>
           </div>
-        </v-form>
-      </v-col>
-    </v-row>
-  </v-container>
+          <n-button type="primary" @click="addRole">
+            <template #icon>
+              <n-icon><AddIcon /></n-icon>
+            </template>
+            {{ t('gameTypes.addRole') }}
+          </n-button>
+        </n-card>
+
+        <div style="display: flex; gap: 8px;">
+          <n-button type="success" @click="saveGameType">
+            {{ isEditing ? t('gameTypes.update') : t('gameTypes.create') }}
+          </n-button>
+          <n-button type="error" @click="cancelEdit">
+            {{ t('gameTypes.cancel') }}
+          </n-button>
+        </div>
+      </n-form>
+    </n-gi>
+  </n-grid>
 </template>
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
+import { NGrid, NGi, NList, NListItem, NIcon, NTag, NButton, NDivider, NForm, NFormItem, NInput, NCard, NSelect, NInputNumber, NColorPicker } from 'naive-ui';
+import { Add as AddIcon, Dice as DiceIcon, Trash as DeleteIcon } from '@vicons/ionicons5';
 import GameApi, { GameType, Role, ScoringTypes, getLocalizedName } from '@/api/GameApi';
 import { useI18n } from 'vue-i18n'
 
@@ -345,13 +337,5 @@ onMounted(fetchGameTypes);
   border-radius: 4px;
   cursor: pointer;
   border: 1px solid #ccc;
-}
-
-.role-item {
-  background-color: rgba(0, 0, 0, 0.02);
-}
-
-.border {
-  border: 1px solid rgba(0, 0, 0, 0.12);
 }
 </style>

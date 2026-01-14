@@ -1,215 +1,189 @@
 <template>
-  <v-container>
-    <v-row justify="center">
-      <v-col cols="12" md="6">
-        <v-card elevation="4">
-          <v-card-title class="text-h5 text-center bg-primary pa-6">
-            <v-icon size="large" class="mr-2">mdi-email-open</v-icon>
-            {{ t('leagues.invitation') }}
-          </v-card-title>
+  <div>
+    <n-grid :cols="24" :x-gap="16" justify="center">
+      <n-gi :span="24" :responsive="{ m: 12 }">
+        <n-card>
+          <template #header>
+            <div style="text-align: center; padding: 24px; background: #2080f0; color: white;">
+              <n-icon size="32" style="margin-right: 8px; vertical-align: middle;">
+                <MailOpenIcon />
+              </n-icon>
+              <span style="font-size: 1.25rem; font-weight: 500;">{{ t('leagues.invitation') }}</span>
+            </div>
+          </template>
 
           <!-- Loading State -->
-          <v-card-text v-if="loading" class="text-center py-8">
-            <v-progress-circular
-              indeterminate
-              color="primary"
-              size="64"
-              class="mb-4"
-            />
-            <div class="text-h6">{{ loadingMessage }}</div>
-          </v-card-text>
+          <div v-if="loading" style="text-align: center; padding: 64px 0;">
+            <n-spin size="large" style="margin-bottom: 16px;" />
+            <div style="font-size: 1.125rem;">{{ loadingMessage }}</div>
+          </div>
 
           <!-- Login Required State (with preview) -->
-          <v-card-text v-else-if="needsLogin" class="text-center py-8">
-            <v-icon
-              size="80"
-              color="info"
-              class="mb-4"
-            >
-              mdi-login
-            </v-icon>
+          <div v-else-if="needsLogin" style="text-align: center; padding: 64px 0;">
+            <n-icon size="80" color="#2080f0" style="margin-bottom: 16px; display: block;">
+              <LogInIcon />
+            </n-icon>
 
             <!-- Show invitation preview if available -->
             <template v-if="preview">
-              <div class="text-h6 mb-2">{{ preview.league_name }}</div>
-              <div class="text-body-1 mb-2">
+              <div style="font-size: 1.125rem; font-weight: 500; margin-bottom: 8px;">{{ preview.league_name }}</div>
+              <div style="margin-bottom: 8px;">
                 {{ t('leagues.invitedBy', { name: preview.inviter_alias }) }}
               </div>
-              <div class="text-body-2 text-medium-emphasis mb-4">
+              <div style="opacity: 0.7; margin-bottom: 16px;">
                 {{ t('leagues.youWillJoinAs', { alias: preview.player_alias }) }}
               </div>
             </template>
 
-            <div class="text-h6 mb-2">{{ t('leagues.pleaseLoginFirst') }}</div>
-            <div class="text-body-1 mb-4">
+            <div style="font-size: 1.125rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.pleaseLoginFirst') }}</div>
+            <div style="margin-bottom: 16px;">
               {{ t('leagues.loginToAcceptInvitation') }}
             </div>
 
-            <div class="d-flex gap-2 justify-center flex-wrap">
-              <v-btn
-                color="primary"
-                variant="flat"
-                href="/oauth/login/google"
-              >
-                <v-icon start>mdi-google</v-icon>
+            <n-space justify="center" :wrap="true">
+              <n-button type="primary" tag="a" href="/oauth/login/google">
+                <template #icon>
+                  <n-icon><LogoGoogleIcon /></n-icon>
+                </template>
                 {{ t('auth.loginWithGoogle') }}
-              </v-btn>
-              <v-btn
-                color="indigo"
-                variant="flat"
-                href="/oauth/login/discord"
-              >
-                <v-icon start>mdi-discord</v-icon>
+              </n-button>
+              <n-button type="primary" tag="a" href="/oauth/login/discord" style="background: #5865F2;">
+                <template #icon>
+                  <n-icon><LogoDiscordIcon /></n-icon>
+                </template>
                 {{ t('auth.loginWithDiscord') }}
-              </v-btn>
-            </div>
-          </v-card-text>
+              </n-button>
+            </n-space>
+          </div>
 
           <!-- Already Member State -->
-          <v-card-text v-else-if="alreadyMember" class="text-center py-8">
-            <v-icon
-              size="80"
-              color="info"
-              class="mb-4"
-            >
-              mdi-account-check
-            </v-icon>
-            <div class="text-h6 mb-2">{{ t('leagues.alreadyMember') }}</div>
-            <div class="text-body-1 mb-4">
+          <div v-else-if="alreadyMember" style="text-align: center; padding: 64px 0;">
+            <n-icon size="80" color="#2080f0" style="margin-bottom: 16px; display: block;">
+              <PersonCheckIcon />
+            </n-icon>
+            <div style="font-size: 1.125rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.alreadyMember') }}</div>
+            <div style="margin-bottom: 16px;">
               {{ t('leagues.alreadyMemberDescription') }}
             </div>
 
-            <div class="d-flex gap-2 justify-center">
-              <v-btn
+            <n-space justify="center">
+              <n-button
                 v-if="alreadyMemberLeagueCode"
-                color="primary"
-                variant="flat"
+                type="primary"
                 @click="goToLeagueByCode(alreadyMemberLeagueCode)"
               >
-                <v-icon start>mdi-arrow-right</v-icon>
+                <template #icon>
+                  <n-icon><ArrowForwardIcon /></n-icon>
+                </template>
                 {{ t('leagues.goToLeague') }}
-              </v-btn>
-              <v-btn
-                variant="outlined"
-                @click="goToHome"
-              >
+              </n-button>
+              <n-button @click="goToHome">
                 {{ t('leagues.goToHome') }}
-              </v-btn>
-            </div>
-          </v-card-text>
+              </n-button>
+            </n-space>
+          </div>
 
           <!-- Error State -->
-          <v-card-text v-else-if="error" class="text-center py-8">
-            <v-icon
-              size="80"
-              color="error"
-              class="mb-4"
-            >
-              mdi-alert-circle
-            </v-icon>
-            <div class="text-h6 mb-2">{{ t('leagues.error') }}</div>
-            <v-alert type="error" variant="tonal">
+          <div v-else-if="error" style="text-align: center; padding: 64px 0;">
+            <n-icon size="80" color="#d03050" style="margin-bottom: 16px; display: block;">
+              <AlertCircleIcon />
+            </n-icon>
+            <div style="font-size: 1.125rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.error') }}</div>
+            <n-alert type="error" style="margin: 16px 0;">
               {{ error }}
-            </v-alert>
+            </n-alert>
 
-            <v-btn
-              color="primary"
-              class="mt-4"
-              @click="goToHome"
-            >
+            <n-button type="primary" @click="goToHome" style="margin-top: 16px;">
               {{ t('leagues.goToHome') }}
-            </v-btn>
-          </v-card-text>
+            </n-button>
+          </div>
 
           <!-- Success State -->
-          <v-card-text v-else-if="success && league" class="text-center py-8">
-            <v-icon
-              size="80"
-              color="success"
-              class="mb-4"
-            >
-              mdi-check-circle
-            </v-icon>
-            <div class="text-h6 mb-2">{{ t('leagues.congratulations') }}</div>
-            <div class="text-body-1 mb-4">
+          <div v-else-if="success && league" style="text-align: center; padding: 64px 0;">
+            <n-icon size="80" color="#18a058" style="margin-bottom: 16px; display: block;">
+              <CheckCircleIcon />
+            </n-icon>
+            <div style="font-size: 1.125rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.congratulations') }}</div>
+            <div style="margin-bottom: 16px;">
               {{ t('leagues.joinedLeague') }} <strong>{{ league.name }}</strong>
             </div>
 
-            <v-divider class="my-4" />
+            <n-divider style="margin: 16px 0;" />
 
-            <v-card variant="tonal" color="primary" class="mb-4">
-              <v-card-text>
-                <div class="text-subtitle-2 mb-2">{{ t('leagues.whatsNext') }}</div>
-                <v-list density="compact" bg-color="transparent">
-                  <v-list-item>
-                    <template v-slot:prepend>
-                      <v-icon>mdi-trophy</v-icon>
-                    </template>
-                    <v-list-item-title>{{ t('leagues.viewStandings') }}</v-list-item-title>
-                  </v-list-item>
-                  <v-list-item>
-                    <template v-slot:prepend>
-                      <v-icon>mdi-gamepad-variant</v-icon>
-                    </template>
-                    <v-list-item-title>{{ t('leagues.playGames') }}</v-list-item-title>
-                  </v-list-item>
-                  <v-list-item>
-                    <template v-slot:prepend>
-                      <v-icon>mdi-account-group</v-icon>
-                    </template>
-                    <v-list-item-title>{{ t('leagues.inviteOthers') }}</v-list-item-title>
-                  </v-list-item>
-                </v-list>
-              </v-card-text>
-            </v-card>
+            <n-card style="margin-bottom: 16px; background: rgba(32, 128, 240, 0.1);">
+              <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.whatsNext') }}</div>
+              <n-list>
+                <n-list-item>
+                  <template #prefix>
+                    <n-icon color="#2080f0"><TrophyIcon /></n-icon>
+                  </template>
+                  <div>{{ t('leagues.viewStandings') }}</div>
+                </n-list-item>
+                <n-list-item>
+                  <template #prefix>
+                    <n-icon color="#2080f0"><GameControllerIcon /></n-icon>
+                  </template>
+                  <div>{{ t('leagues.playGames') }}</div>
+                </n-list-item>
+                <n-list-item>
+                  <template #prefix>
+                    <n-icon color="#2080f0"><PeopleIcon /></n-icon>
+                  </template>
+                  <div>{{ t('leagues.inviteOthers') }}</div>
+                </n-list-item>
+              </n-list>
+            </n-card>
 
-            <div class="d-flex gap-2 justify-center">
-              <v-btn
-                color="primary"
-                variant="flat"
-                @click="goToLeague"
-              >
-                <v-icon start>mdi-arrow-right</v-icon>
+            <n-space justify="center">
+              <n-button type="primary" @click="goToLeague">
+                <template #icon>
+                  <n-icon><ArrowForwardIcon /></n-icon>
+                </template>
                 {{ t('leagues.goToLeague') }}
-              </v-btn>
-              <v-btn
-                variant="outlined"
-                @click="goToHome"
-              >
+              </n-button>
+              <n-button @click="goToHome">
                 {{ t('leagues.goToHome') }}
-              </v-btn>
-            </div>
-          </v-card-text>
+              </n-button>
+            </n-space>
+          </div>
 
           <!-- Initial State (no token) -->
-          <v-card-text v-else class="text-center py-8">
-            <v-icon
-              size="80"
-              color="warning"
-              class="mb-4"
-            >
-              mdi-help-circle
-            </v-icon>
-            <div class="text-h6 mb-2">{{ t('leagues.invalidInvitation') }}</div>
-            <div class="text-body-1 mb-4">
+          <div v-else style="text-align: center; padding: 64px 0;">
+            <n-icon size="80" color="#f0a020" style="margin-bottom: 16px; display: block;">
+              <HelpCircleIcon />
+            </n-icon>
+            <div style="font-size: 1.125rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.invalidInvitation') }}</div>
+            <div style="margin-bottom: 16px;">
               {{ t('leagues.noToken') }}
             </div>
 
-            <v-btn
-              color="primary"
-              @click="goToHome"
-            >
+            <n-button type="primary" @click="goToHome">
               {{ t('leagues.goToHome') }}
-            </v-btn>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+            </n-button>
+          </div>
+        </n-card>
+      </n-gi>
+    </n-grid>
+  </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, onMounted, computed } from 'vue';
+import { NGrid, NGi, NCard, NIcon, NSpin, NButton, NSpace, NAlert, NDivider, NList, NListItem } from 'naive-ui';
+import { 
+  MailOpen as MailOpenIcon,
+  LogIn as LogInIcon,
+  CheckmarkCircle as PersonCheckIcon,
+  AlertCircle as AlertCircleIcon,
+  CheckmarkCircle as CheckCircleIcon,
+  HelpCircle as HelpCircleIcon,
+  ArrowForward as ArrowForwardIcon,
+  Trophy as TrophyIcon,
+  GameController as GameControllerIcon,
+  People as PeopleIcon,
+  LogoGoogle as LogoGoogleIcon,
+  LogoDiscord as LogoDiscordIcon
+} from '@vicons/ionicons5';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
@@ -337,9 +311,3 @@ onMounted(async () => {
   await acceptInvitation(token);
 });
 </script>
-
-<style scoped>
-.gap-2 {
-  gap: 8px;
-}
-</style>

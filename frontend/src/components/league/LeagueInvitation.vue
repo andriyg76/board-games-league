@@ -1,164 +1,158 @@
 <template>
   <div>
-    <v-card variant="tonal" color="primary" class="mb-4">
-      <v-card-text>
-        <div class="d-flex align-center">
-          <v-icon start size="large">mdi-information</v-icon>
-          <div>
-            <div class="text-subtitle-1">{{ t('leagues.howToInvite') }}</div>
-            <div class="text-caption">
-              {{ t('leagues.invitationInfo') }}
-            </div>
+    <n-card style="margin-bottom: 16px; background: rgba(32, 128, 240, 0.1);">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <n-icon size="24" color="#2080f0">
+          <InformationIcon />
+        </n-icon>
+        <div>
+          <div style="font-size: 1rem; font-weight: 500;">{{ t('leagues.howToInvite') }}</div>
+          <div style="font-size: 0.875rem; opacity: 0.7;">
+            {{ t('leagues.invitationInfo') }}
           </div>
         </div>
-      </v-card-text>
-    </v-card>
+      </div>
+    </n-card>
 
-    <v-card elevation="2">
-      <v-card-text>
-        <div class="text-center py-4">
-          <v-btn
-            color="primary"
+    <n-card>
+      <div style="text-align: center; padding: 32px 0;">
+        <n-button
+            type="primary"
             size="large"
             @click="showCreateDialog = true"
-          >
-            <v-icon start>mdi-link-plus</v-icon>
-            {{ t('leagues.createInvitation') }}
-          </v-btn>
-        </div>
-
-        <v-alert
-          v-if="error"
-          type="error"
-          variant="tonal"
-          class="mt-4"
-          closable
-          @click:close="error = null"
         >
-          {{ error }}
-        </v-alert>
-      </v-card-text>
-    </v-card>
+          <template #icon>
+            <n-icon><LinkPlusIcon /></n-icon>
+          </template>
+          {{ t('leagues.createInvitation') }}
+        </n-button>
+      </div>
+
+      <n-alert
+        v-if="error"
+        type="error"
+        closable
+        @close="error = null"
+        style="margin-top: 16px;"
+      >
+        {{ error }}
+      </n-alert>
+    </n-card>
 
     <!-- Active Invitations List -->
-    <v-card elevation="2" class="mt-4" v-if="invitations.length > 0">
-      <v-card-title class="d-flex align-center">
-        <v-icon start>mdi-link-variant</v-icon>
-        {{ t('leagues.activeInvitations') }}
-      </v-card-title>
-      <v-divider />
-      <v-list>
-        <v-list-item
+    <n-card v-if="invitations.length > 0" style="margin-top: 16px;">
+      <template #header>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <n-icon><LinkVariantIcon /></n-icon>
+          {{ t('leagues.activeInvitations') }}
+        </div>
+      </template>
+      <n-list>
+        <n-list-item
           v-for="invitation in invitations"
           :key="invitation.token"
+          clickable
           @click="openInvitationDetails(invitation)"
-          class="cursor-pointer"
         >
-          <template v-slot:prepend>
-            <v-icon>mdi-account-clock</v-icon>
+          <template #prefix>
+            <n-icon color="#2080f0"><PersonClockIcon /></n-icon>
           </template>
 
-          <v-list-item-title>
-            {{ invitation.player_alias }}
-          </v-list-item-title>
-          <v-list-item-subtitle>
-            {{ t('leagues.validUntil') }} {{ formatDate(invitation.expires_at) }}
-          </v-list-item-subtitle>
+          <div>
+            <div style="font-weight: 500;">{{ invitation.player_alias }}</div>
+            <div style="font-size: 0.875rem; opacity: 0.7;">
+              {{ t('leagues.validUntil') }} {{ formatDate(invitation.expires_at) }}
+            </div>
+          </div>
 
-          <template v-slot:append>
-            <v-icon>mdi-chevron-right</v-icon>
+          <template #suffix>
+            <n-icon color="#808080"><ChevronForwardIcon /></n-icon>
           </template>
-        </v-list-item>
-      </v-list>
-    </v-card>
+        </n-list-item>
+      </n-list>
+    </n-card>
 
     <!-- Expired Invitations List -->
-    <v-card elevation="2" class="mt-4" v-if="expiredInvitations.length > 0">
-      <v-card-title class="d-flex align-center text-warning">
-        <v-icon start color="warning">mdi-clock-alert</v-icon>
-        {{ t('leagues.expiredInvitations') }}
-      </v-card-title>
-      <v-divider />
-      <v-list>
-        <v-list-item
+    <n-card v-if="expiredInvitations.length > 0" style="margin-top: 16px;">
+      <template #header>
+        <div style="display: flex; align-items: center; gap: 8px; color: #f0a020;">
+          <n-icon color="#f0a020"><ClockAlertIcon /></n-icon>
+          {{ t('leagues.expiredInvitations') }}
+        </div>
+      </template>
+      <n-list>
+        <n-list-item
           v-for="invitation in expiredInvitations"
           :key="invitation.token"
-          class="cursor-pointer"
         >
-          <template v-slot:prepend>
-            <v-icon color="warning">mdi-account-clock-outline</v-icon>
+          <template #prefix>
+            <n-icon color="#f0a020"><PersonClockOutlineIcon /></n-icon>
           </template>
 
-          <v-list-item-title class="text-medium-emphasis">
-            {{ invitation.player_alias }}
-          </v-list-item-title>
-          <v-list-item-subtitle>
-            {{ t('leagues.expiredAt') }} {{ formatDate(invitation.expires_at) }}
-          </v-list-item-subtitle>
+          <div>
+            <div style="font-weight: 500; opacity: 0.7;">{{ invitation.player_alias }}</div>
+            <div style="font-size: 0.875rem; opacity: 0.7;">
+              {{ t('leagues.expiredAt') }} {{ formatDate(invitation.expires_at) }}
+            </div>
+          </div>
 
-          <template v-slot:append>
-            <v-btn
-              color="primary"
-              variant="tonal"
+          <template #suffix>
+            <n-button
+              type="primary"
+              quaternary
               size="small"
               :loading="extendingToken === invitation.token"
               @click.stop="handleExtendInvitation(invitation)"
             >
-              <v-icon start size="small">mdi-refresh</v-icon>
+              <template #icon>
+                <n-icon><RefreshIcon /></n-icon>
+              </template>
               {{ t('leagues.extendInvitation') }}
-            </v-btn>
+            </n-button>
           </template>
-        </v-list-item>
-      </v-list>
-    </v-card>
+        </n-list-item>
+      </n-list>
+    </n-card>
 
     <!-- Loading indicator for invitations list -->
-    <v-card elevation="2" class="mt-4" v-if="loadingList">
-      <v-card-text class="text-center py-4">
-        <v-progress-circular indeterminate color="primary" size="24" />
-      </v-card-text>
-    </v-card>
+    <n-card v-if="loadingList" style="margin-top: 16px;">
+      <div style="text-align: center; padding: 32px 0;">
+        <n-spin size="small" />
+      </div>
+    </n-card>
 
     <!-- Create Invitation Dialog -->
-    <v-dialog v-model="showCreateDialog" max-width="400">
-      <v-card>
-        <v-card-title class="bg-primary">
-          <v-icon start>mdi-account-plus</v-icon>
-          {{ t('leagues.createInvitation') }}
-        </v-card-title>
-        <v-card-text class="pt-4">
-          <v-text-field
-            v-model="newPlayerAlias"
-            :label="t('leagues.playerAlias')"
-            :hint="t('leagues.playerAliasHint')"
-            persistent-hint
-            variant="outlined"
-            autofocus
-            @keyup.enter="generateInvitation"
-          />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showCreateDialog = false">
+    <n-modal v-model:show="showCreateDialog" preset="card" :title="t('leagues.createInvitation')" style="max-width: 400px;">
+      <n-form-item :label="t('leagues.playerAlias')">
+        <n-input
+          v-model:value="newPlayerAlias"
+          :placeholder="t('leagues.playerAliasHint')"
+          autofocus
+          @keyup.enter="generateInvitation"
+        />
+      </n-form-item>
+      <template #action>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; width: 100%;">
+          <n-button @click="showCreateDialog = false">
             {{ t('common.cancel') }}
-          </v-btn>
-          <v-btn
-            color="primary"
-            variant="flat"
+          </n-button>
+          <n-button
+            type="primary"
             :loading="generating"
             :disabled="!newPlayerAlias.trim()"
             @click="generateInvitation"
           >
             {{ t('leagues.createInvitation') }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </n-button>
+        </div>
+      </template>
+    </n-modal>
 
     <!-- Invitation Details Dialog -->
     <invitation-details-dialog
-      v-model="showDialog"
+      :model-value="showDialog"
       :invitation="selectedInvitation"
+      @update:model-value="showDialog = $event"
       @cancel="handleCancelInvitation"
     />
   </div>
@@ -166,6 +160,17 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
+import { NCard, NButton, NIcon, NAlert, NList, NListItem, NModal, NFormItem, NInput, NSpin } from 'naive-ui';
+import { 
+  Information as InformationIcon,
+  Add as LinkPlusIcon,
+  Link as LinkVariantIcon,
+  Time as PersonClockIcon,
+  ChevronForward as ChevronForwardIcon,
+  TimeOutline as ClockAlertIcon,
+  PersonOutline as PersonClockOutlineIcon,
+  Refresh as RefreshIcon
+} from '@vicons/ionicons5';
 import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
 import InvitationDetailsDialog from './InvitationDetailsDialog.vue';
@@ -280,9 +285,3 @@ onMounted(() => {
   loadInvitations();
 });
 </script>
-
-<style scoped>
-.cursor-pointer {
-  cursor: pointer;
-}
-</style>

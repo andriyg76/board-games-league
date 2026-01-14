@@ -1,43 +1,46 @@
 <template>
   <template v-if="userStore.loggedIn">
-    <v-btn color="primary"
-           @click="handleLogout"
-           :disabled="loading"
-           class="logout-button"
+    <n-button
+        type="primary"
+        @click="handleLogout"
+        :loading="loading"
+        class="logout-button"
     >
-      <v-img  :src="userStore.user.avatar" v-if="userStore.user.avatar" height="32" width="32" :alt="`${userStore.user.name} - ${userStore.user.alias}`"/>
+      <img v-if="userStore.user.avatar" :src="userStore.user.avatar" height="32" width="32" :alt="`${userStore.user.name} - ${userStore.user.alias}`" style="margin-right: 8px; border-radius: 50%; object-fit: cover;" />
       {{ loading ? t('auth.loggingOut') : t('auth.logout') }}
-    </v-btn>
+    </n-button>
   </template>
-  <v-menu v-else>
-    <template v-slot:activator="{ props }">
-      <v-btn color="primary" v-bind="props">
-        {{ t('auth.login') }}
-      </v-btn>
-    </template>
-    <v-list>
-      <v-list-item @click="startLogin('google')">
-        <v-list-item-title>{{ t('auth.loginWithGoogle') }}</v-list-item-title>
-      </v-list-item>
-      <v-list-item @click="startLogin('discord')">
-        <v-list-item-title>{{ t('auth.loginWithDiscord') }}</v-list-item-title>
-      </v-list-item>
-    </v-list>
-  </v-menu>
+  <n-dropdown v-else :options="loginOptions" trigger="click" @select="startLogin">
+    <n-button type="primary">
+      {{ t('auth.login') }}
+    </n-button>
+  </n-dropdown>
 </template>
 
 <script setup lang="ts">
-import {onMounted, ref} from 'vue';
+import { onMounted, ref, computed } from 'vue';
+import { NButton, NDropdown } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import Auth from '@/api/Auth';
 import { useUserStore } from '@/store/user';
-const userStore = useUserStore();
 import UserApi from "@/api/UserApi";
 
+const userStore = useUserStore();
 const { t } = useI18n();
 const loading = ref(false);
 const router = useRouter();
+
+const loginOptions = computed(() => [
+  {
+    label: t('auth.loginWithGoogle'),
+    key: 'google',
+  },
+  {
+    label: t('auth.loginWithDiscord'),
+    key: 'discord',
+  },
+]);
 
 const handleLogout = async () => {
   loading.value = true;

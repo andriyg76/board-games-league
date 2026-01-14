@@ -1,89 +1,96 @@
 <template>
-  <v-card flat>
-    <v-card-title>{{ $t('game.configureRound') }}</v-card-title>
-    <v-card-text>
-      <v-text-field
-        :model-value="roundName"
-        @update:model-value="$emit('update:roundName', $event)"
-        :label="$t('game.roundName')"
-        variant="outlined"
-        class="mb-4"
-      />
+  <n-card>
+    <template #header>
+      {{ $t('game.configureRound') }}
+    </template>
+    <n-input
+      :value="roundName"
+      @update:value="$emit('update:roundName', $event)"
+      :placeholder="$t('game.roundName')"
+      style="margin-bottom: 16px;"
+    />
 
-      <template v-if="roles.length > 0">
-        <h4 class="mb-2">{{ $t('game.assignRoles') }}</h4>
-        <v-table>
-          <thead>
-            <tr>
-              <th>{{ $t('leagues.player') }}</th>
-              <th>{{ $t('gameTypes.roles') }}</th>
-              <th v-if="hasModerator">{{ $t('roleTypes.moderator') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(player, index) in players" :key="player.membership_id">
-              <td>
-                {{ player.alias }}
-                <v-chip v-if="player.isCurrentUser" size="x-small" color="primary" class="ml-1">
+    <template v-if="roles.length > 0">
+      <h4 style="margin-bottom: 8px; font-size: 1rem; font-weight: 500;">{{ $t('game.assignRoles') }}</h4>
+      <n-table>
+        <thead>
+          <tr>
+            <th>{{ $t('leagues.player') }}</th>
+            <th>{{ $t('gameTypes.roles') }}</th>
+            <th v-if="hasModerator">{{ $t('roleTypes.moderator') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(player, index) in players" :key="player.membership_id">
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span>{{ player.alias }}</span>
+                <n-tag v-if="player.isCurrentUser" size="small" type="primary">
                   {{ $t('game.you') }}
-                </v-chip>
-              </td>
-              <td>
-                <v-select
-                  v-if="assignableRoles.length > 0"
-                  :model-value="player.role_key"
-                  @update:model-value="$emit('updateRole', index, $event)"
-                  :items="assignableRoles"
-                  item-title="name"
-                  item-value="key"
-                  density="compact"
-                  variant="outlined"
-                  hide-details
-                />
-                <span v-else class="text-grey">-</span>
-              </td>
-              <td v-if="hasModerator">
-                <v-checkbox
-                  :model-value="player.is_moderator"
-                  @update:model-value="$emit('updateModerator', index, !!$event)"
-                  hide-details
-                  density="compact"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
-      </template>
-    </v-card-text>
-    <v-card-actions>
-      <v-btn variant="text" @click="$emit('back')" :disabled="saving">
-        <v-icon start>mdi-arrow-left</v-icon>
-        {{ $t('game.back') }}
-      </v-btn>
-      <v-spacer />
-      <v-btn
-        variant="outlined"
-        color="primary"
-        :loading="saving"
-        @click="$emit('save')"
-        class="mr-2"
-      >
-        <v-icon start>mdi-content-save</v-icon>
-        {{ $t('game.saveRoles') }}
-      </v-btn>
-      <v-btn
-        color="primary"
-        :loading="saving"
-        @click="$emit('next')"
-      >
-        {{ $t('game.next') }}
-        <v-icon end>mdi-arrow-right</v-icon>
-      </v-btn>
-    </v-card-actions>
-  </v-card>
+                </n-tag>
+              </div>
+            </td>
+            <td>
+              <n-select
+                v-if="assignableRoles.length > 0"
+                :value="player.role_key"
+                @update:value="$emit('updateRole', index, $event)"
+                :options="assignableRoles.map(r => ({ label: r.name, value: r.key }))"
+                placeholder="-"
+                size="small"
+                style="min-width: 150px;"
+              />
+              <span v-else style="color: #999;">-</span>
+            </td>
+            <td v-if="hasModerator">
+              <n-checkbox
+                :checked="player.is_moderator"
+                @update:checked="$emit('updateModerator', index, !!$event)"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </n-table>
+    </template>
+    <template #action>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px;">
+        <n-button quaternary @click="$emit('back')" :disabled="saving">
+          <template #icon>
+            <n-icon><ChevronBackIcon /></n-icon>
+          </template>
+          {{ $t('game.back') }}
+        </n-button>
+        <div style="display: flex; gap: 8px;">
+          <n-button
+            secondary
+            type="primary"
+            :loading="saving"
+            @click="$emit('save')"
+          >
+            <template #icon>
+              <n-icon><SaveIcon /></n-icon>
+            </template>
+            {{ $t('game.saveRoles') }}
+          </n-button>
+          <n-button
+            type="primary"
+            :loading="saving"
+            @click="$emit('next')"
+          >
+            {{ $t('game.next') }}
+            <template #icon>
+              <n-icon><ChevronForwardIcon /></n-icon>
+            </template>
+          </n-button>
+        </div>
+      </div>
+    </template>
+  </n-card>
 </template>
 
 <script lang="ts" setup>
+import { NCard, NInput, NTable, NTag, NSelect, NCheckbox, NButton, NIcon } from 'naive-ui';
+import { ChevronBack as ChevronBackIcon, ChevronForward as ChevronForwardIcon, Save as SaveIcon } from '@vicons/ionicons5';
 import type { Role } from '@/api/GameApi';
 
 export interface RolePlayer {

@@ -1,10 +1,14 @@
 <template>
   <div>
-    <h1>{{ t('createUser.title') }}</h1>
-    <p v-if="message">{{ message }}</p>
-    <div v-if="externalIDs">
-      <p>{{ t('createUser.email') }}: {{ externalIDs }}</p>
-      <v-btn @click="createUser">{{ t('createUser.create') }}</v-btn>
+    <h1 style="margin-bottom: 16px;">{{ t('createUser.title') }}</h1>
+    <n-alert v-if="message" type="info" style="margin-bottom: 16px;">
+      {{ message }}
+    </n-alert>
+    <div v-if="externalIDs && externalIDs.length > 0">
+      <p style="margin-bottom: 16px;">{{ t('createUser.email') }}: {{ externalIDs.join(', ') }}</p>
+      <n-button type="primary" @click="createUser">
+        {{ t('createUser.create') }}
+      </n-button>
     </div>
     <div v-else>
       <p>{{ t('createUser.emailMissing') }}</p>
@@ -14,12 +18,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { NButton, NAlert } from 'naive-ui';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import UserApi from '../api/UserApi';
 
 const { t } = useI18n();
-const externalIDs = ref([]);
+const externalIDs = ref<string[]>([]);
 const message = ref('');
 const route = useRoute();
 
@@ -33,6 +38,7 @@ const createUser = async () => {
 };
 
 onMounted(() => {
-  externalIDs.value = (route.query.external_ids || "").split(",");
+  const ids = (route.query.external_ids || "").toString();
+  externalIDs.value = ids ? ids.split(",") : [];
 });
 </script>

@@ -1,87 +1,93 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col>
-        <h2>{{ $t('gameRounds.title') }}</h2>
+  <n-grid :cols="24" :x-gap="16">
+    <n-gi :span="24">
+      <h2 style="font-size: 2rem; margin-bottom: 16px;">{{ $t('gameRounds.title') }}</h2>
 
-        <v-alert v-if="error" type="error" class="mb-4">
-          {{ error }}
-        </v-alert>
+      <n-alert v-if="error" type="error" style="margin-bottom: 16px;" closable @close="error = null">
+        {{ error }}
+      </n-alert>
 
-        <v-progress-circular v-if="loading" indeterminate color="primary" />
+      <n-spin v-if="loading" size="large" style="display: flex; justify-content: center; padding: 64px;" />
 
-        <template v-else>
-          <!-- Active Games Section -->
-          <div v-if="activeRounds.length > 0" class="mb-6">
-            <h3 class="text-h6 mb-2">{{ $t('common.inProgress') }}</h3>
-            <v-list>
-              <v-list-item v-for="round in activeRounds" :key="round.code">
-                <template v-slot:default>
-                  <v-list-item-title>
-                    {{ round.name || $t('common.unknown') }}
-                    <v-chip :color="getStatusColor(round.status)" size="small" class="ml-2">
-                      {{ getStatusLabel(round.status) }}
-                    </v-chip>
-                  </v-list-item-title>
-                  <v-list-item-subtitle>
-                    {{ $t('gameRounds.started') }}: {{ formatDate(round.start_time) }}
-                  </v-list-item-subtitle>
-                </template>
-                <template v-slot:append>
-                  <v-btn @click="continueRound(round)" color="primary" variant="elevated">
-                    <v-icon start>mdi-play</v-icon>
-                    {{ $t('gameRounds.continue') }}
-                  </v-btn>
-                </template>
-              </v-list-item>
-            </v-list>
-          </div>
+      <template v-else>
+        <!-- Active Games Section -->
+        <div v-if="activeRounds.length > 0" style="margin-bottom: 24px;">
+          <h3 style="font-size: 1.25rem; font-weight: 500; margin-bottom: 8px;">{{ $t('common.inProgress') }}</h3>
+          <n-list>
+            <n-list-item v-for="round in activeRounds" :key="round.code">
+              <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                  <span style="font-weight: 500;">{{ round.name || $t('common.unknown') }}</span>
+                  <n-tag :type="getStatusTagType(round.status)" size="small">
+                    {{ getStatusLabel(round.status) }}
+                  </n-tag>
+                </div>
+                <div style="font-size: 0.875rem; opacity: 0.7;">
+                  {{ $t('gameRounds.started') }}: {{ formatDate(round.start_time) }}
+                </div>
+              </div>
+              <template #suffix>
+                <n-button type="primary" @click="continueRound(round)">
+                  <template #icon>
+                    <n-icon><PlayIcon /></n-icon>
+                  </template>
+                  {{ $t('gameRounds.continue') }}
+                </n-button>
+              </template>
+            </n-list-item>
+          </n-list>
+        </div>
 
-          <!-- Completed Games Section -->
-          <div v-if="completedRounds.length > 0">
-            <h3 class="text-h6 mb-2">{{ $t('common.completed') }}</h3>
-            <v-list>
-              <v-list-item v-for="round in completedRounds" :key="round.code">
-                <template v-slot:default>
-                  <v-list-item-title>{{ round.name || $t('common.unknown') }}</v-list-item-title>
-                  <v-list-item-subtitle>
-                    {{ $t('gameRounds.started') }}: {{ formatDate(round.start_time) }}
-                    {{ round.end_time ? ` | ${$t('gameRounds.ended')}: ${formatDate(round.end_time)}` : '' }}
-                  </v-list-item-subtitle>
-                </template>
-                <template v-slot:append>
-                  <v-btn @click="editRound(round)" color="grey" variant="text">
-                    <v-icon start>mdi-eye</v-icon>
-                    {{ $t('gameRounds.view') }}
-                  </v-btn>
-                </template>
-              </v-list-item>
-            </v-list>
-          </div>
+        <!-- Completed Games Section -->
+        <div v-if="completedRounds.length > 0" style="margin-bottom: 24px;">
+          <h3 style="font-size: 1.25rem; font-weight: 500; margin-bottom: 8px;">{{ $t('common.completed') }}</h3>
+          <n-list>
+            <n-list-item v-for="round in completedRounds" :key="round.code">
+              <div style="flex: 1;">
+                <div style="font-weight: 500; margin-bottom: 4px;">{{ round.name || $t('common.unknown') }}</div>
+                <div style="font-size: 0.875rem; opacity: 0.7;">
+                  {{ $t('gameRounds.started') }}: {{ formatDate(round.start_time) }}
+                  {{ round.end_time ? ` | ${$t('gameRounds.ended')}: ${formatDate(round.end_time)}` : '' }}
+                </div>
+              </div>
+              <template #suffix>
+                <n-button quaternary @click="editRound(round)">
+                  <template #icon>
+                    <n-icon><EyeIcon /></n-icon>
+                  </template>
+                  {{ $t('gameRounds.view') }}
+                </n-button>
+              </template>
+            </n-list-item>
+          </n-list>
+        </div>
 
-          <!-- Empty State -->
-          <v-alert v-if="gameRounds.length === 0" type="info">
-            {{ $t('home.noGameRoundsYet') }}
-          </v-alert>
+        <!-- Empty State -->
+        <n-alert v-if="gameRounds.length === 0" type="info" style="margin-bottom: 16px;">
+          {{ $t('home.noGameRoundsYet') }}
+        </n-alert>
+      </template>
+
+      <n-button type="primary" @click="createNewRound" style="margin-top: 16px;">
+        <template #icon>
+          <n-icon><AddIcon /></n-icon>
         </template>
+        {{ $t('home.newGameRound') }}
+      </n-button>
+    </n-gi>
+  </n-grid>
 
-        <v-btn @click="createNewRound" color="primary" class="mt-4">
-          <v-icon start>mdi-plus</v-icon>
-          {{ $t('home.newGameRound') }}
-        </v-btn>
-      </v-col>
-    </v-row>
-
-    <FinalizeGameDialog
-      v-model="showFinalizeDialog"
-      :round-code="selectedRoundCode"
-      @finalized="handleFinalized"
-    />
-  </v-container>
+  <FinalizeGameDialog
+    v-model="showFinalizeDialog"
+    :round-code="selectedRoundCode"
+    @finalized="handleFinalized"
+  />
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue';
+import { NGrid, NGi, NAlert, NSpin, NList, NListItem, NTag, NButton, NIcon } from 'naive-ui';
+import { Play as PlayIcon, Eye as EyeIcon, Add as AddIcon } from '@vicons/ionicons5';
 import { GameRoundView, GameRoundStatus } from './types';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -111,13 +117,13 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString();
 };
 
-const getStatusColor = (status?: GameRoundStatus): string => {
+const getStatusTagType = (status?: GameRoundStatus): 'default' | 'info' | 'success' | 'warning' | 'error' => {
   switch (status) {
-    case 'players_selected': return 'blue';
-    case 'in_progress': return 'orange';
-    case 'scoring': return 'green';
-    case 'completed': return 'grey';
-    default: return 'grey';
+    case 'players_selected': return 'info';
+    case 'in_progress': return 'warning';
+    case 'scoring': return 'success';
+    case 'completed': return 'default';
+    default: return 'default';
   }
 };
 
@@ -135,7 +141,7 @@ const loadGameRounds = async () => {
   loading.value = true;
   error.value = null;
   try {
-    gameRounds.value = await GameApi.listGameRounds();
+    gameRounds.value = await GameApi.listGameRounds() as any;
   } catch (err) {
     console.error('Error fetching game rounds:', err);
     error.value = 'Failed to load game rounds';

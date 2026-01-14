@@ -1,48 +1,40 @@
 <template>
-  <v-menu location="bottom">
-    <template v-slot:activator="{ props }">
-      <v-btn
-          icon
-          v-bind="props"
-          size="small"
-      >
-        <v-img
-            :src="`/flags/${currentLocale}.svg`"
-            width="24"
-            height="24"
-            cover
-        ></v-img>
-      </v-btn>
-    </template>
-    <v-list>
-      <v-list-item
-          v-for="locale in availableLocales"
-          :key="locale"
-          :value="locale"
-          @click="changeLocale(locale)"
-      >
-        <template v-slot:prepend>
-          <v-img
-              :src="`/flags/${locale}.svg`"
-              width="24"
-              height="24"
-              cover
-              class="mr-2"
-          ></v-img>
-        </template>
-        <v-list-item-title>{{ locale.toUpperCase() }}</v-list-item-title>
-      </v-list-item>
-    </v-list>
-  </v-menu>
+  <n-dropdown :options="localeOptions" trigger="click" @select="changeLocale">
+    <n-button quaternary size="small">
+      <img
+          :src="`/flags/${currentLocale}.svg`"
+          width="24"
+          height="24"
+          style="object-fit: cover;"
+          :alt="currentLocale"
+      />
+    </n-button>
+  </n-dropdown>
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, computed, h } from 'vue'
+import { NButton, NDropdown, NImage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 
 const { locale } = useI18n()
 const currentLocale = ref(locale.value)
 const availableLocales = ['en', 'uk', 'et']
+
+const localeOptions = computed(() => 
+  availableLocales.map(loc => ({
+    label: () => h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+      h('img', {
+        src: `/flags/${loc}.svg`,
+        width: 24,
+        height: 24,
+        style: 'object-fit: cover;'
+      }),
+      h('span', loc.toUpperCase())
+    ]),
+    key: loc,
+  }))
+)
 
 const changeLocale = (value: string) => {
   locale.value = value
