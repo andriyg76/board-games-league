@@ -19,6 +19,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/", h.startGame)
 		r.Get("/{code}", h.getGameRound)
 		r.Put("/{code}", h.updateGameRound)
+		r.Put("/{code}/roles", h.updateRoles)
+		r.Put("/{code}/scores", h.updateScores)
+		r.Put("/{code}/status", h.updateRoundStatus)
 		r.Put("/{code}/finalize", h.finalizeGame)
 		r.Put("/{code}/players/{userId}/score", h.updatePlayerScore)
 	})
@@ -45,6 +48,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/{code}", h.getLeague)                      // Get league details
 		r.Get("/{code}/members", h.getLeagueMembers)       // Get league members
 		r.Get("/{code}/standings", h.getLeagueStandings)   // Get league standings
+		r.Get("/{code}/suggested-players", h.getSuggestedPlayers)  // Get suggested players for game
+		r.Get("/{code}/game_rounds", h.listLeagueGameRounds)       // List game rounds for league
+		r.Post("/{code}/game_rounds", h.createLeagueGameRound)     // Create game round in league
 		r.Post("/{code}/invitations", h.createInvitation)  // Create invitation
 		r.Get("/{code}/invitations", h.listMyInvitations)  // List my active invitations
 		r.Get("/{code}/invitations/expired", h.listMyExpiredInvitations)  // List my expired invitations

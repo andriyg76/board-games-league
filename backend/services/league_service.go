@@ -46,6 +46,11 @@ type LeagueService interface {
 
 	// Рейтинг
 	GetLeagueStandings(ctx context.Context, leagueID primitive.ObjectID) ([]*LeagueStanding, error)
+
+	// Підтримка вибору гравців для гри
+	UpdatePlayersAfterGame(ctx context.Context, playerMembershipIDs []primitive.ObjectID) error
+	GetSuggestedPlayers(ctx context.Context, leagueID primitive.ObjectID, userID primitive.ObjectID, isSuperAdmin bool) (*SuggestedPlayersResponse, error)
+	GetMembershipByLeagueAndUser(ctx context.Context, leagueID, userID primitive.ObjectID) (*models.LeagueMembership, error)
 }
 
 // LeagueMemberInfo represents a member with user and membership info
@@ -57,6 +62,22 @@ type LeagueMemberInfo struct {
 	UserAvatar   string
 	Status       models.LeagueMembershipStatus
 	JoinedAt     time.Time
+}
+
+// SuggestedPlayer represents a player suggestion for game creation
+type SuggestedPlayer struct {
+	MembershipID string    `json:"membership_id"`
+	Alias        string    `json:"alias"`
+	Avatar       string    `json:"avatar,omitempty"`
+	LastPlayedAt string    `json:"last_played_at,omitempty"`
+	IsVirtual    bool      `json:"is_virtual"`
+}
+
+// SuggestedPlayersResponse contains suggested players for game creation
+type SuggestedPlayersResponse struct {
+	CurrentPlayer *SuggestedPlayer   `json:"current_player"`
+	RecentPlayers []SuggestedPlayer  `json:"recent_players"`
+	OtherPlayers  []SuggestedPlayer  `json:"other_players"`
 }
 
 // InvitationPreview represents public invitation preview data
@@ -315,11 +336,14 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 
 	var membership *models.LeagueMembership
 
+	now := time.Now()
+
 	if existingMembership != nil {
 		// Alias exists - check if it's a virtual member that can be reused
 		if existingMembership.Status == models.MembershipVirtual {
 			// Reuse virtual membership - convert back to pending
 			existingMembership.Status = models.MembershipPending
+			existingMembership.LastActivityAt = now
 			if err := s.membershipRepo.Update(ctx, existingMembership); err != nil {
 				return nil, fmt.Errorf("failed to update virtual membership: %w", err)
 			}
@@ -331,10 +355,11 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 	} else {
 		// Create new pending membership
 		membership = &models.LeagueMembership{
-			LeagueID: leagueID,
-			Alias:    playerAlias,
-			Status:   models.MembershipPending,
-			JoinedAt: time.Now(),
+			LeagueID:       leagueID,
+			Alias:          playerAlias,
+			Status:         models.MembershipPending,
+			JoinedAt:       now,
+			LastActivityAt: now,
 		}
 
 		if err := s.membershipRepo.Create(ctx, membership); err != nil {
@@ -365,6 +390,13 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 	membership.InvitationID = invitation.ID
 	if err := s.membershipRepo.Update(ctx, membership); err != nil {
 		return nil, fmt.Errorf("failed to link membership to invitation: %w", err)
+	}
+
+	// Add the new member to creator's recent_co_players cache
+	creatorMembership, _ := s.membershipRepo.FindByLeagueAndUser(ctx, leagueID, createdBy)
+	if creatorMembership != nil {
+		// Add to the end of the cache (will push out oldest if at max)
+		_ = s.membershipRepo.AddRecentCoPlayer(ctx, creatorMembership.ID, membership.ID, now)
 	}
 
 	return invitation, nil
@@ -666,4 +698,119 @@ func generateInvitationToken() (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// UpdatePlayersAfterGame updates recent_co_players and last_activity_at for all players after a game
+func (s *leagueServiceInstance) UpdatePlayersAfterGame(ctx context.Context, playerMembershipIDs []primitive.ObjectID) error {
+	if len(playerMembershipIDs) == 0 {
+		return nil
+	}
+
+	now := time.Now()
+
+	// For each player, update their recent_co_players with all other players from this game
+	for _, membershipID := range playerMembershipIDs {
+		// Get other players (all except current)
+		coPlayerIDs := make([]primitive.ObjectID, 0, len(playerMembershipIDs)-1)
+		for _, otherID := range playerMembershipIDs {
+			if otherID != membershipID {
+				coPlayerIDs = append(coPlayerIDs, otherID)
+			}
+		}
+
+		// Update this player's recent co-players cache
+		if err := s.membershipRepo.UpdateRecentCoPlayersAfterGame(ctx, membershipID, coPlayerIDs, now); err != nil {
+			// Log error but continue with other players
+			fmt.Printf("Failed to update recent co-players for membership %s: %v\n", membershipID.Hex(), err)
+		}
+	}
+
+	return nil
+}
+
+// GetMembershipByLeagueAndUser returns a membership by league and user IDs
+func (s *leagueServiceInstance) GetMembershipByLeagueAndUser(ctx context.Context, leagueID, userID primitive.ObjectID) (*models.LeagueMembership, error) {
+	return s.membershipRepo.FindByLeagueAndUser(ctx, leagueID, userID)
+}
+
+// GetSuggestedPlayers returns suggested players for game creation
+func (s *leagueServiceInstance) GetSuggestedPlayers(ctx context.Context, leagueID primitive.ObjectID, userID primitive.ObjectID, isSuperAdmin bool) (*SuggestedPlayersResponse, error) {
+	response := &SuggestedPlayersResponse{
+		RecentPlayers: []SuggestedPlayer{},
+		OtherPlayers:  []SuggestedPlayer{},
+	}
+
+	// Get current user's membership
+	var currentMembership *models.LeagueMembership
+	var excludeIDs []primitive.ObjectID
+
+	if !userID.IsZero() {
+		membership, err := s.membershipRepo.FindByLeagueAndUser(ctx, leagueID, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find current user membership: %w", err)
+		}
+		currentMembership = membership
+	}
+
+	// If current user is a member, add them to response and exclude list
+	if currentMembership != nil && currentMembership.Status == models.MembershipActive {
+		response.CurrentPlayer = s.membershipToSuggestedPlayer(currentMembership, nil)
+		excludeIDs = append(excludeIDs, currentMembership.ID)
+
+		// Add recent co-players from cache
+		for _, coPlayer := range currentMembership.RecentCoPlayers {
+			coPlayerMembership, err := s.membershipRepo.FindByID(ctx, coPlayer.MembershipID)
+			if err != nil || coPlayerMembership == nil {
+				continue
+			}
+			// Skip banned members
+			if coPlayerMembership.Status == models.MembershipBanned {
+				continue
+			}
+
+			player := s.membershipToSuggestedPlayer(coPlayerMembership, &coPlayer.LastPlayedAt)
+			response.RecentPlayers = append(response.RecentPlayers, *player)
+			excludeIDs = append(excludeIDs, coPlayer.MembershipID)
+		}
+	}
+
+	// Determine limit for other players
+	otherPlayersLimit := 10
+	if isSuperAdmin && currentMembership == nil {
+		otherPlayersLimit = 20
+	}
+
+	// Get other players sorted by last_activity_at
+	otherMemberships, err := s.membershipRepo.FindByLeagueSortedByActivity(ctx, leagueID, excludeIDs, otherPlayersLimit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find other members: %w", err)
+	}
+
+	for _, membership := range otherMemberships {
+		player := s.membershipToSuggestedPlayer(membership, nil)
+		response.OtherPlayers = append(response.OtherPlayers, *player)
+	}
+
+	return response, nil
+}
+
+// membershipToSuggestedPlayer converts a membership to a SuggestedPlayer
+func (s *leagueServiceInstance) membershipToSuggestedPlayer(membership *models.LeagueMembership, lastPlayedAt *time.Time) *SuggestedPlayer {
+	player := &SuggestedPlayer{
+		MembershipID: utils.IdToCode(membership.ID),
+		Alias:        membership.Alias,
+		IsVirtual:    membership.Status == models.MembershipVirtual || membership.Status == models.MembershipPending,
+	}
+
+	// Get user avatar if user exists
+	if !membership.UserID.IsZero() {
+		// We could fetch user here, but for performance we skip it
+		// The caller can enrich this data if needed
+	}
+
+	if lastPlayedAt != nil && !lastPlayedAt.IsZero() {
+		player.LastPlayedAt = lastPlayedAt.Format(time.RFC3339)
+	}
+
+	return player
 }

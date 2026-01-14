@@ -96,6 +96,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 	round := &models.GameRound{
 		Name:       req.Name,
 		GameTypeID: gameType.ID,
+		Status:     models.StatusPlayersSelected,
 		StartTime:  req.StartTime,
 		Players:    players,
 		TeamScores: teamScores,
@@ -346,10 +347,31 @@ func (h *Handler) finalizeGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	round.EndTime = time.Now()
+	round.Status = models.StatusCompleted
 
 	if err := h.gameRoundRepository.Update(r.Context(), round); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Update recent co-players cache for all players (if game is in a league)
+	if !round.LeagueID.IsZero() {
+		playerMembershipIDs := make([]primitive.ObjectID, 0, len(round.Players))
+		for _, player := range round.Players {
+			if !player.MembershipID.IsZero() {
+				playerMembershipIDs = append(playerMembershipIDs, player.MembershipID)
+			}
+		}
+		if len(playerMembershipIDs) > 0 {
+			// Update in background, don't fail the request if this fails
+			go func() {
+				ctx := context.Background()
+				if err := h.leagueService.UpdatePlayersAfterGame(ctx, playerMembershipIDs); err != nil {
+					// Log error but don't fail the request
+					fmt.Printf("Failed to update players after game: %v\n", err)
+				}
+			}()
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -393,4 +415,168 @@ type playerSetup struct {
 	IsModerator  bool               `json:"is_moderator"`
 	TeamName     string             `json:"team_name,omitempty"`
 	TeamColor    string             `json:"team_color,omitempty"`
+}
+
+// updateRolesRequest - запит на оновлення ролей гравців
+type updateRolesRequest struct {
+	Players []playerRoleUpdate `json:"players" validate:"required"`
+}
+
+type playerRoleUpdate struct {
+	MembershipID string `json:"membership_id" validate:"required"`
+	RoleKey      string `json:"role_key,omitempty"`
+	TeamName     string `json:"team_name,omitempty"`
+	IsModerator  bool   `json:"is_moderator"`
+}
+
+// updateScoresRequest - запит на оновлення очок гравців
+type updateScoresRequest struct {
+	PlayerScores map[string]int64 `json:"player_scores"` // membership_id -> score
+	TeamScores   map[string]int64 `json:"team_scores,omitempty"`
+}
+
+// updateStatusRequest - запит на зміну статусу раунду
+type updateStatusRequest struct {
+	Status  models.GameRoundStatus `json:"status" validate:"required"`
+	Version int64                  `json:"version" validate:"required"`
+}
+
+// updateRoles оновлює ролі гравців (крок 3)
+func (h *Handler) updateRoles(w http.ResponseWriter, r *http.Request) {
+	id, err := utils.GetIDFromChiURL(r, "code")
+	if err != nil {
+		http.Error(w, "Invalid game ID", http.StatusBadRequest)
+		return
+	}
+
+	var req updateRolesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	round, err := h.gameRoundRepository.FindByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if round == nil {
+		http.Error(w, "Game round not found", http.StatusNotFound)
+		return
+	}
+
+	// Update player roles
+	for _, update := range req.Players {
+		membershipID, err := primitive.ObjectIDFromHex(update.MembershipID)
+		if err != nil {
+			continue
+		}
+		for i := range round.Players {
+			if round.Players[i].MembershipID == membershipID {
+				round.Players[i].TeamName = update.TeamName
+				round.Players[i].LabelName = update.RoleKey
+				round.Players[i].IsModerator = update.IsModerator
+				break
+			}
+		}
+	}
+
+	// Set status to in_progress if it was players_selected
+	if round.Status == models.StatusPlayersSelected {
+		round.Status = models.StatusInProgress
+	}
+
+	if err := h.gameRoundRepository.Update(r.Context(), round); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, round, http.StatusOK)
+}
+
+// updateScores оновлює очки гравців (крок 4)
+func (h *Handler) updateScores(w http.ResponseWriter, r *http.Request) {
+	id, err := utils.GetIDFromChiURL(r, "code")
+	if err != nil {
+		http.Error(w, "Invalid game ID", http.StatusBadRequest)
+		return
+	}
+
+	var req updateScoresRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	round, err := h.gameRoundRepository.FindByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if round == nil {
+		http.Error(w, "Game round not found", http.StatusNotFound)
+		return
+	}
+
+	// Update player scores
+	for membershipIDStr, score := range req.PlayerScores {
+		membershipID, err := primitive.ObjectIDFromHex(membershipIDStr)
+		if err != nil {
+			continue
+		}
+		for i := range round.Players {
+			if round.Players[i].MembershipID == membershipID {
+				round.Players[i].Score = score
+				break
+			}
+		}
+	}
+
+	// Update team scores
+	if len(req.TeamScores) > 0 {
+		for i := range round.TeamScores {
+			if score, ok := req.TeamScores[round.TeamScores[i].Name]; ok {
+				round.TeamScores[i].Score = score
+			}
+		}
+	}
+
+	// Set status to scoring if it was in_progress
+	if round.Status == models.StatusInProgress {
+		round.Status = models.StatusScoring
+	}
+
+	if err := h.gameRoundRepository.Update(r.Context(), round); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, round, http.StatusOK)
+}
+
+// updateRoundStatus змінює статус раунду
+func (h *Handler) updateRoundStatus(w http.ResponseWriter, r *http.Request) {
+	id, err := utils.GetIDFromChiURL(r, "code")
+	if err != nil {
+		http.Error(w, "Invalid game ID", http.StatusBadRequest)
+		return
+	}
+
+	var req updateStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if !req.Status.IsValidStatus() {
+		http.Error(w, "Invalid status", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.gameRoundRepository.UpdateStatus(r.Context(), id, req.Status, req.Version); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

@@ -1,7 +1,10 @@
+export type GameRoundStatus = 'players_selected' | 'in_progress' | 'scoring' | 'completed';
+
 export interface GameRoundView {
     code: string;
     name: string;
     game_type: string;
+    status?: GameRoundStatus;
     start_time: string;
     end_time?: string;
     players: GameRoundPlayerView[];

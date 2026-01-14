@@ -17,7 +17,10 @@ type GameRoundRepository interface {
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.GameRound, error)
 	FindAll(ctx context.Context) ([]*models.GameRound, error)
 	FindByLeague(ctx context.Context, leagueID primitive.ObjectID) ([]*models.GameRound, error)
+	FindByLeagueAndStatus(ctx context.Context, leagueID primitive.ObjectID, statuses []models.GameRoundStatus) ([]*models.GameRound, error)
+	FindActiveByLeague(ctx context.Context, leagueID primitive.ObjectID) ([]*models.GameRound, error)
 	Update(ctx context.Context, round *models.GameRound) error
+	UpdateStatus(ctx context.Context, id primitive.ObjectID, status models.GameRoundStatus, version int64) error
 	Delete(ctx context.Context, id primitive.ObjectID) error
 	HasGamesForMembership(ctx context.Context, membershipID primitive.ObjectID) (bool, error)
 }
@@ -163,4 +166,59 @@ func (r *gameRoundRepositoryInstance) HasGamesForMembership(ctx context.Context,
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func (r *gameRoundRepositoryInstance) FindByLeagueAndStatus(ctx context.Context, leagueID primitive.ObjectID, statuses []models.GameRoundStatus) ([]*models.GameRound, error) {
+	filter := bson.M{
+		"league_id": leagueID,
+		"status":    bson.M{"$in": statuses},
+	}
+	opts := options.Find().SetSort(bson.D{{"updated_at", -1}})
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var rounds []*models.GameRound
+	if err = cursor.All(ctx, &rounds); err != nil {
+		return nil, err
+	}
+
+	return rounds, nil
+}
+
+func (r *gameRoundRepositoryInstance) FindActiveByLeague(ctx context.Context, leagueID primitive.ObjectID) ([]*models.GameRound, error) {
+	// Active games are those not completed
+	return r.FindByLeagueAndStatus(ctx, leagueID, []models.GameRoundStatus{
+		models.StatusPlayersSelected,
+		models.StatusInProgress,
+		models.StatusScoring,
+	})
+}
+
+func (r *gameRoundRepositoryInstance) UpdateStatus(ctx context.Context, id primitive.ObjectID, status models.GameRoundStatus, version int64) error {
+	result, err := r.collection.UpdateOne(
+		ctx,
+		bson.M{
+			"_id":     id,
+			"version": version,
+		},
+		bson.M{
+			"$set": bson.M{
+				"status":     status,
+				"updated_at": time.Now(),
+			},
+			"$inc": bson.M{
+				"version": 1,
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+	if result.ModifiedCount == 0 {
+		return fmt.Errorf("concurrent modification detected")
+	}
+	return nil
 }
