@@ -50,7 +50,7 @@ Workflow можна запускати тільки з:
 
 #### Docker Hub
 - `DOCKER_USERNAME` - ім'я користувача Docker Hub
-- `DOCKER_PASSWORD` - пароль або access token Docker Hub
+- `DOCKER_TOKEN` - access token Docker Hub
 
 #### Production сервер (SSH)
 - `SSH_HOST` - hostname або IP адреса production сервера
@@ -138,7 +138,7 @@ BACKEND_VERSION=v1.2.3
 
 ### Docker build/push не працює
 
-- Перевірте що `DOCKER_USERNAME` та `DOCKER_PASSWORD` встановлені правильно
+- Перевірте що `DOCKER_USERNAME` та `DOCKER_TOKEN` встановлені правильно
 - Перевірте що у користувача є права на push в Docker registry
 
 ### Deployment не працює

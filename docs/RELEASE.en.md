@@ -50,7 +50,7 @@ The following secrets need to be configured in GitHub for the workflow to work:
 
 #### Docker Hub
 - `DOCKER_USERNAME` - Docker Hub username
-- `DOCKER_PASSWORD` - Docker Hub password or access token
+- `DOCKER_TOKEN` - Docker Hub access token
 
 #### Production Server (SSH)
 - `SSH_HOST` - hostname or IP address of the production server
@@ -138,7 +138,7 @@ If the container is not working correctly, the workflow will fail, preventing th
 
 ### Docker Build/Push Fails
 
-- Verify that `DOCKER_USERNAME` and `DOCKER_PASSWORD` are set correctly
+- Verify that `DOCKER_USERNAME` and `DOCKER_TOKEN` are set correctly
 - Verify that the user has push permissions to the Docker registry
 
 ### Deployment Fails
