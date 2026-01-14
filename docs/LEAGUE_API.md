@@ -315,16 +315,96 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-### 9. Create Invitation
+### 9. Get Suggested Players
 
-**Endpoint:** `POST /api/leagues/{code}/invitations`
+**Endpoint:** `GET /api/leagues/{code}/suggested-players`
 
-**Description:** Creates a one-time invitation link for the league. Valid for 7 days.
+**Description:** Returns suggested players for creating a game round, based on recent co-players history and league membership activity. This endpoint provides intelligent player recommendations for the game setup wizard.
 
 **URL Parameters:**
 - `code` - League code
 
-**Request Body:** None
+**Response:**
+```json
+{
+  "current_player": {
+    "membership_id": "507f1f77bcf86cd799439012",
+    "alias": "John",
+    "avatar": "https://example.com/avatar.jpg",
+    "is_member": true
+  },
+  "recent_players": [
+    {
+      "membership_id": "507f1f77bcf86cd799439013",
+      "alias": "Jane",
+      "avatar": "https://example.com/avatar2.jpg",
+      "last_played_at": "2026-01-10T18:00:00Z",
+      "is_virtual": false
+    }
+  ],
+  "other_players": [
+    {
+      "membership_id": "507f1f77bcf86cd799439014",
+      "alias": "Bob",
+      "avatar": "https://example.com/avatar3.jpg",
+      "is_virtual": true
+    }
+  ]
+}
+```
+
+**Response Structure:**
+- `current_player`: The authenticated user's membership (null if superadmin without membership)
+- `recent_players`: Up to 10 players recently played with, sorted by `last_played_at` DESC
+- `other_players`: Other league members (excluding current + recent), sorted by `last_activity_at` DESC
+
+**For League Members:**
+- `current_player`: 1 item (if membership exists)
+- `recent_players`: Up to 10 items from `recent_co_players` cache
+- `other_players`: Up to 10 items sorted by activity
+
+**For Superadmin without Membership:**
+- `current_player`: null
+- `recent_players`: Empty array
+- `other_players`: Up to 20 items sorted by activity
+
+**Status Codes:**
+- `200 OK` - Success
+- `401 Unauthorized` - Missing or invalid authentication
+- `403 Forbidden` - User is not a member of this league and not a superadmin
+- `404 Not Found` - League not found
+- `500 Internal Server Error` - Server error
+
+**Notes:**
+- Recent players are cached in `LeagueMembership.recent_co_players` (max 10 items)
+- Cache is updated automatically when a game round is finalized
+- Virtual players (created via invitations) are included in the response
+
+---
+
+### 10. Create Invitation
+
+**Endpoint:** `POST /api/leagues/{code}/invitations`
+
+**Description:** Creates a one-time invitation link for the league. Can also create a virtual player by providing an alias. Valid for 7 days.
+
+**URL Parameters:**
+- `code` - League code
+
+**Request Body (Optional):**
+```json
+{
+  "alias": "NewPlayer"
+}
+```
+
+If `alias` is provided:
+- Creates a virtual player (pending membership) with the specified alias
+- Checks uniqueness of alias among active members and pending invitations
+- Creates `LeagueMembership` with status `pending`
+- Creates `LeagueInvitation` with token
+- Updates the current user's `recent_co_players` cache (adds new player at the end)
+- Sets `last_activity_at` for the new pending membership
 
 **Response:**
 ```json
@@ -343,14 +423,20 @@ Authorization: Bearer <jwt_token>
 
 **Status Codes:**
 - `201 Created` - Invitation created successfully
+- `400 Bad Request` - Invalid alias or alias already exists
 - `401 Unauthorized` - Missing or invalid authentication
 - `403 Forbidden` - User is not a member of this league
 - `404 Not Found` - League not found
 - `500 Internal Server Error` - Server error
 
+**Notes:**
+- If alias is provided, the virtual player is immediately added to the creator's `recent_co_players` cache
+- If cache is full (10 items), the oldest entry is removed
+- Virtual players can participate in games before accepting the invitation
+
 ---
 
-### 10. Preview Invitation (Public)
+### 11. Preview Invitation (Public)
 
 **Endpoint:** `GET /api/leagues/join/{token}/preview`
 
@@ -381,7 +467,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-### 11. Accept Invitation
+### 12. Accept Invitation
 
 **Endpoint:** `POST /api/leagues/join/{token}`
 
@@ -426,7 +512,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-### 12. Membership Statuses
+### 13. Membership Statuses
 
 League members can have the following statuses:
 
@@ -444,7 +530,7 @@ League members can have the following statuses:
 
 ---
 
-### 11. Leave League
+### 14. Leave League
 
 **Endpoint:** `DELETE /api/leagues/{code}/members/me`
 
@@ -566,6 +652,13 @@ await leagueStore.fetchLeague('ABC123')
 const result = await leagueStore.createInvitation()
 console.log(result.invitation_link)
 
+// Create invitation with virtual player
+const resultWithPlayer = await leagueStore.createInvitation({ alias: "NewPlayer" })
+
+// Get suggested players for game setup
+const suggested = await leagueStore.getSuggestedPlayers('ABC123')
+// Returns: { current_player, recent_players, other_players }
+
 // Accept invitation
 await leagueStore.acceptInvitation('token123')
 ```
@@ -581,7 +674,8 @@ await leagueStore.acceptInvitation('token123')
 - `fetchMembers(code)` - Load league members
 - `banMember(userId)` - Ban member (superadmin only)
 - `unbanMember(userId)` - Unban member (superadmin only)
-- `createInvitation()` - Create invitation link
+- `createInvitation(data?)` - Create invitation link (optionally with virtual player alias)
+- `getSuggestedPlayers(code)` - Get suggested players for game setup
 - `acceptInvitation(token)` - Accept invitation
 - `leaveLeague(code)` - Leave league
 
@@ -608,6 +702,54 @@ await leagueStore.acceptInvitation('token123')
 
 ---
 
+## Architecture
+
+### Data Models
+
+#### LeagueMembership Model
+
+The `LeagueMembership` model includes fields for tracking player activity and recent co-players:
+
+```go
+type RecentCoPlayer struct {
+    MembershipID primitive.ObjectID `bson:"membership_id"`
+    LastPlayedAt time.Time          `bson:"last_played_at"`
+}
+
+type LeagueMembership struct {
+    // ... existing fields ...
+    RecentCoPlayers []RecentCoPlayer `bson:"recent_co_players,omitempty"` // max 10 items
+    LastActivityAt  time.Time        `bson:"last_activity_at,omitempty"`  // last activity timestamp
+}
+```
+
+**Recent Co-Players Cache:**
+- Maximum 10 items stored per membership
+- Automatically updated when a game round is finalized
+- Sorted by `last_played_at` DESC (most recent first)
+- When cache is full, oldest entry is removed when adding new players
+
+**Last Activity Tracking:**
+The `last_activity_at` field is updated in the following scenarios:
+
+| Event | Updated For |
+|-------|-------------|
+| Creating named invitation (with alias) | New pending membership (`time.Now()`) |
+| Game round finalization | All participants of the game (`time.Now()`) |
+
+**Cache Update Logic:**
+When a game round is finalized:
+1. Update `last_activity_at = now` for all participants
+2. For each player in the round:
+   - Add all other players to their `recent_co_players` with `last_played_at = now`
+   - If player already exists in cache, update `last_played_at`
+   - Keep max 10 entries, sorted by `last_played_at` DESC
+
+When creating a virtual player invitation:
+1. Set `last_activity_at = now` for the new pending membership
+2. Add the new player to creator's `recent_co_players` at the **end** of the list
+3. If cache is full (10 entries), remove the oldest entry
+
 ## Database Collections
 
 ### leagues
@@ -621,9 +763,13 @@ await leagueStore.acceptInvitation('token123')
 ### league_memberships
 - `_id` - ObjectID
 - `league_id` - ObjectID (league reference)
-- `user_id` - ObjectID (user reference)
-- `status` - Enum: "active", "banned"
+- `user_id` - ObjectID (user reference, optional for pending/virtual)
+- `status` - Enum: "active", "pending", "virtual", "banned"
 - `joined_at` - DateTime
+- `recent_co_players` - Array of RecentCoPlayer (max 10 items)
+  - `membership_id` - ObjectID (reference to co-player's membership)
+  - `last_played_at` - DateTime (timestamp of last game together)
+- `last_activity_at` - DateTime (last activity timestamp, updated on game finalization and invitation creation)
 
 ### league_invitations
 - `_id` - ObjectID
@@ -639,6 +785,36 @@ await leagueStore.acceptInvitation('token123')
 ### game_rounds (extended)
 - `league_id` - ObjectID (optional, league reference)
 - When set, game results contribute to league standings
+
+---
+
+## Important Notes
+
+### Migration
+- **No migration required**: Empty `recent_co_players` arrays will be automatically populated when new game rounds are finalized
+- Empty `last_activity_at` values are sorted to the end of lists (NULLS LAST)
+
+### Superadmin Access
+- Superadmins can create game rounds without membership, but will not be automatically added to the player list
+- Superadmins without membership receive up to 20 `other_players` in suggested players response (vs 10 for regular members)
+
+### Virtual Players
+- When created via invitation with alias, virtual players are immediately added to the creator's `recent_co_players` cache at the **end** of the list
+- If cache is full (10 items), the oldest entry is removed
+- Virtual players can participate in games before accepting the invitation
+
+### Invitation Endpoint
+- The `POST /api/leagues/{code}/invitations` endpoint uses **existing** functionality, extended with cache updates
+- Uniqueness check validates alias among:
+  - Active league members
+  - Pending members (active invitations)
+  - Virtual members
+
+### Player Selection Flow
+The suggested players system provides intelligent recommendations based on:
+1. **Current player**: Authenticated user's membership (if exists)
+2. **Recent players**: Up to 10 players from `recent_co_players` cache, sorted by `last_played_at` DESC
+3. **Other players**: Remaining league members (excluding current + recent), sorted by `last_activity_at` DESC NULLS LAST
 
 ---
 

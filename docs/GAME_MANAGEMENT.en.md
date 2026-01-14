@@ -184,6 +184,80 @@ Players are users who participate in game rounds. The player system provides:
 - List of all registered players
 - Individual player lookup by code
 - Current authenticated player info
+- Player recommendations based on co-play history (for leagues)
+
+### Player Recommendation System
+
+For leagues, the system provides intelligent player recommendations based on co-play history:
+
+- **Recent players cache**: Stored in `LeagueMembership.recent_co_players` (maximum 10 entries)
+- **Cache updates**: Automatically updated when a game round is finalized
+- **Sorting**: Players sorted by last co-play date (`last_played_at` DESC)
+- **Activity**: Other players sorted by `last_activity_at` (NULLS LAST)
+
+**API endpoint**: `GET /api/leagues/{code}/suggested-players`
+
+Returns three categories:
+- `current_player`: Current user (if membership exists)
+- `recent_players`: Up to 10 players from recent co-play cache
+- `other_players`: Other league members, sorted by activity
+
+#### TypeScript Types
+
+```typescript
+interface SuggestedPlayer {
+  membership_id: string;
+  alias: string;
+  avatar?: string;
+  last_played_at?: string;
+  is_virtual: boolean;
+}
+
+interface SuggestedPlayersResponse {
+  current_player: SuggestedPlayer | null;
+  recent_players: SuggestedPlayer[];
+  other_players: SuggestedPlayer[];
+}
+```
+
+#### Auto-fill Logic
+
+When creating a new round, the system automatically fills player slots based on recommendations:
+
+```typescript
+function autoFillPlayers(gameType: GameType, suggestedPlayers: SuggestedPlayersResponse) {
+  const selected: SuggestedPlayer[] = [];
+  const maxSlots = gameType.max_players;
+  
+  // 1. Add current player (if membership exists)
+  if (suggestedPlayers.current_player) {
+    selected.push(suggestedPlayers.current_player);
+  }
+  
+  // 2. Fill from recent_players
+  for (const player of suggestedPlayers.recent_players) {
+    if (selected.length >= maxSlots) break;
+    if (!selected.find(p => p.membership_id === player.membership_id)) {
+      selected.push(player);
+    }
+  }
+  
+  // 3. Fill from other_players if space remains
+  for (const player of suggestedPlayers.other_players) {
+    if (selected.length >= maxSlots) break;
+    if (!selected.find(p => p.membership_id === player.membership_id)) {
+      selected.push(player);
+    }
+  }
+  
+  return selected;
+}
+```
+
+**Fill Priority:**
+1. Current player (if membership exists)
+2. Recent co-players (from `recent_co_players` cache)
+3. Other league members (sorted by activity)
 
 ### Player Information
 
@@ -228,6 +302,13 @@ The `code` is a unique identifier derived from the user's MongoDB ObjectID.
 | GET | `/api/players/{code}` | Get a specific player |
 | GET | `/api/players/i_am` | Get current authenticated player |
 
+### Leagues (Player Recommendations)
+
+| Method | Endpoint | Description |
+|-------|---------------|------|
+| GET | `/api/leagues/{code}/suggested-players` | Get recommended players for creating a round |
+| POST | `/api/leagues/{code}/invitations` | Create invitation (can include alias for virtual player) |
+
 ## Frontend Components
 
 ### Views and Components
@@ -250,14 +331,78 @@ Main game rounds management view:
 - Finalize games
 - Create new rounds
 
+#### GameRoundWizard.vue
+
+Main wizard for creating and continuing game rounds:
+- Multi-step interface (stepper)
+- Dynamic step determination based on game type
+- State saved to server after each step
+- Automatic redirect of completed rounds to edit page
+
+#### Wizard Steps (gametypes/steps/)
+
+**Step1GameType.vue** - Game type selection:
+- List of available game types
+- Localized names and icons
+- Player count information
+
+**Step2Players.vue** - Player selection:
+- Integration with PlayerSelector
+- Auto-fill based on recommended players (`GET /api/leagues/{code}/suggested-players`)
+- Moderator support for applicable games (ability to select player for moderator role)
+- Min/max count validation
+- Create virtual players "on the fly" via invitations
+- Two-panel interface: available players (left) and selected players (right)
+
+**Player Selection Flow:**
+1. On step load, calls `GET /api/leagues/{code}/suggested-players`
+2. System automatically fills slots based on priority (current → recent → other)
+3. User can manually add/remove players
+4. Can select one player for moderator assignment (for games with moderator)
+5. When creating virtual player, automatically added to selected list
+
+**Step3Roles.vue** - Role assignment (for standard games):
+- Round name
+- Player table with role selection
+- Moderator checkbox
+- "Save" and "Next" buttons
+
+**Step4Scoring.vue** - Score entry:
+- Player table with score and position fields
+- "Save" and "Finish Game" buttons
+
+#### PlayerSelector.vue (components/game/)
+
+Two-panel player selection component:
+- **Left panel**: Available players
+  - Single list (recent + other mixed by priority)
+  - Search/filter
+  - "Add" button next to each player
+- **Right panel**: Selected players
+  - Selected list
+  - "Remove" button next to each
+  - Ability to select one player (click) - for moderator assignment
+  - Current player marked (if exists)
+- `min_players` / `max_players` indicator
+- Warning if less than `min_players`
+- Selected player passed as moderator to next step (for games with moderator)
+
+#### CreateVirtualPlayerDialog.vue
+
+Dialog for creating virtual player:
+- Alias input field
+- Uniqueness check (debounced) - via existing validation
+- "Create" button
+- Uses `POST /api/leagues/{code}/invitations` with alias
+- On success: toast + copy link to clipboard
+- Automatically adds to selected list
+
 #### GameroundEdit.vue
 
-Form for creating and editing game rounds:
-- Select game type
-- Add/remove players
-- Assign teams and labels
-- Set moderator status
-- Update player scores
+Simplified form for editing **completed** game rounds:
+- Edit round name
+- View and edit player scores
+- Edit positions
 
 #### FinalizeGameDialog.vue
 
@@ -400,6 +545,109 @@ The frontend supports multiple languages using vue-i18n:
 - `gameTypes.delete`: Delete button text
 - `gameTypes.create`: Create button text
 - `scoring.*`: Scoring type descriptions
+
+## Game Round Creation Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Create Game Round                          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    STEP 1: Select Game Type                   │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  🎲 Mafia              [4-10 players, with moderator]│    │
+│  │  🎯 Codenames          [4-8 players, teams]       │    │
+│  │  🃏 Poker              [2-6 players]              │    │
+│  │  ...                                                │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+│                                          [Next →]            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  GET /api/leagues/{code}/suggested-players                   │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ 1. Check permissions (league member / superadmin)   │   │
+│  │ 2. Get current user's membership                     │   │
+│  │ 3. Get recent_co_players from cache                  │   │
+│  │ 4. Get other league members (by last_activity_at)   │   │
+│  │ 5. Form response                                     │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    STEP 2: Select Players                    │
+│  ┌─────────────────────┐    ┌─────────────────────┐         │
+│  │   Available Players  │    │   Selected Players   │         │
+│  │   ───────────────    │    │   ─────────────     │         │
+│  │   • Player A    [+]  │ ←→ │   • Player 1   [x]  │         │
+│  │   • Player B    [+]  │    │   • Player 2   [x]  │ ← selected (moderator) │
+│  │   • Player C    [+]  │    │   • ...              │         │
+│  │   • Player D    [+]  │    │                      │         │
+│  │   ...                │    │   [+ Virtual]       │         │
+│  └─────────────────────┘    └─────────────────────┘         │
+│                                                              │
+│  🔍 [Search...]          min: 4 / selected: 5 / max: 6         │
+│                                                              │
+│  💡 Click on player on right to assign as moderator          │
+│                              [← Back]  [Next →]             │
+└─────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┴─────────────────────┐
+        │ [+ Virtual] clicked                        │
+        ▼                                           │
+┌───────────────────────────────┐                   │
+│  POST /api/leagues/{code}/    │                   │
+│       invitations             │                   │
+│  ┌─────────────────────────┐  │                   │
+│  │ { "alias": "New" }      │  │                   │
+│  │ → Create membership     │  │                   │
+│  │ → Create invitation     │  │                   │
+│  │ → Update last_activity  │  │                   │
+│  │ → Update cache (end)    │  │                   │
+│  │ → Return token          │  │                   │
+│  └─────────────────────────┘  │                   │
+│  Response: invitation + link  │                   │
+└───────────────────────────────┘                   │
+        │                                           │
+        │ Toast: "Link copied!"                     │
+        │ Add player to selected                    │
+        └─────────────────────────────────────────→─┤
+                                                    │
+                              ┌─────────────────────┘
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    STEP 3: Configuration                     │
+│                                                              │
+│  Round name: [___________________]                          │
+│                                                              │
+│  Players and roles:                                         │
+│  ┌────────────────┬──────────────────────────────┐          │
+│  │ Player         │ Role                         │          │
+│  ├────────────────┼──────────────────────────────┤          │
+│  │ Player A       │ [🔴 Mafia      ▼]            │          │
+│  │ Player B       │ [👁 Moderator  ▼] ← from step 2│          │
+│  │ Player C       │ [🔵 Civilian   ▼]            │          │
+│  │ ...            │ ...                          │          │
+│  └────────────────┴──────────────────────────────┘          │
+│                                                              │
+│  💡 Roles are determined by game type (gameType.roles)      │
+│                              [← Back]  [Save]               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Round Finalization (later)                      │
+│  ───────────────────────────────────────                     │
+│  On finalization → update last_activity_at and             │
+│  recent_co_players for all round participants                │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Future Enhancements
 

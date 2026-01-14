@@ -32,6 +32,7 @@
   - Labels and teams
   - Game rounds lifecycle
   - Player management
+  - Player recommendation system based on co-play history
   - Frontend components
   - API examples
   - Database collections
@@ -45,6 +46,9 @@
 - Player score and position tracking
 - Team scores for team-based games
 - Cooperative scoring support
+- Intelligent player selection based on co-play history (for leagues)
+- Auto-fill players when creating rounds
+- Create virtual players "on the fly"
 
 ### Session Management
 - Hybrid token system (rotate tokens + action tokens)
