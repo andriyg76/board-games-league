@@ -461,7 +461,7 @@ const goToStep2 = async () => {
 // Go to step 3 - save round and prepare for role assignment
 const goToStep3 = async () => {
   // Convert selected players to round players
-  roundPlayers.value = selectedPlayersList.value.map((player, index) => ({
+  roundPlayers.value = selectedPlayersList.value.map((player) => ({
     membership_id: player.membership_id,
     is_moderator: hasModerator.value && player.membership_id === selectedModeratorId.value,
     role_key: undefined,
