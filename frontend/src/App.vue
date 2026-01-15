@@ -24,9 +24,7 @@
                 <router-link v-if="loggedIn" to="/ui/admin/game-types" style="text-decoration: none;">
                   <n-button quaternary>{{ t('nav.gameTypes') }}</n-button>
                 </router-link>
-                <router-link v-if="loggedIn" to="/ui/leagues" style="text-decoration: none;">
-                  <n-button quaternary>{{ t('nav.leagues') }}</n-button>
-                </router-link>
+                <league-menu-item v-if="loggedIn" />
                 <gameround-menu-item v-if="loggedIn" />
                 <router-link v-if="loggedIn" to="/ui/user" style="text-decoration: none;">
                   <n-button quaternary>{{ t('nav.user') }}</n-button>
@@ -130,6 +128,7 @@ import { RouterLink } from 'vue-router';
 import LogoutButton from "@/components/LogoutButton.vue";
 import { useUserStore } from '@/store/user';
 import GameroundMenuItem from "@/components/GameroundMenuItem.vue";
+import LeagueMenuItem from "@/components/LeagueMenuItem.vue";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
 import { useI18n } from "vue-i18n";
 

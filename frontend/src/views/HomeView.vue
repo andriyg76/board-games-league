@@ -1,41 +1,54 @@
 <template>
   <div>
-    <n-grid :cols="24" :x-gap="16" style="margin-bottom: 24px;">
-      <n-gi :span="24">
-        <h1 style="font-size: 2rem; margin-bottom: 16px;">{{ t('home.title') }}</h1>
-        <p style="font-size: 1.25rem; color: rgba(0, 0, 0, 0.6); margin-bottom: 24px;">
-          {{ t('home.welcome') }}
-        </p>
-      </n-gi>
-    </n-grid>
-
     <n-spin v-if="loading" size="large" style="display: flex; justify-content: center; padding: 64px;" />
+    
+    <div v-else-if="!hasLeagues && userStore.$state.loggedIn">
+      <n-grid :cols="24" :x-gap="16">
+        <n-gi :span="24">
+          <n-card>
+            <n-alert type="info" style="margin: 16px 0;">
+              {{ t('leagues.noActiveLeagues') }}
+            </n-alert>
+          </n-card>
+        </n-gi>
+      </n-grid>
+    </div>
 
-    <n-grid v-else :cols="24" :x-gap="16" style="margin-bottom: 24px;">
-      <n-gi :span="24" :responsive="{ m: 8 }">
-        <n-card>
-          <div style="font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; opacity: 0.7;">{{ t('home.totalGameRounds') }}</div>
-          <div style="font-size: 2rem; font-weight: 500;">{{ totalRounds }}</div>
-          <div style="font-size: 0.75rem; opacity: 0.7;">{{ t('common.allTime') }}</div>
-        </n-card>
-      </n-gi>
+    <div v-else>
+      <n-grid :cols="24" :x-gap="16" style="margin-bottom: 24px;">
+        <n-gi :span="24">
+          <h1 style="font-size: 2rem; margin-bottom: 16px;">{{ t('home.title') }}</h1>
+          <p style="font-size: 1.25rem; color: rgba(0, 0, 0, 0.6); margin-bottom: 24px;">
+            {{ t('home.welcome') }}
+          </p>
+        </n-gi>
+      </n-grid>
 
-      <n-gi :span="24" :responsive="{ m: 8 }">
-        <n-card>
-          <div style="font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; opacity: 0.7;">{{ t('home.activeGames') }}</div>
-          <div style="font-size: 2rem; font-weight: 500;">{{ activeRounds }}</div>
-          <div style="font-size: 0.75rem; opacity: 0.7;">{{ t('common.inProgress') }}</div>
-        </n-card>
-      </n-gi>
+      <n-grid :cols="24" :x-gap="16" style="margin-bottom: 24px;">
+        <n-gi :span="24" :responsive="{ m: 8 }">
+          <n-card>
+            <div style="font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; opacity: 0.7;">{{ t('home.totalGameRounds') }}</div>
+            <div style="font-size: 2rem; font-weight: 500;">{{ totalRounds }}</div>
+            <div style="font-size: 0.75rem; opacity: 0.7;">{{ t('common.allTime') }}</div>
+          </n-card>
+        </n-gi>
 
-      <n-gi :span="24" :responsive="{ m: 8 }">
-        <n-card>
-          <div style="font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; opacity: 0.7;">{{ t('home.gameTypes') }}</div>
-          <div style="font-size: 2rem; font-weight: 500;">{{ totalGameTypes }}</div>
-          <div style="font-size: 0.75rem; opacity: 0.7;">{{ t('common.available') }}</div>
-        </n-card>
-      </n-gi>
-    </n-grid>
+        <n-gi :span="24" :responsive="{ m: 8 }">
+          <n-card>
+            <div style="font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; opacity: 0.7;">{{ t('home.activeGames') }}</div>
+            <div style="font-size: 2rem; font-weight: 500;">{{ activeRounds }}</div>
+            <div style="font-size: 0.75rem; opacity: 0.7;">{{ t('common.inProgress') }}</div>
+          </n-card>
+        </n-gi>
+
+        <n-gi :span="24" :responsive="{ m: 8 }">
+          <n-card>
+            <div style="font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; opacity: 0.7;">{{ t('home.gameTypes') }}</div>
+            <div style="font-size: 2rem; font-weight: 500;">{{ totalGameTypes }}</div>
+            <div style="font-size: 0.75rem; opacity: 0.7;">{{ t('common.available') }}</div>
+          </n-card>
+        </n-gi>
+      </n-grid>
 
     <n-grid :cols="24" :x-gap="16" style="margin-bottom: 24px;">
       <n-gi :span="24">
@@ -110,6 +123,7 @@
         </n-card>
       </n-gi>
     </n-grid>
+    </div>
   </div>
 </template>
 
@@ -124,14 +138,19 @@ import GameApi from '@/api/GameApi';
 import { GameRoundView } from '@/gametypes/types';
 import { GameType } from '@/api/GameApi';
 import { useErrorHandler } from '@/composables/useErrorHandler';
+import { useLeagueStore } from '@/store/league';
+import { useUserStore } from '@/store/user';
 
 const { t, locale } = useI18n();
 const router = useRouter();
 const { handleError } = useErrorHandler();
+const leagueStore = useLeagueStore();
+const userStore = useUserStore();
 
 const gameRounds = ref<GameRoundView[]>([]);
 const gameTypes = ref<GameType[]>([]);
 const loading = ref(true);
+const redirecting = ref(false);
 
 const recentRounds = computed(() => gameRounds.value.slice(0, 5));
 
@@ -142,6 +161,10 @@ const activeRounds = computed(() =>
 );
 
 const totalGameTypes = computed(() => gameTypes.value.length);
+
+const hasLeagues = computed(() => {
+  return leagueStore.activeLeagues.length > 0;
+});
 
 const formatDate = (dateStr: string) => {
   const localeMap: Record<string, string> = { 'uk': 'uk-UA', 'en': 'en-US', 'et': 'et-EE' };
@@ -166,7 +189,46 @@ const navigateToGameTypes = () => {
 
 onMounted(async () => {
   loading.value = true;
+  
   try {
+    // Load leagues first
+    if (leagueStore.leagues.length === 0) {
+      await leagueStore.loadLeagues();
+    }
+
+    // Check if user is logged in
+    if (!userStore.$state.loggedIn) {
+      loading.value = false;
+      return;
+    }
+
+    // If user has leagues, redirect to the current/default league
+    const activeLeagues = leagueStore.activeLeagues;
+    if (activeLeagues.length > 0) {
+      // Check for saved league code
+      const savedLeagueCode = leagueStore.getSavedLeagueCode();
+      let targetLeagueCode: string | null = null;
+
+      if (savedLeagueCode) {
+        // Check if saved league still exists and is active
+        const savedLeague = activeLeagues.find(l => l.code === savedLeagueCode);
+        if (savedLeague) {
+          targetLeagueCode = savedLeagueCode;
+        }
+      }
+
+      // If no saved league or saved league is not available, use first active league
+      if (!targetLeagueCode) {
+        targetLeagueCode = activeLeagues[0].code;
+      }
+
+      // Redirect to league
+      redirecting.value = true;
+      router.push({ name: 'LeagueDetails', params: { code: targetLeagueCode } });
+      return;
+    }
+
+    // If no leagues, load other data for display
     const [roundsData, typesData] = await Promise.all([
       GameApi.listGameRounds(),
       GameApi.getGameTypes()
