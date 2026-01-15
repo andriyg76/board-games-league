@@ -15,6 +15,13 @@ import (
 )
 
 func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
+	// Get league ID from context (set by middleware)
+	leagueID, ok := r.Context().Value("leagueID").(primitive.ObjectID)
+	if !ok {
+		http.Error(w, "League not found in context", http.StatusInternalServerError)
+		return
+	}
+
 	var req startGameRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
@@ -29,22 +36,19 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 			TeamName:    p.TeamName,
 		}
 
-		// Support both MembershipID and UserID (for backward compatibility)
-		if !p.MembershipID.IsZero() {
-			// Using membership ID directly (supports pending members)
-			player.MembershipID = p.MembershipID
-		} else if !p.UserID.IsZero() {
-			// Legacy: using user ID directly
-			user, err := h.getUserInfo(r.Context(), p.UserID)
-			if err != nil {
-				http.Error(w, "Error fetching user info", http.StatusInternalServerError)
-				return
-			}
-			player.PlayerID = user.ID
-		} else {
-			http.Error(w, "Either user_id or membership_id is required for each player", http.StatusBadRequest)
+		// MembershipCode is required
+		if p.MembershipCode == "" {
+			http.Error(w, "membership_code is required for each player", http.StatusBadRequest)
 			return
 		}
+
+		// Convert membership code to ID
+		membershipIdAndCode, err := h.idCodeCache.GetByCode(p.MembershipCode)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid membership code: %s", p.MembershipCode), http.StatusBadRequest)
+			return
+		}
+		player.MembershipID = membershipIdAndCode.ID
 
 		players = append(players, player)
 	}
@@ -96,20 +100,11 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 	round := &models.GameRound{
 		Name:       req.Name,
 		GameTypeID: gameType.ID,
+		LeagueID:   leagueID, // Always set from context
 		Status:     models.StatusPlayersSelected,
 		StartTime:  req.StartTime,
 		Players:    players,
 		TeamScores: teamScores,
-	}
-
-	// Set league ID if provided
-	if req.LeagueID != "" {
-		leagueID, err := primitive.ObjectIDFromHex(req.LeagueID)
-		if err != nil {
-			http.Error(w, "Invalid league ID", http.StatusBadRequest)
-			return
-		}
-		round.LeagueID = leagueID
 	}
 
 	if err := h.gameRoundRepository.Create(r.Context(), round); err != nil {
@@ -125,20 +120,31 @@ func (h *Handler) getUserInfo(context context.Context, ID primitive.ObjectID) (*
 }
 
 func (h *Handler) listGameRounds(w http.ResponseWriter, r *http.Request) {
+	// Get league ID from context (set by middleware)
+	leagueID, ok := r.Context().Value("leagueID").(primitive.ObjectID)
+	if !ok {
+		http.Error(w, "League not found in context", http.StatusInternalServerError)
+		return
+	}
+
+	// Check for status filter
+	statusFilter := r.URL.Query().Get("status")
+	activeOnly := r.URL.Query().Get("active") == "true"
+
 	var rounds []*models.GameRound
 	var err error
 
-	// Check if league filter is provided in query parameters
-	leagueIDParam := r.URL.Query().Get("league_id")
-	if leagueIDParam != "" {
-		leagueID, err := primitive.ObjectIDFromHex(leagueIDParam)
-		if err != nil {
-			http.Error(w, "Invalid league ID", http.StatusBadRequest)
+	if activeOnly {
+		rounds, err = h.gameRoundRepository.FindActiveByLeague(r.Context(), leagueID)
+	} else if statusFilter != "" {
+		status := models.GameRoundStatus(statusFilter)
+		if !status.IsValidStatus() {
+			http.Error(w, "Invalid status filter", http.StatusBadRequest)
 			return
 		}
-		rounds, err = h.gameRoundRepository.FindByLeague(r.Context(), leagueID)
+		rounds, err = h.gameRoundRepository.FindByLeagueAndStatus(r.Context(), leagueID, []models.GameRoundStatus{status})
 	} else {
-		rounds, err = h.gameRoundRepository.FindAll(r.Context())
+		rounds, err = h.gameRoundRepository.FindByLeague(r.Context(), leagueID)
 	}
 
 	if err != nil {
@@ -150,9 +156,9 @@ func (h *Handler) listGameRounds(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getGameRound(w http.ResponseWriter, r *http.Request) {
-	id, err := utils.GetIDFromChiURL(r, "id")
+	id, err := utils.GetIDFromChiURL(r, "code")
 	if err != nil {
-		http.Error(w, "Invalid game ID", http.StatusBadRequest)
+		http.Error(w, "Invalid game code", http.StatusBadRequest)
 		return
 	}
 
@@ -203,18 +209,24 @@ func (h *Handler) updateGameRound(w http.ResponseWriter, r *http.Request) {
 	if len(req.Players) > 0 {
 		players := make([]models.GameRoundPlayer, 0, len(req.Players))
 		for _, p := range req.Players {
-			userID, err := utils.CodeToID(p.UserID)
+			if p.MembershipCode == "" {
+				http.Error(w, "membership_code is required for each player", http.StatusBadRequest)
+				return
+			}
+
+			// Convert membership code to ID
+			membershipIdAndCode, err := h.idCodeCache.GetByCode(p.MembershipCode)
 			if err != nil {
-				http.Error(w, "Invalid user ID", http.StatusBadRequest)
+				http.Error(w, fmt.Sprintf("Invalid membership code: %s", p.MembershipCode), http.StatusBadRequest)
 				return
 			}
 
 			players = append(players, models.GameRoundPlayer{
-				PlayerID:    userID,
-				Position:    p.Position,
-				Score:       p.Score,
-				IsModerator: p.IsModerator,
-				TeamName:    p.TeamName,
+				MembershipID: membershipIdAndCode.ID,
+				Position:     p.Position,
+				Score:        p.Score,
+				IsModerator:  p.IsModerator,
+				TeamName:     p.TeamName,
 			})
 		}
 		round.Players = players
@@ -229,15 +241,23 @@ func (h *Handler) updateGameRound(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) updatePlayerScore(w http.ResponseWriter, r *http.Request) {
-	id, err := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
-	if err != nil {
-		http.Error(w, "Invalid game ID", http.StatusBadRequest)
+	// Get game round code and player code from URL
+	gameRoundCode := chi.URLParam(r, "gameRoundCode")
+	if gameRoundCode == "" {
+		http.Error(w, "Game round code is required", http.StatusBadRequest)
 		return
 	}
 
-	userID, err := primitive.ObjectIDFromHex(chi.URLParam(r, "userId"))
+	playerCode := chi.URLParam(r, "playerCode")
+	if playerCode == "" {
+		http.Error(w, "Player code is required", http.StatusBadRequest)
+		return
+	}
+
+	// Convert game round code to ID
+	gameRoundIdAndCode, err := h.idCodeCache.GetByCode(gameRoundCode)
 	if err != nil {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		http.Error(w, "Invalid game round code", http.StatusBadRequest)
 		return
 	}
 
@@ -247,7 +267,7 @@ func (h *Handler) updatePlayerScore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	round, err := h.gameRoundRepository.FindByID(r.Context(), id)
+	round, err := h.gameRoundRepository.FindByID(r.Context(), gameRoundIdAndCode.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -257,9 +277,17 @@ func (h *Handler) updatePlayerScore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Convert player code to membership ID
+	playerIdAndCode, err := h.idCodeCache.GetByCode(playerCode)
+	if err != nil {
+		http.Error(w, "Invalid player code", http.StatusBadRequest)
+		return
+	}
+	playerMembershipID := playerIdAndCode.ID
+
 	playerFound := false
 	for i := range round.Players {
-		if round.Players[i].PlayerID == userID {
+		if round.Players[i].MembershipID == playerMembershipID {
 			round.Players[i].Score = req.Score
 			playerFound = true
 			break
@@ -280,9 +308,9 @@ func (h *Handler) updatePlayerScore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) finalizeGame(w http.ResponseWriter, r *http.Request) {
-	id, err := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
+	id, err := utils.GetIDFromChiURL(r, "code")
 	if err != nil {
-		http.Error(w, "Invalid game ID", http.StatusBadRequest)
+		http.Error(w, "Invalid game code", http.StatusBadRequest)
 		return
 	}
 
@@ -393,28 +421,26 @@ type updateGameRoundRequest struct {
 }
 
 type updatePlayerSetup struct {
-	UserID      string `json:"user_id"`
-	Position    int    `json:"position"`
-	Score       int64  `json:"score"`
-	IsModerator bool   `json:"is_moderator"`
-	TeamName    string `json:"team_name,omitempty"`
+	MembershipCode string `json:"membership_code" validate:"required"`
+	Position       int    `json:"position"`
+	Score          int64  `json:"score"`
+	IsModerator    bool   `json:"is_moderator"`
+	TeamName       string `json:"team_name,omitempty"`
 }
 
 type startGameRequest struct {
 	Name      string        `json:"name" validate:"required"`
 	Type      string        `json:"type" validate:"required"`
-	LeagueID  string        `json:"league_id,omitempty"`
 	StartTime time.Time     `json:"start_time"`
 	Players   []playerSetup `json:"players" validate:"required,min=1"`
 }
 
 type playerSetup struct {
-	UserID       primitive.ObjectID `json:"user_id,omitempty"`
-	MembershipID primitive.ObjectID `json:"membership_id,omitempty"`
-	Position     int                `json:"position" validate:"required"`
-	IsModerator  bool               `json:"is_moderator"`
-	TeamName     string             `json:"team_name,omitempty"`
-	TeamColor    string             `json:"team_color,omitempty"`
+	MembershipCode string `json:"membership_code" validate:"required"`
+	Position       int    `json:"position" validate:"required"`
+	IsModerator    bool   `json:"is_moderator"`
+	TeamName       string `json:"team_name,omitempty"`
+	TeamColor      string `json:"team_color,omitempty"`
 }
 
 // updateRolesRequest - запит на оновлення ролей гравців
@@ -423,15 +449,15 @@ type updateRolesRequest struct {
 }
 
 type playerRoleUpdate struct {
-	MembershipID string `json:"membership_id" validate:"required"`
-	RoleKey      string `json:"role_key,omitempty"`
-	TeamName     string `json:"team_name,omitempty"`
-	IsModerator  bool   `json:"is_moderator"`
+	MembershipCode string `json:"membership_code" validate:"required"`
+	RoleKey        string `json:"role_key,omitempty"`
+	TeamName       string `json:"team_name,omitempty"`
+	IsModerator    bool   `json:"is_moderator"`
 }
 
 // updateScoresRequest - запит на оновлення очок гравців
 type updateScoresRequest struct {
-	PlayerScores map[string]int64 `json:"player_scores"` // membership_id -> score
+	PlayerScores map[string]int64 `json:"player_scores"` // membership_code -> score
 	TeamScores   map[string]int64 `json:"team_scores,omitempty"`
 }
 
@@ -467,12 +493,13 @@ func (h *Handler) updateRoles(w http.ResponseWriter, r *http.Request) {
 
 	// Update player roles
 	for _, update := range req.Players {
-		membershipID, err := primitive.ObjectIDFromHex(update.MembershipID)
+		// Convert membership code to ID
+		membershipIdAndCode, err := h.idCodeCache.GetByCode(update.MembershipCode)
 		if err != nil {
 			continue
 		}
 		for i := range round.Players {
-			if round.Players[i].MembershipID == membershipID {
+			if round.Players[i].MembershipID == membershipIdAndCode.ID {
 				round.Players[i].TeamName = update.TeamName
 				round.Players[i].LabelName = update.RoleKey
 				round.Players[i].IsModerator = update.IsModerator
@@ -519,13 +546,14 @@ func (h *Handler) updateScores(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update player scores
-	for membershipIDStr, score := range req.PlayerScores {
-		membershipID, err := primitive.ObjectIDFromHex(membershipIDStr)
+	for membershipCode, score := range req.PlayerScores {
+		// Convert membership code to ID
+		membershipIdAndCode, err := h.idCodeCache.GetByCode(membershipCode)
 		if err != nil {
 			continue
 		}
 		for i := range round.Players {
-			if round.Players[i].MembershipID == membershipID {
+			if round.Players[i].MembershipID == membershipIdAndCode.ID {
 				round.Players[i].Score = score
 				break
 			}

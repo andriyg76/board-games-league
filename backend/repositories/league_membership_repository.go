@@ -53,12 +53,12 @@ func ensureLeagueMembershipIndexes(r *LeagueMembershipRepositoryInstance) error 
 	_, err := r.collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
 		{
 			Keys: bson.D{{"league_id", 1}, {"user_id", 1}},
-			// Partial unique index: only enforce uniqueness when user_id is not null
-			// This allows multiple pending memberships (with null user_id) per league
+			// Partial unique index: only enforce uniqueness when user_id exists (is not null)
+			// This allows multiple pending memberships (with null/missing user_id) per league
 			// while still preventing duplicate active memberships per user
 			Options: options.Index().
 				SetUnique(true).
-				SetPartialFilterExpression(bson.M{"user_id": bson.M{"$ne": nil}}),
+				SetPartialFilterExpression(bson.M{"user_id": bson.M{"$exists": true}}),
 		},
 		{
 			Keys: bson.D{{"league_id", 1}},

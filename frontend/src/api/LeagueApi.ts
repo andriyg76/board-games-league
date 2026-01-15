@@ -90,6 +90,8 @@ export interface SuggestedPlayersResponse {
     current_player: SuggestedPlayer | null;
     recent_players: SuggestedPlayer[];
     other_players: SuggestedPlayer[];
+    can_create_membership?: boolean;
+    requires_membership?: boolean;
 }
 
 export default {
@@ -218,6 +220,18 @@ export default {
     },
 
     /**
+     * Unban a user from a league (superadmin only)
+     */
+    async unbanUserFromLeague(leagueCode: string, userCode: string): Promise<void> {
+        const response = await apiFetch(`/api/leagues/${leagueCode}/unban/${userCode}`, {
+            method: 'POST',
+        });
+        if (!response.ok) {
+            throw new Error('Failed to unban user from league');
+        }
+    },
+
+    /**
      * Archive a league (superadmin only)
      */
     async archiveLeague(code: string): Promise<void> {
@@ -246,4 +260,10 @@ export default {
      */
     getSuggestedPlayers: (leagueCode: string): Promise<SuggestedPlayersResponse> =>
         apiJson(`/api/leagues/${leagueCode}/suggested-players`),
+
+    /**
+     * Create membership for superadmin (superadmin only)
+     */
+    createMembership: (leagueCode: string, alias?: string): Promise<{ membership_id: string; alias: string; status: string; joined_at: string }> =>
+        apiJsonPost(`/api/leagues/${leagueCode}/memberships`, { alias }),
 };

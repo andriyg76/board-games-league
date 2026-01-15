@@ -463,10 +463,13 @@ func (h *Handler) finalizeGame(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Convert GameRoundID to code
+	gameRoundIdAndCode := h.idCodeCache.GetByID(wizardGame.GameRoundID)
+	
 	// Return response
 	response := map[string]interface{}{
 		"wizard_game_code": wizardGame.Code,
-		"game_round_id":    wizardGame.GameRoundID.Hex(),
+		"game_round_code":  gameRoundIdAndCode.Code,
 		"final_standings":  standings,
 	}
 

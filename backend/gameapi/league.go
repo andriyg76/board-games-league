@@ -521,9 +521,57 @@ func (h *Handler) banUserFromLeague(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prevent superadmin from banning themselves
+	if user.ID == userID {
+		http.Error(w, "Cannot ban yourself", http.StatusBadRequest)
+		return
+	}
+
 	// Ban user
 	if err := h.leagueService.BanUserFromLeague(r.Context(), leagueID, userID); err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to ban user")
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// POST /api/leagues/:code/unban/:userCode - Unban user from league (superadmin only)
+func (h *Handler) unbanUserFromLeague(w http.ResponseWriter, r *http.Request) {
+	// Check if user is superadmin
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	user, err := h.userService.FindByCode(r.Context(), profile.Code)
+	if err != nil || user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	if !auth.IsSuperAdmin(user) {
+		http.Error(w, "Forbidden: superadmin only", http.StatusForbidden)
+		return
+	}
+
+	// Get league and user IDs
+	leagueID, err := h.getIDFromChiURL(r, "code")
+	if err != nil {
+		http.Error(w, "Invalid league code", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := h.getIDFromChiURL(r, "userCode")
+	if err != nil {
+		http.Error(w, "Invalid user code", http.StatusBadRequest)
+		return
+	}
+
+	// Unban user
+	if err := h.leagueService.UnbanUserFromLeague(r.Context(), leagueID, userID); err != nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to unban user")
 		return
 	}
 
@@ -642,12 +690,12 @@ type standingResponse struct {
 }
 
 type invitationResponse struct {
-	Token        string `json:"token"`
-	LeagueID     string `json:"league_id"`
-	PlayerAlias  string `json:"player_alias"`
-	MembershipID string `json:"membership_id,omitempty"`
-	ExpiresAt    string `json:"expires_at"`
-	CreatedAt    string `json:"created_at"`
+	Token          string `json:"token"`
+	LeagueCode     string `json:"league_code"`
+	PlayerAlias    string `json:"player_alias"`
+	MembershipCode string `json:"membership_code,omitempty"`
+	ExpiresAt      string `json:"expires_at"`
+	CreatedAt      string `json:"created_at"`
 }
 
 // Helper functions
@@ -680,14 +728,14 @@ func (h *Handler) invitationToResponse(inv *models.LeagueInvitation) invitationR
 	leagueIdAndCode := h.idCodeCache.GetByID(inv.LeagueID)
 	resp := invitationResponse{
 		Token:       inv.Token,
-		LeagueID:    leagueIdAndCode.Code,
+		LeagueCode:  leagueIdAndCode.Code,
 		PlayerAlias: inv.PlayerAlias,
 		ExpiresAt:   inv.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
 		CreatedAt:   inv.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 	if !inv.MembershipID.IsZero() {
 		membershipIdAndCode := h.idCodeCache.GetByID(inv.MembershipID)
-		resp.MembershipID = membershipIdAndCode.Code
+		resp.MembershipCode = membershipIdAndCode.Code
 	}
 	return resp
 }
@@ -727,80 +775,12 @@ func (h *Handler) listLeagueGameRounds(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, rounds, http.StatusOK)
 }
 
-// createLeagueGameRoundRequest - запит на створення раунду в лізі
-type createLeagueGameRoundRequest struct {
-	Name    string        `json:"name"`
-	Type    string        `json:"type" validate:"required"`
-	Players []playerSetup `json:"players" validate:"required,min=1"`
-}
-
+// createLeagueGameRound is deprecated - use startGame from gameround.go instead
+// This method is kept for backward compatibility but should be removed
 // POST /api/leagues/:code/game_rounds - Create game round in league
 func (h *Handler) createLeagueGameRound(w http.ResponseWriter, r *http.Request) {
-	leagueID, err := h.getIDFromChiURL(r, "code")
-	if err != nil {
-		http.Error(w, "Invalid league code", http.StatusBadRequest)
-		return
-	}
-
-	var req createLeagueGameRoundRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
-
-	// Get game type
-	gameType, err := h.gameTypeRepository.FindByKey(r.Context(), req.Type)
-	if gameType == nil || err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error fetching game type: "+req.Type)
-		return
-	}
-
-	// Build players list
-	players := make([]models.GameRoundPlayer, 0, len(req.Players))
-	for _, p := range req.Players {
-		player := models.GameRoundPlayer{
-			Position:    p.Position,
-			IsModerator: p.IsModerator,
-			TeamName:    p.TeamName,
-		}
-
-		if !p.MembershipID.IsZero() {
-			player.MembershipID = p.MembershipID
-		} else {
-			http.Error(w, "membership_id is required for each player", http.StatusBadRequest)
-			return
-		}
-
-		players = append(players, player)
-	}
-
-	// Create team scores if game type has team roles
-	var teamScores []models.TeamScore
-	for i, role := range gameType.Roles {
-		if role.RoleType == models.RoleTypeMultiple {
-			teamScores = append(teamScores, models.TeamScore{
-				Name:     role.Key,
-				Position: i + 1,
-			})
-		}
-	}
-
-	round := &models.GameRound{
-		Name:       req.Name,
-		GameTypeID: gameType.ID,
-		LeagueID:   leagueID,
-		Status:     models.StatusPlayersSelected,
-		StartTime:  time.Now(),
-		Players:    players,
-		TeamScores: teamScores,
-	}
-
-	if err := h.gameRoundRepository.Create(r.Context(), round); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	utils.WriteJSON(w, round, http.StatusCreated)
+	// Delegate to startGame which handles league from context
+	h.startGame(w, r)
 }
 
 // GET /api/leagues/:code/suggested-players - Get suggested players for game creation
@@ -853,4 +833,83 @@ func (h *Handler) getSuggestedPlayers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, response, http.StatusOK)
+}
+
+// POST /api/leagues/:code/memberships - Create membership for superadmin (superadmin only)
+func (h *Handler) createMembershipForSuperAdmin(w http.ResponseWriter, r *http.Request) {
+	// Check if user is superadmin
+	profile, err := user_profile.GetUserProfile(r)
+	if err != nil || profile == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	user, err := h.userService.FindByCode(r.Context(), profile.Code)
+	if err != nil || user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	if !auth.IsSuperAdmin(user) {
+		http.Error(w, "Forbidden: superadmin only", http.StatusForbidden)
+		return
+	}
+
+	// Get league ID from context (set by middleware)
+	leagueID, ok := r.Context().Value("leagueID").(primitive.ObjectID)
+	if !ok {
+		http.Error(w, "League not found in context", http.StatusInternalServerError)
+		return
+	}
+
+	// Get user ID
+	userIdAndCode, err := h.idCodeCache.GetByCode(profile.Code)
+	if err != nil {
+		http.Error(w, "Invalid user code", http.StatusBadRequest)
+		return
+	}
+	userID := userIdAndCode.ID
+
+	// Parse request
+	var req createMembershipRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Create membership
+	membership, err := h.leagueService.CreateMembershipForSuperAdmin(r.Context(), leagueID, userID, req.Alias)
+	if err != nil {
+		if err.Error() == "user is already an active member of this league" {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		if err.Error() == "alias is already taken in this league" {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to create membership")
+		return
+	}
+
+	// Return membership info
+	response := membershipResponse{
+		MembershipCode: utils.IdToCode(membership.ID),
+		Alias:          membership.Alias,
+		Status:         string(membership.Status),
+		JoinedAt:       membership.JoinedAt.Format(time.RFC3339),
+	}
+
+	utils.WriteJSON(w, response, http.StatusCreated)
+}
+
+type createMembershipRequest struct {
+	Alias string `json:"alias,omitempty"`
+}
+
+type membershipResponse struct {
+	MembershipCode string `json:"membership_code"`
+	Alias          string `json:"alias"`
+	Status         string `json:"status"`
+	JoinedAt       string `json:"joined_at"`
 }

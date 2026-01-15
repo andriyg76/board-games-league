@@ -2,7 +2,20 @@
   <div>
     <n-card v-if="diagnostics">
       <template #header>
-        <div style="font-size: 1.25rem; font-weight: 500;">{{ t('diagnostics.title') }}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 1.25rem; font-weight: 500;">{{ t('diagnostics.title') }}</div>
+          <n-button 
+            :loading="loading" 
+            @click="refreshDiagnostics"
+            type="primary"
+            size="small"
+          >
+            <template #icon>
+              <n-icon><RefreshIcon /></n-icon>
+            </template>
+            {{ t('diagnostics.refresh') }}
+          </n-button>
+        </div>
       </template>
 
       <n-grid :cols="24" :x-gap="16" style="margin-bottom: 16px;">
@@ -181,8 +194,8 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, h } from 'vue';
-import { NGrid, NGi, NCard, NDataTable, NInput, NIcon, NTag, NSkeleton, DataTableColumns } from 'naive-ui';
-import { Search as SearchIcon, EyeOff as EyeOffIcon } from '@vicons/ionicons5';
+import { NGrid, NGi, NCard, NDataTable, NInput, NIcon, NTag, NSkeleton, NButton, DataTableColumns } from 'naive-ui';
+import { Search as SearchIcon, EyeOff as EyeOffIcon, Refresh as RefreshIcon } from '@vicons/ionicons5';
 import DiagnosticsApi, { DiagnosticsResponse, getFrontendBuildInfo, BuildInfo, EnvVarInfo, CacheStatsInfo } from "@/api/DiagnosticsApi";
 import { useI18n } from 'vue-i18n';
 
@@ -196,6 +209,7 @@ const frontendBuildInfo = ref<BuildInfo>({
   date: "unknown",
 });
 const envFilter = ref<string>("");
+const loading = ref<boolean>(false);
 
 // Filter environment variables based on search
 const filteredEnvVars = computed<EnvVarInfo[]>(() => {
@@ -325,12 +339,23 @@ function formatDateTime(isoString: string): string {
   }
 }
 
-onMounted(async () => {
+async function loadDiagnostics() {
   try {
+    loading.value = true;
     diagnostics.value = await DiagnosticsApi.getDiagnostics();
     frontendBuildInfo.value = await getFrontendBuildInfo();
   } catch (e) {
     console.error("Error loading diagnostics:", e);
+  } finally {
+    loading.value = false;
   }
+}
+
+async function refreshDiagnostics() {
+  await loadDiagnostics();
+}
+
+onMounted(async () => {
+  await loadDiagnostics();
 });
 </script>

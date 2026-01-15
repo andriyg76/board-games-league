@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/andriyg76/bgl/models"
@@ -32,6 +33,8 @@ type LeagueService interface {
 	GetMemberByID(ctx context.Context, membershipID primitive.ObjectID) (*models.LeagueMembership, error)
 	IsUserMember(ctx context.Context, leagueID, userID primitive.ObjectID) (bool, error)
 	BanUserFromLeague(ctx context.Context, leagueID, userID primitive.ObjectID) error
+	UnbanUserFromLeague(ctx context.Context, leagueID, userID primitive.ObjectID) error
+	CreateMembershipForSuperAdmin(ctx context.Context, leagueID, userID primitive.ObjectID, alias string) (*models.LeagueMembership, error)
 
 	// Запрошення
 	CreateInvitation(ctx context.Context, leagueID, createdBy primitive.ObjectID, playerAlias string) (*models.LeagueInvitation, error)
@@ -66,18 +69,20 @@ type LeagueMemberInfo struct {
 
 // SuggestedPlayer represents a player suggestion for game creation
 type SuggestedPlayer struct {
-	MembershipID string `json:"membership_id"`
-	Alias        string `json:"alias"`
-	Avatar       string `json:"avatar,omitempty"`
-	LastPlayedAt string `json:"last_played_at,omitempty"`
-	IsVirtual    bool   `json:"is_virtual"`
+	MembershipCode string `json:"membership_code"`
+	Alias          string `json:"alias"`
+	Avatar         string `json:"avatar,omitempty"`
+	LastPlayedAt   string `json:"last_played_at,omitempty"`
+	IsVirtual      bool   `json:"is_virtual"`
 }
 
 // SuggestedPlayersResponse contains suggested players for game creation
 type SuggestedPlayersResponse struct {
-	CurrentPlayer *SuggestedPlayer  `json:"current_player"`
-	RecentPlayers []SuggestedPlayer `json:"recent_players"`
-	OtherPlayers  []SuggestedPlayer `json:"other_players"`
+	CurrentPlayer       *SuggestedPlayer  `json:"current_player"`
+	RecentPlayers       []SuggestedPlayer `json:"recent_players"`
+	OtherPlayers        []SuggestedPlayer `json:"other_players"`
+	CanCreateMembership bool              `json:"can_create_membership,omitempty"` // true if superadmin without membership
+	RequiresMembership  bool              `json:"requires_membership,omitempty"`   // true if user needs membership to play
 }
 
 // InvitationPreview represents public invitation preview data
@@ -245,11 +250,6 @@ func (s *leagueServiceInstance) GetLeagueMemberships(ctx context.Context, league
 
 	members := make([]*LeagueMemberInfo, 0, len(memberships))
 	for _, membership := range memberships {
-		// Skip banned members
-		if membership.Status == models.MembershipBanned {
-			continue
-		}
-
 		member := &LeagueMemberInfo{
 			MembershipID: membership.ID,
 			UserID:       membership.UserID,
@@ -277,6 +277,20 @@ func (s *leagueServiceInstance) GetLeagueMemberships(ctx context.Context, league
 
 		members = append(members, member)
 	}
+
+	// Sort members: banned users at the end, others by joined date (newest first)
+	sort.Slice(members, func(i, j int) bool {
+		iBanned := members[i].Status == models.MembershipBanned
+		jBanned := members[j].Status == models.MembershipBanned
+
+		// If one is banned and the other is not, banned goes to the end
+		if iBanned != jBanned {
+			return !iBanned // non-banned comes before banned
+		}
+
+		// If both have the same ban status, sort by joined date (newest first)
+		return members[i].JoinedAt.After(members[j].JoinedAt)
+	})
 
 	return members, nil
 }
@@ -312,6 +326,27 @@ func (s *leagueServiceInstance) BanUserFromLeague(ctx context.Context, leagueID,
 	membership.Status = models.MembershipBanned
 	if err := s.membershipRepo.Update(ctx, membership); err != nil {
 		return fmt.Errorf("failed to ban user: %w", err)
+	}
+
+	return nil
+}
+
+func (s *leagueServiceInstance) UnbanUserFromLeague(ctx context.Context, leagueID, userID primitive.ObjectID) error {
+	membership, err := s.membershipRepo.FindByLeagueAndUser(ctx, leagueID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to find membership: %w", err)
+	}
+	if membership == nil {
+		return errors.New("user is not a member of this league")
+	}
+
+	if membership.Status != models.MembershipBanned {
+		return errors.New("user is not banned")
+	}
+
+	membership.Status = models.MembershipActive
+	if err := s.membershipRepo.Update(ctx, membership); err != nil {
+		return fmt.Errorf("failed to unban user: %w", err)
 	}
 
 	return nil
@@ -775,10 +810,14 @@ func (s *leagueServiceInstance) GetSuggestedPlayers(ctx context.Context, leagueI
 		}
 	}
 
-	// Determine limit for other players
+	// Determine limit for other players and set flags
 	otherPlayersLimit := 10
 	if isSuperAdmin && currentMembership == nil {
 		otherPlayersLimit = 20
+		response.CanCreateMembership = true
+		response.RequiresMembership = true
+	} else if currentMembership == nil {
+		response.RequiresMembership = true
 	}
 
 	// Get other players sorted by last_activity_at
@@ -798,9 +837,9 @@ func (s *leagueServiceInstance) GetSuggestedPlayers(ctx context.Context, leagueI
 // membershipToSuggestedPlayer converts a membership to a SuggestedPlayer
 func (s *leagueServiceInstance) membershipToSuggestedPlayer(membership *models.LeagueMembership, lastPlayedAt *time.Time) *SuggestedPlayer {
 	player := &SuggestedPlayer{
-		MembershipID: utils.IdToCode(membership.ID),
-		Alias:        membership.Alias,
-		IsVirtual:    membership.Status == models.MembershipVirtual || membership.Status == models.MembershipPending,
+		MembershipCode: utils.IdToCode(membership.ID),
+		Alias:          membership.Alias,
+		IsVirtual:      membership.Status == models.MembershipVirtual || membership.Status == models.MembershipPending,
 	}
 
 	// Get user avatar if user exists
@@ -814,4 +853,70 @@ func (s *leagueServiceInstance) membershipToSuggestedPlayer(membership *models.L
 	}
 
 	return player
+}
+
+// CreateMembershipForSuperAdmin creates an active membership for a superadmin without requiring an invitation
+func (s *leagueServiceInstance) CreateMembershipForSuperAdmin(ctx context.Context, leagueID, userID primitive.ObjectID, alias string) (*models.LeagueMembership, error) {
+	// Check if user is already a member
+	existing, err := s.membershipRepo.FindByLeagueAndUser(ctx, leagueID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing membership: %w", err)
+	}
+	if existing != nil {
+		if existing.Status == models.MembershipActive {
+			return nil, errors.New("user is already an active member of this league")
+		}
+		// If there's a pending membership, activate it
+		existing.UserID = userID
+		existing.Status = models.MembershipActive
+		existing.JoinedAt = time.Now()
+		existing.LastActivityAt = time.Now()
+		if alias != "" && existing.Alias != alias {
+			existing.Alias = alias
+		}
+		if err := s.membershipRepo.Update(ctx, existing); err != nil {
+			return nil, fmt.Errorf("failed to activate membership: %w", err)
+		}
+		return existing, nil
+	}
+
+	// Check if alias is already taken
+	if alias == "" {
+		// Get user info for default alias
+		user, err := s.userRepo.FindByID(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user info: %w", err)
+		}
+		if user != nil && user.Name != "" {
+			alias = user.Name
+		} else {
+			alias = "Superadmin"
+		}
+	}
+
+	// Check if alias is available
+	existingByAlias, err := s.membershipRepo.FindByLeagueAndAlias(ctx, leagueID, alias)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check alias availability: %w", err)
+	}
+	if existingByAlias != nil && (existingByAlias.Status == models.MembershipActive || existingByAlias.Status == models.MembershipPending) {
+		return nil, errors.New("alias is already taken in this league")
+	}
+
+	// Create new active membership
+	now := time.Now()
+	membership := &models.LeagueMembership{
+		LeagueID:       leagueID,
+		UserID:         userID,
+		Alias:          alias,
+		Status:         models.MembershipActive,
+		JoinedAt:       now,
+		LastActivityAt: now,
+	}
+
+	if err := s.membershipRepo.Create(ctx, membership); err != nil {
+		return nil, fmt.Errorf("failed to create membership: %w", err)
+	}
+
+	return membership, nil
 }

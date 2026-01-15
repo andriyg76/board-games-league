@@ -271,6 +271,28 @@ export const useLeagueStore = defineStore('league', {
         },
 
         /**
+         * Unban a user from a league (superadmin only)
+         */
+        async unbanUser(leagueCode: string, userCode: string) {
+            this.loading = true;
+            this.error = null;
+            try {
+                await LeagueApi.unbanUserFromLeague(leagueCode, userCode);
+
+                // Reload members if this is the current league
+                if (this.currentLeague && this.currentLeague.code === leagueCode) {
+                    await this.loadCurrentLeagueMembers();
+                }
+            } catch (error) {
+                this.error = error instanceof Error ? error.message : 'Failed to unban user';
+                console.error('Error unbanning user:', error);
+                throw error;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        /**
          * Archive a league (superadmin only)
          */
         async archiveLeague(code: string) {

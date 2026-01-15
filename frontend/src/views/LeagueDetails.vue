@@ -97,6 +97,17 @@
                             <n-icon><BlockIcon /></n-icon>
                           </template>
                         </n-button>
+                        <n-button
+                          v-if="canManageLeague && member.status === 'banned'"
+                          quaternary
+                          circle
+                          size="small"
+                          @click="unbanMember(member)"
+                        >
+                          <template #icon>
+                            <n-icon><CheckmarkCircleIcon /></n-icon>
+                          </template>
+                        </n-button>
                       </n-space>
                     </template>
                   </n-list-item>
@@ -130,7 +141,8 @@ import {
   Archive as ArchiveIcon,
   ArchiveOutline as ArchiveArrowUpIcon,
   Time as PersonClockIcon,
-  Ban as BlockIcon
+  Ban as BlockIcon,
+  CheckmarkCircle as CheckmarkCircleIcon
 } from '@vicons/ionicons5';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -242,6 +254,19 @@ const banMember = async (member: LeagueMember) => {
     await leagueStore.banUser(currentLeague.value.code, member.user_id);
   } catch (error) {
     console.error('Error banning member:', error);
+  }
+};
+
+const unbanMember = async (member: LeagueMember) => {
+  if (!currentLeague.value) return;
+
+  const confirmed = confirm(`${t('leagues.confirmUnban')} ${member.user_name}?`);
+  if (!confirmed) return;
+
+  try {
+    await leagueStore.unbanUser(currentLeague.value.code, member.user_id);
+  } catch (error) {
+    console.error('Error unbanning member:', error);
   }
 };
 

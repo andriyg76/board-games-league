@@ -132,7 +132,8 @@ const messages = {
             cacheSize: 'Size',
             cacheUsage: 'Usage',
             cacheExpired: 'Expired',
-            cacheTTL: 'TTL'
+            cacheTTL: 'TTL',
+            refresh: 'Refresh'
         },
         createUser: {
             title: 'Create User',
@@ -300,9 +301,11 @@ const messages = {
             invitationExpired: 'Invitation expired (valid for 7 days)',
             noLeagueData: 'No standings data yet. Play your first games in this league!',
             confirmBan: 'Are you sure you want to ban',
+            confirmUnban: 'Are you sure you want to unban',
             nameRequired: 'Name is required',
             memberActive: 'Active',
             memberBanned: 'Banned',
+            unban: 'Unban',
             copyError: 'Failed to copy link',
             invitationDetails: 'Invitation Details',
             qrCode: 'QR Code',
@@ -326,6 +329,9 @@ const messages = {
             youWillJoinAs: 'You will join as: {alias}',
             loadingInvitation: 'Loading invitation...',
             invitationUsed: 'This invitation has already been used.',
+            createMembershipTitle: 'Create Membership',
+            createMembershipMessage: 'You need to create a membership in this league to participate in games. Would you like to create one now?',
+            membershipCreated: 'Membership created successfully!',
             aliasExists: 'This alias already exists in the league.'
         },
         errors: {
@@ -473,7 +479,8 @@ const messages = {
             cacheSize: 'Розмір',
             cacheUsage: 'Використання',
             cacheExpired: 'Застарілі',
-            cacheTTL: 'Час життя'
+            cacheTTL: 'Час життя',
+            refresh: 'Оновити'
         },
         createUser: {
             title: 'Створити користувача',
@@ -641,9 +648,11 @@ const messages = {
             invitationExpired: 'Запрошення прострочено (дійсне 7 днів)',
             noLeagueData: 'Поки що немає даних для рейтингу. Зіграйте перші ігри в цій лізі!',
             confirmBan: 'Ви впевнені, що хочете заблокувати',
+            confirmUnban: 'Ви впевнені, що хочете розблокувати',
             nameRequired: 'Назва обов\'язкова',
             memberActive: 'Активний',
             memberBanned: 'Заблокований',
+            unban: 'Розблокувати',
             copyError: 'Не вдалося скопіювати посилання',
             invitationDetails: 'Деталі запрошення',
             qrCode: 'QR-код',
@@ -667,6 +676,9 @@ const messages = {
             youWillJoinAs: 'Ви приєднаєтесь як: {alias}',
             loadingInvitation: 'Завантаження запрошення...',
             invitationUsed: 'Це запрошення вже використано.',
+            createMembershipTitle: 'Створити членство',
+            createMembershipMessage: 'Вам потрібно створити членство в цій лізі, щоб брати участь в іграх. Хочете створити його зараз?',
+            membershipCreated: 'Членство успішно створено!',
             aliasExists: 'Цей псевдонім вже існує в лізі.'
         },
         errors: {
@@ -814,7 +826,8 @@ const messages = {
             cacheSize: 'Suurus',
             cacheUsage: 'Kasutus',
             cacheExpired: 'Aegunud',
-            cacheTTL: 'Eluiga'
+            cacheTTL: 'Eluiga',
+            refresh: 'Värskenda'
         },
         createUser: {
             title: 'Loo kasutaja',
@@ -1008,6 +1021,9 @@ const messages = {
             youWillJoinAs: 'Liitud nimega: {alias}',
             loadingInvitation: 'Kutse laadimine...',
             invitationUsed: 'See kutse on juba kasutatud.',
+            createMembershipTitle: 'Loo liikmelisus',
+            createMembershipMessage: 'Selleks, et mängudel osaleda, peate selles liigas liikmelisuse looma. Kas soovite selle kohe luua?',
+            membershipCreated: 'Liikmelisus edukalt loodud!',
             aliasExists: 'See hüüdnimi on liigas juba olemas.'
         },
         errors: {

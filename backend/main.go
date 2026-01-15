@@ -188,7 +188,7 @@ func main() {
 	leagueMiddleware := bglmiddleware.NewLeagueMiddleware(leagueService, idCodeCache)
 
 	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository, leagueService, leagueMiddleware, idCodeCache)
-	wizardApiHandler := wizardapi.NewHandler(wizardGameRepository, gameRoundRepository, gameTypeRepository, leagueService, userService)
+	wizardApiHandler := wizardapi.NewHandler(wizardGameRepository, gameRoundRepository, gameTypeRepository, leagueService, userService, idCodeCache)
 	authHandler := auth.NewDefaultHandler(userRepository, sessionService, requestService)
 	userProfileHandler := userapi.NewHandlerWithServices(userRepository, sessionRepository, geoIPService)
 	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService, cacheCleanupService)
@@ -218,7 +218,16 @@ func main() {
 			r.Get("/admin/diagnostics", diagnosticsHandler.GetDiagnosticsHandler)
 
 			gameApiHandler.RegisterRoutes(r)
-			wizardApiHandler.RegisterRoutes(r)
+
+			// Register wizard routes under /leagues/{code}/wizard/games
+			r.Route("/leagues", func(r chi.Router) {
+				r.Route("/{code}", func(r chi.Router) {
+					r.Use(leagueMiddleware.RequireLeagueMembership)
+					r.Route("/wizard/games", func(r chi.Router) {
+						wizardApiHandler.RegisterWizardLeagueRoutes(r)
+					})
+				})
+			})
 		})
 		r.Handle("/*", http.NotFoundHandler())
 	})

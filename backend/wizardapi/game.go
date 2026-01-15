@@ -15,32 +15,31 @@ import (
 )
 
 type createGameRequest struct {
-	LeagueID            string   `json:"league_id"`
-	GameName            string   `json:"game_name"`
-	BidRestriction      string   `json:"bid_restriction"`
-	GameVariant         string   `json:"game_variant"`
-	FirstDealerIndex    int      `json:"first_dealer_index"`
-	PlayerMembershipIDs []string `json:"player_membership_ids"`
+	GameName               string   `json:"game_name"`
+	BidRestriction         string   `json:"bid_restriction"`
+	GameVariant            string   `json:"game_variant"`
+	FirstDealerIndex       int      `json:"first_dealer_index"`
+	PlayerMembershipCodes  []string `json:"player_membership_codes"`
 }
 
 type createGameResponse struct {
-	Code        string           `json:"code"`
-	GameRoundID string           `json:"game_round_id"`
-	CurrentRound int             `json:"current_round"`
-	MaxRounds   int              `json:"max_rounds"`
-	Status      string           `json:"status"`
-	Players     []playerResponse `json:"players"`
+	Code         string          `json:"code"`
+	GameRoundCode string         `json:"game_round_code"`
+	CurrentRound  int            `json:"current_round"`
+	MaxRounds     int            `json:"max_rounds"`
+	Status        string         `json:"status"`
+	Players       []playerResponse `json:"players"`
 }
 
 type playerResponse struct {
-	MembershipID string `json:"membership_id"`
-	PlayerName   string `json:"player_name"`
-	TotalScore   int    `json:"total_score"`
+	MembershipCode string `json:"membership_code"`
+	PlayerName     string `json:"player_name"`
+	TotalScore     int    `json:"total_score"`
 }
 
 type gameResponse struct {
 	Code         string                `json:"code"`
-	GameRoundID  string                `json:"game_round_id"`
+	GameRoundCode string               `json:"game_round_code"`
 	Config       models.WizardGameConfig `json:"config"`
 	Players      []playerResponse      `json:"players"`
 	CurrentRound int                   `json:"current_round"`
@@ -72,39 +71,37 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get league ID from context (set by middleware)
+	leagueID, ok := r.Context().Value("leagueID").(primitive.ObjectID)
+	if !ok {
+		http.Error(w, "League not found in context", http.StatusInternalServerError)
+		return
+	}
+
 	// Validate player count (3-6)
-	if len(req.PlayerMembershipIDs) < 3 || len(req.PlayerMembershipIDs) > 6 {
+	if len(req.PlayerMembershipCodes) < 3 || len(req.PlayerMembershipCodes) > 6 {
 		http.Error(w, "Player count must be between 3 and 6", http.StatusBadRequest)
 		return
 	}
 
 	// Validate first dealer index
-	if req.FirstDealerIndex < 0 || req.FirstDealerIndex >= len(req.PlayerMembershipIDs) {
+	if req.FirstDealerIndex < 0 || req.FirstDealerIndex >= len(req.PlayerMembershipCodes) {
 		http.Error(w, "Invalid first dealer index", http.StatusBadRequest)
 		return
 	}
 
-	// Parse league ID
-	var leagueID primitive.ObjectID
-	var err error
-	if req.LeagueID != "" {
-		leagueID, err = primitive.ObjectIDFromHex(req.LeagueID)
+	// Parse membership codes and get player names
+	membershipIDs := make([]primitive.ObjectID, len(req.PlayerMembershipCodes))
+	players := make([]models.WizardPlayer, len(req.PlayerMembershipCodes))
+
+	for i, membershipCode := range req.PlayerMembershipCodes {
+		// Convert membership code to ID
+		membershipIdAndCode, err := h.idCodeCache.GetByCode(membershipCode)
 		if err != nil {
-			http.Error(w, "Invalid league ID", http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Invalid membership code at index %d: %s", i, membershipCode), http.StatusBadRequest)
 			return
 		}
-	}
-
-	// Parse membership IDs and get player names
-	membershipIDs := make([]primitive.ObjectID, len(req.PlayerMembershipIDs))
-	players := make([]models.WizardPlayer, len(req.PlayerMembershipIDs))
-
-	for i, membershipIDStr := range req.PlayerMembershipIDs {
-		membershipID, err := primitive.ObjectIDFromHex(membershipIDStr)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid membership ID at index %d", i), http.StatusBadRequest)
-			return
-		}
+		membershipID := membershipIdAndCode.ID
 		membershipIDs[i] = membershipID
 
 		// Get member info from league service
@@ -189,20 +186,24 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 	// Build response
 	playerResponses := make([]playerResponse, len(players))
 	for i, player := range players {
+		// Convert membership ID to code
+		membershipIdAndCode := h.idCodeCache.GetByID(player.MembershipID)
 		playerResponses[i] = playerResponse{
-			MembershipID: player.MembershipID.Hex(),
-			PlayerName:   player.PlayerName,
-			TotalScore:   player.TotalScore,
+			MembershipCode: membershipIdAndCode.Code,
+			PlayerName:     player.PlayerName,
+			TotalScore:     player.TotalScore,
 		}
 	}
 
+	// Convert GameRoundID to code
+	gameRoundIdAndCode := h.idCodeCache.GetByID(wizardGame.GameRoundID)
 	response := createGameResponse{
-		Code:         wizardGame.Code,
-		GameRoundID:  wizardGame.GameRoundID.Hex(),
-		CurrentRound: wizardGame.CurrentRound,
-		MaxRounds:    wizardGame.MaxRounds,
-		Status:       string(wizardGame.Status),
-		Players:      playerResponses,
+		Code:          wizardGame.Code,
+		GameRoundCode: gameRoundIdAndCode.Code,
+		CurrentRound:  wizardGame.CurrentRound,
+		MaxRounds:     wizardGame.MaxRounds,
+		Status:        string(wizardGame.Status),
+		Players:       playerResponses,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -227,19 +228,20 @@ func (h *Handler) getGame(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getGameByRoundID(w http.ResponseWriter, r *http.Request) {
-	gameRoundIDStr := chi.URLParam(r, "gameRoundId")
-	if gameRoundIDStr == "" {
-		http.Error(w, "Game round ID is required", http.StatusBadRequest)
+	gameRoundCode := chi.URLParam(r, "code")
+	if gameRoundCode == "" {
+		http.Error(w, "Game round code is required", http.StatusBadRequest)
 		return
 	}
 
-	gameRoundID, err := primitive.ObjectIDFromHex(gameRoundIDStr)
+	// Convert game round code to ID
+	gameRoundIdAndCode, err := h.idCodeCache.GetByCode(gameRoundCode)
 	if err != nil {
-		http.Error(w, "Invalid game round ID", http.StatusBadRequest)
+		http.Error(w, "Invalid game round code", http.StatusBadRequest)
 		return
 	}
 
-	game, err := h.wizardRepo.FindByGameRoundID(r.Context(), gameRoundID)
+	game, err := h.wizardRepo.FindByGameRoundID(r.Context(), gameRoundIdAndCode.ID)
 	if err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
 		return
@@ -279,10 +281,12 @@ func (h *Handler) deleteGame(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) respondWithGame(w http.ResponseWriter, game *models.WizardGame) {
 	playerResponses := make([]playerResponse, len(game.Players))
 	for i, player := range game.Players {
+		// Convert membership ID to code
+		membershipIdAndCode := h.idCodeCache.GetByID(player.MembershipID)
 		playerResponses[i] = playerResponse{
-			MembershipID: player.MembershipID.Hex(),
-			PlayerName:   player.PlayerName,
-			TotalScore:   player.TotalScore,
+			MembershipCode: membershipIdAndCode.Code,
+			PlayerName:     player.PlayerName,
+			TotalScore:     player.TotalScore,
 		}
 	}
 
@@ -296,15 +300,17 @@ func (h *Handler) respondWithGame(w http.ResponseWriter, game *models.WizardGame
 		}
 	}
 
+	// Convert GameRoundID to code
+	gameRoundIdAndCode := h.idCodeCache.GetByID(game.GameRoundID)
 	response := gameResponse{
-		Code:         game.Code,
-		GameRoundID:  game.GameRoundID.Hex(),
-		Config:       game.Config,
-		Players:      playerResponses,
-		CurrentRound: game.CurrentRound,
-		MaxRounds:    game.MaxRounds,
-		Status:       string(game.Status),
-		Rounds:       rounds,
+		Code:          game.Code,
+		GameRoundCode: gameRoundIdAndCode.Code,
+		Config:        game.Config,
+		Players:       playerResponses,
+		CurrentRound:  game.CurrentRound,
+		MaxRounds:     game.MaxRounds,
+		Status:        string(game.Status),
+		Rounds:        rounds,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -95,13 +95,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue';
-import { NGrid, NGi, NSpin, NSteps, NStep } from 'naive-ui';
+import { ref, computed, onMounted, watch } from 'vue';
+import { NGrid, NGi, NSpin, NSteps, NStep, useDialog, useMessage } from 'naive-ui';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useGameStore } from '@/store/game';
 import { useLeagueStore } from '@/store/league';
 import { useWizardStore } from '@/store/wizard';
+import { useUserStore } from '@/store/user';
 import GameApi, { GameType, Role, getLocalizedName } from '@/api/GameApi';
 import LeagueApi, { SuggestedPlayer, SuggestedPlayersResponse } from '@/api/LeagueApi';
 import { BidRestriction, GameVariant } from '@/wizard/types';
@@ -123,6 +124,9 @@ const { locale, t } = useI18n();
 const gameStore = useGameStore();
 const leagueStore = useLeagueStore();
 const wizardStore = useWizardStore();
+const userStore = useUserStore();
+const dialog = useDialog();
+const message = useMessage();
 const { handleError, showSuccess } = useErrorHandler();
 
 // State
@@ -246,11 +250,49 @@ const goToStep2 = async () => {
     loadingSuggested.value = true;
     try {
       suggestedPlayers.value = await LeagueApi.getSuggestedPlayers(leagueCode.value);
+      
+      // Check if superadmin can create membership
+      if (suggestedPlayers.value?.can_create_membership && userStore.isSuperAdmin) {
+        showCreateMembershipDialog();
+      }
     } catch (error) {
       handleError(error, t('errors.loadingData'));
     } finally {
       loadingSuggested.value = false;
     }
+  }
+};
+
+const showCreateMembershipDialog = () => {
+  dialog.warning({
+    title: t('leagues.createMembershipTitle'),
+    content: t('leagues.createMembershipMessage'),
+    positiveText: t('common.create'),
+    negativeText: t('common.cancel'),
+    onPositiveClick: async () => {
+      await createMembership();
+    },
+  });
+};
+
+const createMembership = async () => {
+  if (!leagueCode.value) return;
+  
+  try {
+    await LeagueApi.createMembership(leagueCode.value);
+    message.success(t('leagues.membershipCreated'));
+    
+    // Reload suggested players to get current_player
+    loadingSuggested.value = true;
+    try {
+      suggestedPlayers.value = await LeagueApi.getSuggestedPlayers(leagueCode.value);
+    } catch (error) {
+      handleError(error, t('errors.loadingData'));
+    } finally {
+      loadingSuggested.value = false;
+    }
+  } catch (error) {
+    handleError(error, t('errors.savingData'));
   }
 };
 
