@@ -25,6 +25,20 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+// cacheAdapter adapts cache implementations to CleanableCache interface
+type cacheAdapter struct {
+	cleanExpired func() int
+	size         func() int
+}
+
+func (a *cacheAdapter) CleanExpired() int {
+	return a.cleanExpired()
+}
+
+func (a *cacheAdapter) Size() int {
+	return a.size()
+}
+
 func main() {
 	log.Info("Starting...")
 	auth.LogSuperAdmins()
@@ -98,14 +112,86 @@ func main() {
 		log.Warn("Failed to load built-in game types: %v", err)
 	}
 
-	// Create league middleware
-	leagueMiddleware := bglmiddleware.NewLeagueMiddleware(leagueService)
+	// Initialize caches
+	idCodeCache := services.NewIdAndCodeCache()
+	leagueCache := services.NewLeagueCache()
+	membershipCache := services.NewMembershipCache()
+	userCache := services.NewUserCache(idCodeCache)
 
-	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository, leagueService, leagueMiddleware)
+	// Initialize cache cleanup service
+	cacheCleanupService := services.NewCacheCleanupService()
+
+	// Register caches for cleanup using adapter functions
+	// Since CleanExpired and Size are not part of business interfaces,
+	// we create adapters that wrap the cache implementations
+	// We also register the original caches for stats
+	cacheCleanupService.RegisterCacheWithStats("IdAndCode", &cacheAdapter{
+		cleanExpired: func() int {
+			if c, ok := idCodeCache.(interface{ CleanExpired() int }); ok {
+				return c.CleanExpired()
+			}
+			return 0
+		},
+		size: func() int {
+			if c, ok := idCodeCache.(interface{ Size() int }); ok {
+				return c.Size()
+			}
+			return 0
+		},
+	}, idCodeCache)
+	cacheCleanupService.RegisterCacheWithStats("League", &cacheAdapter{
+		cleanExpired: func() int {
+			if c, ok := leagueCache.(interface{ CleanExpired() int }); ok {
+				return c.CleanExpired()
+			}
+			return 0
+		},
+		size: func() int {
+			if c, ok := leagueCache.(interface{ Size() int }); ok {
+				return c.Size()
+			}
+			return 0
+		},
+	}, leagueCache)
+	cacheCleanupService.RegisterCacheWithStats("Membership", &cacheAdapter{
+		cleanExpired: func() int {
+			if c, ok := membershipCache.(interface{ CleanExpired() int }); ok {
+				return c.CleanExpired()
+			}
+			return 0
+		},
+		size: func() int {
+			if c, ok := membershipCache.(interface{ Size() int }); ok {
+				return c.Size()
+			}
+			return 0
+		},
+	}, membershipCache)
+	cacheCleanupService.RegisterCacheWithStats("User", &cacheAdapter{
+		cleanExpired: func() int {
+			if c, ok := userCache.(interface{ CleanExpired() int }); ok {
+				return c.CleanExpired()
+			}
+			return 0
+		},
+		size: func() int {
+			if c, ok := userCache.(interface{ Size() int }); ok {
+				return c.Size()
+			}
+			return 0
+		},
+	}, userCache)
+
+	log.Info("Caches initialised and registered")
+
+	// Create league middleware
+	leagueMiddleware := bglmiddleware.NewLeagueMiddleware(leagueService, idCodeCache)
+
+	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository, leagueService, leagueMiddleware, idCodeCache)
 	wizardApiHandler := wizardapi.NewHandler(wizardGameRepository, gameRoundRepository, gameTypeRepository, leagueService, userService)
 	authHandler := auth.NewDefaultHandler(userRepository, sessionService, requestService)
 	userProfileHandler := userapi.NewHandlerWithServices(userRepository, sessionRepository, geoIPService)
-	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService, nil) // TODO: Pass cache cleanup service when caches are initialized
+	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService, cacheCleanupService)
 
 	log.Info("Handlers instances connector initialised")
 
@@ -179,6 +265,10 @@ func main() {
 			}
 		}
 	}()
+
+	// Start cache cleanup service
+	cacheCleanupService.Start(ctx, 15*time.Minute)
+	log.Info("Cache cleanup service started")
 
 	// Setup graceful shutdown
 	sigChan := make(chan os.Signal, 1)

@@ -7,19 +7,20 @@ import (
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
-	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
 )
 
 // LeagueMiddleware provides middleware functions for league access control
 type LeagueMiddleware struct {
 	leagueService services.LeagueService
+	idCodeCache   services.IdAndCodeCache
 }
 
 // NewLeagueMiddleware creates a new league middleware instance
-func NewLeagueMiddleware(leagueService services.LeagueService) *LeagueMiddleware {
+func NewLeagueMiddleware(leagueService services.LeagueService, idCodeCache services.IdAndCodeCache) *LeagueMiddleware {
 	return &LeagueMiddleware{
 		leagueService: leagueService,
+		idCodeCache:   idCodeCache,
 	}
 }
 
@@ -34,12 +35,13 @@ func (m *LeagueMiddleware) RequireLeagueMembership(next http.Handler) http.Handl
 			return
 		}
 
-		// Convert user code to ObjectID
-		userID, err := utils.CodeToID(profile.Code)
+		// Convert user code to ObjectID using cache
+		userIdAndCode, err := m.idCodeCache.GetByCode(profile.Code)
 		if err != nil {
 			http.Error(w, "Invalid user code", http.StatusBadRequest)
 			return
 		}
+		userID := userIdAndCode.ID
 
 		// Get league code from URL parameter
 		leagueCode := chi.URLParam(r, "code")
@@ -48,12 +50,13 @@ func (m *LeagueMiddleware) RequireLeagueMembership(next http.Handler) http.Handl
 			return
 		}
 
-		// Parse league code using CodeToID (base64 encoded, not hex)
-		leagueID, err := utils.CodeToID(leagueCode)
+		// Parse league code using cache
+		leagueIdAndCode, err := m.idCodeCache.GetByCode(leagueCode)
 		if err != nil {
 			http.Error(w, "Invalid league code", http.StatusBadRequest)
 			return
 		}
+		leagueID := leagueIdAndCode.ID
 
 		// Load league object
 		league, err := m.leagueService.GetLeague(r.Context(), leagueID)
@@ -122,12 +125,13 @@ func (m *LeagueMiddleware) RequireLeagueMembershipByToken(next http.Handler) htt
 			return
 		}
 
-		// Convert user code to ObjectID
-		userID, err := utils.CodeToID(profile.Code)
+		// Convert user code to ObjectID using cache
+		userIdAndCode, err := m.idCodeCache.GetByCode(profile.Code)
 		if err != nil {
 			http.Error(w, "Invalid user code", http.StatusBadRequest)
 			return
 		}
+		userID := userIdAndCode.ID
 
 		// Get token from URL parameter
 		token := chi.URLParam(r, "token")

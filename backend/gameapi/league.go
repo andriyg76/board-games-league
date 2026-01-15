@@ -2,6 +2,7 @@ package gameapi
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // POST /api/leagues - Create league (superadmin only)
@@ -47,7 +49,7 @@ func (h *Handler) createLeague(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, leagueToResponse(league), http.StatusCreated)
+	utils.WriteJSON(w, h.leagueToResponse(league), http.StatusCreated)
 }
 
 // GET /api/leagues - List all leagues
@@ -60,7 +62,7 @@ func (h *Handler) listLeagues(w http.ResponseWriter, r *http.Request) {
 
 	response := make([]leagueResponse, 0, len(leagues))
 	for _, league := range leagues {
-		response = append(response, leagueToResponse(league))
+		response = append(response, h.leagueToResponse(league))
 	}
 
 	utils.WriteJSON(w, response, http.StatusOK)
@@ -68,7 +70,7 @@ func (h *Handler) listLeagues(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/leagues/:code - Get league details
 func (h *Handler) getLeague(w http.ResponseWriter, r *http.Request) {
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -80,12 +82,12 @@ func (h *Handler) getLeague(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, leagueToResponse(league), http.StatusOK)
+	utils.WriteJSON(w, h.leagueToResponse(league), http.StatusOK)
 }
 
 // GET /api/leagues/:code/members - Get league members
 func (h *Handler) getLeagueMembers(w http.ResponseWriter, r *http.Request) {
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -99,9 +101,11 @@ func (h *Handler) getLeagueMembers(w http.ResponseWriter, r *http.Request) {
 
 	response := make([]memberResponse, 0, len(members))
 	for _, member := range members {
+		membershipIdAndCode := h.idCodeCache.GetByID(member.MembershipID)
+		userIdAndCode := h.idCodeCache.GetByID(member.UserID)
 		response = append(response, memberResponse{
-			Code:       utils.IdToCode(member.MembershipID),
-			UserID:     utils.IdToCode(member.UserID),
+			Code:       membershipIdAndCode.Code,
+			UserID:     userIdAndCode.Code,
 			UserName:   member.UserName,
 			UserAvatar: member.UserAvatar,
 			Alias:      member.UserAlias,
@@ -115,7 +119,7 @@ func (h *Handler) getLeagueMembers(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/leagues/:code/standings - Get league standings
 func (h *Handler) getLeagueStandings(w http.ResponseWriter, r *http.Request) {
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -129,8 +133,9 @@ func (h *Handler) getLeagueStandings(w http.ResponseWriter, r *http.Request) {
 
 	response := make([]standingResponse, 0, len(standings))
 	for _, standing := range standings {
+		userIdAndCode := h.idCodeCache.GetByID(standing.UserID)
 		response = append(response, standingResponse{
-			UserID:              utils.IdToCode(standing.UserID),
+			UserID:              userIdAndCode.Code,
 			UserName:            standing.UserName,
 			UserAvatar:          standing.UserAvatar,
 			TotalPoints:         standing.TotalPoints,
@@ -155,7 +160,7 @@ type CreateInvitationRequest struct {
 
 // POST /api/leagues/:code/invitations - Create invitation
 func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -180,11 +185,12 @@ func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := utils.CodeToID(profile.Code)
+	userIdAndCode, err := h.idCodeCache.GetByCode(profile.Code)
 	if err != nil {
 		http.Error(w, "Invalid user code", http.StatusBadRequest)
 		return
 	}
+	userID := userIdAndCode.ID
 
 	// Check if user is a member of the league or superadmin
 	user, err := h.userService.FindByCode(r.Context(), profile.Code)
@@ -213,12 +219,12 @@ func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, invitationToResponse(invitation), http.StatusCreated)
+	utils.WriteJSON(w, h.invitationToResponse(invitation), http.StatusCreated)
 }
 
 // GET /api/leagues/:code/invitations - List my active invitations
 func (h *Handler) listMyInvitations(w http.ResponseWriter, r *http.Request) {
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -231,11 +237,12 @@ func (h *Handler) listMyInvitations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := utils.CodeToID(profile.Code)
+	userIdAndCode, err := h.idCodeCache.GetByCode(profile.Code)
 	if err != nil {
 		http.Error(w, "Invalid user code", http.StatusBadRequest)
 		return
 	}
+	userID := userIdAndCode.ID
 
 	// Get my invitations
 	invitations, err := h.leagueService.ListMyInvitations(r.Context(), leagueID, userID)
@@ -246,7 +253,7 @@ func (h *Handler) listMyInvitations(w http.ResponseWriter, r *http.Request) {
 
 	response := make([]invitationResponse, 0, len(invitations))
 	for _, inv := range invitations {
-		response = append(response, invitationToResponse(inv))
+		response = append(response, h.invitationToResponse(inv))
 	}
 
 	utils.WriteJSON(w, response, http.StatusOK)
@@ -267,11 +274,12 @@ func (h *Handler) cancelInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := utils.CodeToID(profile.Code)
+	userIdAndCode, err := h.idCodeCache.GetByCode(profile.Code)
 	if err != nil {
 		http.Error(w, "Invalid user code", http.StatusBadRequest)
 		return
 	}
+	userID := userIdAndCode.ID
 
 	// Cancel the invitation
 	if err := h.leagueService.CancelInvitation(r.Context(), token, userID); err != nil {
@@ -284,7 +292,7 @@ func (h *Handler) cancelInvitation(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/leagues/:code/invitations/expired - List my expired invitations
 func (h *Handler) listMyExpiredInvitations(w http.ResponseWriter, r *http.Request) {
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -297,11 +305,12 @@ func (h *Handler) listMyExpiredInvitations(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userID, err := utils.CodeToID(profile.Code)
+	userIdAndCode, err := h.idCodeCache.GetByCode(profile.Code)
 	if err != nil {
 		http.Error(w, "Invalid user code", http.StatusBadRequest)
 		return
 	}
+	userID := userIdAndCode.ID
 
 	invitations, err := h.leagueService.ListMyExpiredInvitations(r.Context(), leagueID, userID)
 	if err != nil {
@@ -311,7 +320,7 @@ func (h *Handler) listMyExpiredInvitations(w http.ResponseWriter, r *http.Reques
 
 	response := make([]invitationResponse, 0, len(invitations))
 	for _, inv := range invitations {
-		response = append(response, invitationToResponse(inv))
+		response = append(response, h.invitationToResponse(inv))
 	}
 
 	utils.WriteJSON(w, response, http.StatusOK)
@@ -332,11 +341,12 @@ func (h *Handler) extendInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := utils.CodeToID(profile.Code)
+	userIdAndCode, err := h.idCodeCache.GetByCode(profile.Code)
 	if err != nil {
 		http.Error(w, "Invalid user code", http.StatusBadRequest)
 		return
 	}
+	userID := userIdAndCode.ID
 
 	invitation, err := h.leagueService.ExtendInvitation(r.Context(), token, userID)
 	if err != nil {
@@ -344,7 +354,7 @@ func (h *Handler) extendInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, invitationToResponse(invitation), http.StatusOK)
+	utils.WriteJSON(w, h.invitationToResponse(invitation), http.StatusOK)
 }
 
 // UpdatePendingMemberAliasRequest represents the request body for updating a pending member's alias
@@ -360,11 +370,12 @@ func (h *Handler) updatePendingMemberAlias(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	membershipID, err := utils.CodeToID(memberCode)
+	membershipIdAndCode, err := h.idCodeCache.GetByCode(memberCode)
 	if err != nil {
 		http.Error(w, "Invalid member code", http.StatusBadRequest)
 		return
 	}
+	membershipID := membershipIdAndCode.ID
 
 	// Parse request body
 	var req UpdatePendingMemberAliasRequest
@@ -385,11 +396,12 @@ func (h *Handler) updatePendingMemberAlias(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userID, err := utils.CodeToID(profile.Code)
+	userIdAndCode, err := h.idCodeCache.GetByCode(profile.Code)
 	if err != nil {
 		http.Error(w, "Invalid user code", http.StatusBadRequest)
 		return
 	}
+	userID := userIdAndCode.ID
 
 	if err := h.leagueService.UpdatePendingMemberAlias(r.Context(), membershipID, userID, req.Alias); err != nil {
 		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to update alias")
@@ -448,11 +460,12 @@ func (h *Handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := utils.CodeToID(profile.Code)
+	userIdAndCode, err := h.idCodeCache.GetByCode(profile.Code)
 	if err != nil {
 		http.Error(w, "Invalid user code", http.StatusBadRequest)
 		return
 	}
+	userID := userIdAndCode.ID
 
 	// Accept invitation
 	league, err := h.leagueService.AcceptInvitation(r.Context(), token, userID)
@@ -472,7 +485,7 @@ func (h *Handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, leagueToResponse(league), http.StatusOK)
+	utils.WriteJSON(w, h.leagueToResponse(league), http.StatusOK)
 }
 
 // POST /api/leagues/:code/ban/:userCode - Ban user from league (superadmin only)
@@ -496,13 +509,13 @@ func (h *Handler) banUserFromLeague(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get league and user IDs
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
 	}
 
-	userID, err := utils.GetIDFromChiURL(r, "userCode")
+	userID, err := h.getIDFromChiURL(r, "userCode")
 	if err != nil {
 		http.Error(w, "Invalid user code", http.StatusBadRequest)
 		return
@@ -538,7 +551,7 @@ func (h *Handler) archiveLeague(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get league ID
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -574,7 +587,7 @@ func (h *Handler) unarchiveLeague(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get league ID
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -639,9 +652,23 @@ type invitationResponse struct {
 
 // Helper functions
 
-func leagueToResponse(league *models.League) leagueResponse {
+// getIDFromChiURL extracts a MongoDB ObjectID from a Chi URL parameter using cache
+func (h *Handler) getIDFromChiURL(r *http.Request, codeParam string) (primitive.ObjectID, error) {
+	code := chi.URLParam(r, codeParam)
+	if code == "" {
+		return primitive.NilObjectID, errors.New("code parameter is required")
+	}
+	idAndCode, err := h.idCodeCache.GetByCode(code)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+	return idAndCode.ID, nil
+}
+
+func (h *Handler) leagueToResponse(league *models.League) leagueResponse {
+	leagueIdAndCode := h.idCodeCache.GetByID(league.ID)
 	return leagueResponse{
-		Code:      utils.IdToCode(league.ID),
+		Code:      leagueIdAndCode.Code,
 		Name:      league.Name,
 		Status:    string(league.Status),
 		CreatedAt: league.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
@@ -649,23 +676,25 @@ func leagueToResponse(league *models.League) leagueResponse {
 	}
 }
 
-func invitationToResponse(inv *models.LeagueInvitation) invitationResponse {
+func (h *Handler) invitationToResponse(inv *models.LeagueInvitation) invitationResponse {
+	leagueIdAndCode := h.idCodeCache.GetByID(inv.LeagueID)
 	resp := invitationResponse{
 		Token:       inv.Token,
-		LeagueID:    utils.IdToCode(inv.LeagueID),
+		LeagueID:    leagueIdAndCode.Code,
 		PlayerAlias: inv.PlayerAlias,
 		ExpiresAt:   inv.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
 		CreatedAt:   inv.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 	if !inv.MembershipID.IsZero() {
-		resp.MembershipID = utils.IdToCode(inv.MembershipID)
+		membershipIdAndCode := h.idCodeCache.GetByID(inv.MembershipID)
+		resp.MembershipID = membershipIdAndCode.Code
 	}
 	return resp
 }
 
 // GET /api/leagues/:code/game_rounds - List game rounds for league
 func (h *Handler) listLeagueGameRounds(w http.ResponseWriter, r *http.Request) {
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -707,7 +736,7 @@ type createLeagueGameRoundRequest struct {
 
 // POST /api/leagues/:code/game_rounds - Create game round in league
 func (h *Handler) createLeagueGameRound(w http.ResponseWriter, r *http.Request) {
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -776,7 +805,7 @@ func (h *Handler) createLeagueGameRound(w http.ResponseWriter, r *http.Request) 
 
 // GET /api/leagues/:code/suggested-players - Get suggested players for game creation
 func (h *Handler) getSuggestedPlayers(w http.ResponseWriter, r *http.Request) {
-	leagueID, err := utils.GetIDFromChiURL(r, "code")
+	leagueID, err := h.getIDFromChiURL(r, "code")
 	if err != nil {
 		http.Error(w, "Invalid league code", http.StatusBadRequest)
 		return
@@ -789,11 +818,12 @@ func (h *Handler) getSuggestedPlayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := utils.CodeToID(profile.Code)
+	userIdAndCode, err := h.idCodeCache.GetByCode(profile.Code)
 	if err != nil {
 		http.Error(w, "Invalid user code", http.StatusBadRequest)
 		return
 	}
+	userID := userIdAndCode.ID
 
 	// Check if user is a member of the league or superadmin
 	user, err := h.userService.FindByCode(r.Context(), profile.Code)

@@ -12,6 +12,8 @@ import (
 type CacheCleanupService interface {
 	// RegisterCache registers a cache for periodic cleanup
 	RegisterCache(name string, c cache.CleanableCache)
+	// RegisterCacheWithStats registers a cache with separate stats provider
+	RegisterCacheWithStats(name string, cleanable cache.CleanableCache, statsProvider interface{})
 	// UnregisterCache removes a cache from cleanup
 	UnregisterCache(name string)
 	// CleanAll cleans all registered caches
@@ -25,17 +27,19 @@ type CacheCleanupService interface {
 }
 
 type cacheCleanupService struct {
-	caches map[string]cache.CleanableCache
-	mu     sync.RWMutex
-	stopCh chan struct{}
-	wg     sync.WaitGroup
+	caches          map[string]cache.CleanableCache
+	statsProviders  map[string]interface{} // Can be cacheStatsProvider or cacheStatsProviderMultiple
+	mu              sync.RWMutex
+	stopCh          chan struct{}
+	wg              sync.WaitGroup
 }
 
 // NewCacheCleanupService creates a new cache cleanup service
 func NewCacheCleanupService() CacheCleanupService {
 	return &cacheCleanupService{
-		caches: make(map[string]cache.CleanableCache),
-		stopCh: make(chan struct{}),
+		caches:         make(map[string]cache.CleanableCache),
+		statsProviders: make(map[string]interface{}),
+		stopCh:         make(chan struct{}),
 	}
 }
 
@@ -44,7 +48,28 @@ func (s *cacheCleanupService) RegisterCache(name string, c cache.CleanableCache)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.caches[name] = c
+	// Try to register stats provider if available
+	if statsProvider, ok := c.(interface {
+		GetStats() cache.CacheStats
+	}); ok {
+		s.statsProviders[name] = statsProvider
+	} else if statsProvider, ok := c.(interface {
+		GetStats() []cache.CacheStats
+	}); ok {
+		s.statsProviders[name] = statsProvider
+	}
 	glog.Info("Registered cache for cleanup: %s (current size: %d)", name, c.Size())
+}
+
+// RegisterCacheWithStats registers a cache with separate stats provider
+func (s *cacheCleanupService) RegisterCacheWithStats(name string, cleanable cache.CleanableCache, statsProvider interface{}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.caches[name] = cleanable
+	if statsProvider != nil {
+		s.statsProviders[name] = statsProvider
+	}
+	glog.Info("Registered cache for cleanup: %s (current size: %d)", name, cleanable.Size())
 }
 
 // UnregisterCache removes a cache from cleanup
@@ -79,19 +104,19 @@ func (s *cacheCleanupService) GetAllStats() []cache.CacheStats {
 
 	var allStats []cache.CacheStats
 
-	for name, c := range s.caches {
+	for name, statsProvider := range s.statsProviders {
 		// Check if cache implements GetStats() returning single CacheStats
-		if statsProvider, ok := c.(interface {
+		if provider, ok := statsProvider.(interface {
 			GetStats() cache.CacheStats
 		}); ok {
-			stats := statsProvider.GetStats()
+			stats := provider.GetStats()
 			stats.Name = name
 			allStats = append(allStats, stats)
-		} else if statsProvider, ok := c.(interface {
+		} else if provider, ok := statsProvider.(interface {
 			GetStats() []cache.CacheStats
 		}); ok {
 			// For caches that return multiple stats (like IdAndCode, User)
-			statsList := statsProvider.GetStats()
+			statsList := provider.GetStats()
 			// Stats already have names set, just append
 			allStats = append(allStats, statsList...)
 		}

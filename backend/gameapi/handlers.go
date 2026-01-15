@@ -13,6 +13,7 @@ type Handler struct {
 	userService         services.UserService
 	leagueService       services.LeagueService
 	leagueMiddleware    *middleware.LeagueMiddleware
+	idCodeCache         services.IdAndCodeCache
 }
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
@@ -54,31 +55,32 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 				r.Use(h.leagueMiddleware.RequireLeagueMembership)
 			}
 
-			r.Get("/", h.getLeague)                                  // Get league details
-			r.Get("/members", h.getLeagueMembers)                    // Get league members
-			r.Get("/standings", h.getLeagueStandings)                // Get league standings
-			r.Get("/suggested-players", h.getSuggestedPlayers)       // Get suggested players for game
-			r.Get("/game_rounds", h.listLeagueGameRounds)            // List game rounds for league
-			r.Post("/game_rounds", h.createLeagueGameRound)          // Create game round in league
-			r.Post("/invitations", h.createInvitation)               // Create invitation
-			r.Get("/invitations", h.listMyInvitations)               // List my active invitations
-			r.Get("/invitations/expired", h.listMyExpiredInvitations) // List my expired invitations
-			r.Post("/invitations/{token}/cancel", h.cancelInvitation) // Cancel invitation by token
-			r.Post("/invitations/{token}/extend", h.extendInvitation) // Extend invitation by 7 days
+			r.Get("/", h.getLeague)                                          // Get league details
+			r.Get("/members", h.getLeagueMembers)                            // Get league members
+			r.Get("/standings", h.getLeagueStandings)                        // Get league standings
+			r.Get("/suggested-players", h.getSuggestedPlayers)               // Get suggested players for game
+			r.Get("/game_rounds", h.listLeagueGameRounds)                    // List game rounds for league
+			r.Post("/game_rounds", h.createLeagueGameRound)                  // Create game round in league
+			r.Post("/invitations", h.createInvitation)                       // Create invitation
+			r.Get("/invitations", h.listMyInvitations)                       // List my active invitations
+			r.Get("/invitations/expired", h.listMyExpiredInvitations)        // List my expired invitations
+			r.Post("/invitations/{token}/cancel", h.cancelInvitation)        // Cancel invitation by token
+			r.Post("/invitations/{token}/extend", h.extendInvitation)        // Extend invitation by 7 days
 			r.Put("/members/{memberCode}/alias", h.updatePendingMemberAlias) // Edit pending member alias
-			r.Post("/ban/{userCode}", h.banUserFromLeague)           // Ban user (superadmin)
-			r.Post("/archive", h.archiveLeague)                      // Archive league (superadmin)
-			r.Post("/unarchive", h.unarchiveLeague)                  // Unarchive league (superadmin)
+			r.Post("/ban/{userCode}", h.banUserFromLeague)                   // Ban user (superadmin)
+			r.Post("/archive", h.archiveLeague)                              // Archive league (superadmin)
+			r.Post("/unarchive", h.unarchiveLeague)                          // Unarchive league (superadmin)
 		})
 	})
 }
 
-func NewHandler(r services.UserService, r2 repositories.GameRoundRepository, r3 repositories.GameTypeRepository, leagueService services.LeagueService, leagueMiddleware *middleware.LeagueMiddleware) *Handler {
+func NewHandler(r services.UserService, r2 repositories.GameRoundRepository, r3 repositories.GameTypeRepository, leagueService services.LeagueService, leagueMiddleware *middleware.LeagueMiddleware, idCodeCache services.IdAndCodeCache) *Handler {
 	return &Handler{
 		gameRoundRepository: r2,
 		gameTypeRepository:  r3,
 		userService:         r,
 		leagueService:       leagueService,
 		leagueMiddleware:    leagueMiddleware,
+		idCodeCache:         idCodeCache,
 	}
 }
