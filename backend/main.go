@@ -105,7 +105,7 @@ func main() {
 	wizardApiHandler := wizardapi.NewHandler(wizardGameRepository, gameRoundRepository, gameTypeRepository, leagueService, userService)
 	authHandler := auth.NewDefaultHandler(userRepository, sessionService, requestService)
 	userProfileHandler := userapi.NewHandlerWithServices(userRepository, sessionRepository, geoIPService)
-	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService)
+	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService, nil) // TODO: Pass cache cleanup service when caches are initialized
 
 	log.Info("Handlers instances connector initialised")
 

@@ -161,6 +161,19 @@
           style="max-height: 400px;"
         />
       </n-card>
+
+      <!-- Cache Statistics -->
+      <n-card v-if="diagnostics.cache_stats && diagnostics.cache_stats.length > 0" style="margin-bottom: 16px;">
+        <template #header>
+          <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.cacheStats') }}</div>
+        </template>
+        <n-data-table
+          :columns="cacheStatsColumns"
+          :data="diagnostics.cache_stats"
+          :pagination="false"
+          size="small"
+        />
+      </n-card>
     </n-card>
     <n-skeleton v-else height="200px" />
   </div>
@@ -170,7 +183,7 @@
 import { ref, computed, onMounted, h } from 'vue';
 import { NGrid, NGi, NCard, NDataTable, NInput, NIcon, NTag, NSkeleton, DataTableColumns } from 'naive-ui';
 import { Search as SearchIcon, EyeOff as EyeOffIcon } from '@vicons/ionicons5';
-import DiagnosticsApi, { DiagnosticsResponse, getFrontendBuildInfo, BuildInfo, EnvVarInfo } from "@/api/DiagnosticsApi";
+import DiagnosticsApi, { DiagnosticsResponse, getFrontendBuildInfo, BuildInfo, EnvVarInfo, CacheStatsInfo } from "@/api/DiagnosticsApi";
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -261,6 +274,36 @@ const envColumns: DataTableColumns<EnvVarInfo> = [
     render: (rowData: EnvVarInfo) => {
       return rowData.masked ? h(NIcon, { color: '#f0a020', size: 16 }, { default: () => h(EyeOffIcon) }) : null;
     }
+  },
+];
+
+// Cache statistics table columns
+const cacheStatsColumns: DataTableColumns<CacheStatsInfo> = [
+  {
+    title: t('diagnostics.cacheName'),
+    key: 'name',
+  },
+  {
+    title: t('diagnostics.cacheSize'),
+    key: 'size',
+    render(row: CacheStatsInfo) {
+      return `${row.current_size} / ${row.max_size}`;
+    },
+  },
+  {
+    title: t('diagnostics.cacheUsage'),
+    key: 'usage',
+    render(row: CacheStatsInfo) {
+      return `${row.usage_percent.toFixed(1)}%`;
+    },
+  },
+  {
+    title: t('diagnostics.cacheExpired'),
+    key: 'expired_count',
+  },
+  {
+    title: t('diagnostics.cacheTTL'),
+    key: 'ttl',
   },
 ];
 

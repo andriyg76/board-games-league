@@ -125,7 +125,14 @@ const messages = {
             filterEnvVars: 'Filter environment variables...',
             envName: 'Name',
             envValue: 'Value',
-            envMasked: 'Masked'
+            envMasked: 'Masked',
+            // Cache statistics
+            cacheStats: 'Cache Statistics',
+            cacheName: 'Cache Name',
+            cacheSize: 'Size',
+            cacheUsage: 'Usage',
+            cacheExpired: 'Expired',
+            cacheTTL: 'TTL'
         },
         createUser: {
             title: 'Create User',
@@ -459,7 +466,14 @@ const messages = {
             filterEnvVars: 'Фільтрувати змінні середовища...',
             envName: 'Назва',
             envValue: 'Значення',
-            envMasked: 'Приховано'
+            envMasked: 'Приховано',
+            // Cache statistics
+            cacheStats: 'Статистика кешів',
+            cacheName: 'Назва кешу',
+            cacheSize: 'Розмір',
+            cacheUsage: 'Використання',
+            cacheExpired: 'Застарілі',
+            cacheTTL: 'Час життя'
         },
         createUser: {
             title: 'Створити користувача',
@@ -793,7 +807,14 @@ const messages = {
             filterEnvVars: 'Filtreeri keskkonnamuutujaid...',
             envName: 'Nimi',
             envValue: 'Väärtus',
-            envMasked: 'Maskeeritud'
+            envMasked: 'Maskeeritud',
+            // Cache statistics
+            cacheStats: 'Vahemälu statistika',
+            cacheName: 'Vahemälu nimi',
+            cacheSize: 'Suurus',
+            cacheUsage: 'Kasutus',
+            cacheExpired: 'Aegunud',
+            cacheTTL: 'Eluiga'
         },
         createUser: {
             title: 'Loo kasutaja',

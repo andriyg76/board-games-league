@@ -37,14 +37,16 @@ var sensitiveEnvPatterns = []string{
 }
 
 type DiagnosticsHandler struct {
-	requestService services.RequestService
-	geoIPService   services.GeoIPService
+	requestService     services.RequestService
+	geoIPService       services.GeoIPService
+	cacheCleanupService services.CacheCleanupService
 }
 
-func NewDiagnosticsHandler(requestService services.RequestService, geoIPService services.GeoIPService) *DiagnosticsHandler {
+func NewDiagnosticsHandler(requestService services.RequestService, geoIPService services.GeoIPService, cacheCleanupService services.CacheCleanupService) *DiagnosticsHandler {
 	return &DiagnosticsHandler{
-		requestService: requestService,
-		geoIPService:   geoIPService,
+		requestService:     requestService,
+		geoIPService:       geoIPService,
+		cacheCleanupService: cacheCleanupService,
 	}
 }
 
@@ -74,6 +76,16 @@ type EnvVarInfo struct {
 	Masked  bool   `json:"masked"`
 }
 
+type CacheStatsInfo struct {
+	Name         string  `json:"name"`
+	CurrentSize  int     `json:"current_size"`
+	MaxSize      int     `json:"max_size"`
+	ExpiredCount int     `json:"expired_count"`
+	TTL          string  `json:"ttl"`
+	TTLSeconds   int64   `json:"ttl_seconds"`
+	UsagePercent float64 `json:"usage_percent"` // (current_size / max_size) * 100
+}
+
 type DiagnosticsResponse struct {
 	ServerInfo struct {
 		HostURL        string   `json:"host_url"`
@@ -94,8 +106,9 @@ type DiagnosticsResponse struct {
 		GeoInfo        *models.GeoIPInfo `json:"geo_info,omitempty"`
 		ResolutionInfo map[string]string `json:"resolution_info"`
 	} `json:"request_info"`
-	RuntimeInfo     RuntimeInfo  `json:"runtime_info"`
-	EnvironmentVars []EnvVarInfo `json:"environment_vars"`
+	RuntimeInfo     RuntimeInfo      `json:"runtime_info"`
+	EnvironmentVars []EnvVarInfo     `json:"environment_vars"`
+	CacheStats      []CacheStatsInfo `json:"cache_stats,omitempty"`
 }
 
 func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *http.Request) {
@@ -165,6 +178,29 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 
 	// Populate environment variables (with sensitive values masked)
 	response.EnvironmentVars = getEnvironmentVars()
+
+	// Get cache statistics
+	if h.cacheCleanupService != nil {
+		cacheStats := h.cacheCleanupService.GetAllStats()
+		response.CacheStats = make([]CacheStatsInfo, 0, len(cacheStats))
+
+		for _, stats := range cacheStats {
+			usagePercent := 0.0
+			if stats.MaxSize > 0 {
+				usagePercent = float64(stats.CurrentSize) / float64(stats.MaxSize) * 100
+			}
+
+			response.CacheStats = append(response.CacheStats, CacheStatsInfo{
+				Name:         stats.Name,
+				CurrentSize:  stats.CurrentSize,
+				MaxSize:      stats.MaxSize,
+				ExpiredCount: stats.ExpiredCount,
+				TTL:          stats.TTL,
+				TTLSeconds:   stats.TTLSeconds,
+				UsagePercent: usagePercent,
+			})
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {

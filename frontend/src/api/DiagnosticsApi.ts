@@ -46,6 +46,16 @@ export interface EnvVarInfo {
     masked: boolean;
 }
 
+export interface CacheStatsInfo {
+    name: string;
+    current_size: number;
+    max_size: number;
+    expired_count: number;
+    ttl: string;
+    ttl_seconds: number;
+    usage_percent: number;
+}
+
 export interface DiagnosticsResponse {
     server_info: {
         host_url: string;
@@ -63,6 +73,7 @@ export interface DiagnosticsResponse {
     };
     runtime_info: RuntimeInfo;
     environment_vars: EnvVarInfo[];
+    cache_stats?: CacheStatsInfo[];
 }
 
 export async function getFrontendBuildInfo(): Promise<BuildInfo> {

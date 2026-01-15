@@ -109,6 +109,7 @@ type Handler struct {
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
   r.Route("/leagues", func(r chi.Router) {
+    r.Post("/join/{token}", h.acceptInvitation)         // власний middleware
     r.Post("/", h.createLeague)      // без middleware
     r.Get("/", h.listLeagues)         // без middleware
     r.Get("/join/{token}/preview", h.previewInvitation) // публічний
