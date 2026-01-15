@@ -34,7 +34,7 @@
         <n-list style="max-height: 400px; overflow-y: auto;">
           <n-list-item
             v-for="player in filteredAvailablePlayers"
-            :key="player.membership_id"
+            :key="getMembershipCode(player)"
             clickable
             :style="{ opacity: player.is_virtual ? 0.8 : 1 }"
             @click="addPlayer(player)"
@@ -107,7 +107,7 @@
         <n-list style="max-height: 400px; overflow-y: auto;">
           <n-list-item
             v-for="(player, index) in selectedPlayers"
-            :key="player.membership_id"
+            :key="getMembershipCode(player)"
             clickable
             :style="getPlayerItemStyle(player)"
             @click="toggleModerator(player)"
@@ -125,7 +125,7 @@
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span style="font-weight: 500;">{{ player.alias }}</span>
                 <n-tag 
-                  v-if="player.membership_id === currentPlayerMembershipId" 
+                  v-if="getMembershipCode(player) === currentPlayerMembershipCode" 
                   size="small" 
                   type="primary"
                 >
@@ -135,7 +135,7 @@
                   {{ $t('game.virtual') }}
                 </n-tag>
                 <n-icon 
-                  v-if="hasModerator && player.membership_id === selectedModeratorId" 
+                  v-if="hasModerator && getMembershipCode(player) === selectedModeratorId" 
                   size="16" 
                   color="#f0a020"
                 >
@@ -214,28 +214,48 @@ const showCreateDialog = ref(false);
 const selectedPlayers = ref<SuggestedPlayer[]>([]);
 const selectedModeratorId = ref<string | null>(null);
 
-// Current player's membership ID for highlighting
-const currentPlayerMembershipId = computed(() => 
-  props.suggestedPlayers?.current_player?.membership_id || null
+// Current player's membership code for highlighting
+const currentPlayerMembershipCode = computed(() => 
+  props.suggestedPlayers?.current_player?.membership_code || null
 );
 
-// Combine all available players (recent + other, excluding already selected)
+// Helper to get membership code (support both membership_code and legacy membership_id)
+const getMembershipCode = (player: SuggestedPlayer): string => {
+  return player.membership_code || player.membership_id || '';
+};
+
+// Combine all available players (current + recent + other, excluding already selected)
 const allAvailablePlayers = computed(() => {
   if (!props.suggestedPlayers) return [];
   
-  const selectedIds = new Set(selectedPlayers.value.map(p => p.membership_id));
+  // Filter out undefined/null membership codes to avoid issues
+  const selectedCodes = new Set(
+    selectedPlayers.value
+      .map(p => getMembershipCode(p))
+      .filter((code): code is string => code !== undefined && code !== null && code !== '')
+  );
   const players: SuggestedPlayer[] = [];
   
-  // Add recent players first
+  // Add current player first (if not already selected)
+  if (props.suggestedPlayers.current_player) {
+    const currentCode = getMembershipCode(props.suggestedPlayers.current_player);
+    if (currentCode && !selectedCodes.has(currentCode)) {
+      players.push(props.suggestedPlayers.current_player);
+    }
+  }
+  
+  // Add recent players
   for (const player of props.suggestedPlayers.recent_players) {
-    if (!selectedIds.has(player.membership_id)) {
+    const code = getMembershipCode(player);
+    if (code && !selectedCodes.has(code)) {
       players.push(player);
     }
   }
   
   // Then add other players
   for (const player of props.suggestedPlayers.other_players) {
-    if (!selectedIds.has(player.membership_id)) {
+    const code = getMembershipCode(player);
+    if (code && !selectedCodes.has(code)) {
       players.push(player);
     }
   }
@@ -267,7 +287,7 @@ const getPlayerItemStyle = (player: SuggestedPlayer) => {
     opacity: player.is_virtual ? 0.8 : 1,
   };
   
-  if (props.hasModerator && player.membership_id === selectedModeratorId.value) {
+  if (props.hasModerator && getMembershipCode(player) === selectedModeratorId.value) {
     style.backgroundColor = 'rgba(240, 160, 32, 0.1)';
     style.borderLeft = '3px solid #f0a020';
   }
@@ -278,7 +298,8 @@ const getPlayerItemStyle = (player: SuggestedPlayer) => {
 // Add player to selection
 const addPlayer = (player: SuggestedPlayer) => {
   if (selectedPlayers.value.length >= props.maxPlayers) return;
-  if (selectedPlayers.value.find(p => p.membership_id === player.membership_id)) return;
+  const playerCode = getMembershipCode(player);
+  if (selectedPlayers.value.find(p => getMembershipCode(p) === playerCode)) return;
   
   selectedPlayers.value.push(player);
   emit('update:selectedPlayers', selectedPlayers.value);
@@ -290,7 +311,7 @@ const removePlayer = (index: number) => {
   selectedPlayers.value.splice(index, 1);
   
   // Clear moderator if removed
-  if (removed.membership_id === selectedModeratorId.value) {
+  if (getMembershipCode(removed) === selectedModeratorId.value) {
     selectedModeratorId.value = null;
     emit('update:moderatorId', null);
   }
@@ -302,10 +323,11 @@ const removePlayer = (index: number) => {
 const toggleModerator = (player: SuggestedPlayer) => {
   if (!props.hasModerator) return;
   
-  if (selectedModeratorId.value === player.membership_id) {
+  const playerCode = getMembershipCode(player);
+  if (selectedModeratorId.value === playerCode) {
     selectedModeratorId.value = null;
   } else {
-    selectedModeratorId.value = player.membership_id;
+    selectedModeratorId.value = playerCode;
   }
   emit('update:moderatorId', selectedModeratorId.value);
 };
@@ -328,7 +350,8 @@ watch(() => props.suggestedPlayers, (newValue) => {
   // Then fill with recent players
   for (const player of newValue.recent_players) {
     if (selectedPlayers.value.length >= props.maxPlayers) break;
-    if (!selectedPlayers.value.find(p => p.membership_id === player.membership_id)) {
+    const playerCode = getMembershipCode(player);
+    if (!selectedPlayers.value.find(p => getMembershipCode(p) === playerCode)) {
       selectedPlayers.value.push(player);
     }
   }
@@ -336,7 +359,8 @@ watch(() => props.suggestedPlayers, (newValue) => {
   // Then fill with other players
   for (const player of newValue.other_players) {
     if (selectedPlayers.value.length >= props.maxPlayers) break;
-    if (!selectedPlayers.value.find(p => p.membership_id === player.membership_id)) {
+    const playerCode = getMembershipCode(player);
+    if (!selectedPlayers.value.find(p => getMembershipCode(p) === playerCode)) {
       selectedPlayers.value.push(player);
     }
   }

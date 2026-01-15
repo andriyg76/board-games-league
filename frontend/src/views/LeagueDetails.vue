@@ -86,6 +86,20 @@
                         <n-tag :type="getMemberStatusTagType(member.status)" size="small">
                           {{ getMemberStatusText(member.status) }}
                         </n-tag>
+                        <!-- Invitation link for virtual/pending members -->
+                        <n-button
+                          v-if="(member.status === 'virtual' || member.status === 'pending') && member.invitation_token"
+                          type="primary"
+                          quaternary
+                          size="small"
+                          :loading="extendingToken === member.invitation_token"
+                          @click="handleInvitationAction(member)"
+                        >
+                          <template #icon>
+                            <n-icon><LinkIcon /></n-icon>
+                          </template>
+                          {{ t('leagues.openInvitation') }}
+                        </n-button>
                         <n-button
                           v-if="canManageLeague && member.status === 'active'"
                           quaternary
@@ -119,12 +133,20 @@
                   <n-icon style="margin-right: 4px; vertical-align: middle;"><PersonAddIcon /></n-icon>
                   {{ t('leagues.invitation') }}
                 </template>
-                <league-invitation :league-code="currentLeague.code" />
+                <league-invitation-component :league-code="currentLeague.code" />
               </n-tab>
             </n-tabs>
           </n-card>
         </n-gi>
       </n-grid>
+
+      <!-- Invitation Details Dialog -->
+      <invitation-details-dialog
+        :model-value="showInvitationDialog"
+        :invitation="selectedInvitation"
+        @update:model-value="showInvitationDialog = $event"
+        @cancel="handleCancelInvitation"
+      />
     </template>
   </div>
 </template>
@@ -142,15 +164,17 @@ import {
   ArchiveOutline as ArchiveArrowUpIcon,
   Time as PersonClockIcon,
   Ban as BlockIcon,
-  CheckmarkCircle as CheckmarkCircleIcon
+  CheckmarkCircle as CheckmarkCircleIcon,
+  Link as LinkIcon
 } from '@vicons/ionicons5';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
 import { useUserStore } from '@/store/user';
 import LeagueStandings from '@/components/league/LeagueStandings.vue';
-import LeagueInvitation from '@/components/league/LeagueInvitation.vue';
-import type { LeagueMember } from '@/api/LeagueApi';
+import LeagueInvitationComponent from '@/components/league/LeagueInvitation.vue';
+import InvitationDetailsDialog from '@/components/league/InvitationDetailsDialog.vue';
+import type { LeagueMember, LeagueInvitation } from '@/api/LeagueApi';
 
 const { t, locale } = useI18n();
 const route = useRoute();
@@ -158,6 +182,9 @@ const leagueStore = useLeagueStore();
 const userStore = useUserStore();
 
 const activeTab = ref('standings');
+const extendingToken = ref<string | null>(null);
+const showInvitationDialog = ref(false);
+const selectedInvitation = ref<LeagueInvitation | null>(null);
 
 const canManageLeague = computed(() => userStore.isSuperAdmin);
 
@@ -267,6 +294,84 @@ const unbanMember = async (member: LeagueMember) => {
     await leagueStore.unbanUser(currentLeague.value.code, member.user_id);
   } catch (error) {
     console.error('Error unbanning member:', error);
+  }
+};
+
+const handleCancelInvitation = async (token: string) => {
+  try {
+    await leagueStore.cancelInvitation(token);
+    // Reload members to update invitation_token
+    await leagueStore.loadCurrentLeagueMembers();
+    showInvitationDialog.value = false;
+    selectedInvitation.value = null;
+  } catch (error) {
+    console.error('Error cancelling invitation:', error);
+    alert(error instanceof Error ? error.message : t('leagues.error'));
+  }
+};
+
+const handleInvitationAction = async (member: LeagueMember) => {
+  if (!member.invitation_token || !currentLeague.value) return;
+
+  try {
+    // Try to preview invitation to check if it's expired
+    const preview = await leagueStore.previewInvitation(member.invitation_token);
+    
+    if (preview.status === 'expired') {
+      // Offer to extend the invitation
+      const confirmed = confirm(
+        `${t('leagues.invitationExpired')} ${member.alias || member.user_name}. ${t('leagues.extendInvitationQuestion')}`
+      );
+      if (confirmed) {
+        extendingToken.value = member.invitation_token;
+        try {
+          const extended = await leagueStore.extendInvitation(member.invitation_token);
+          selectedInvitation.value = extended;
+          showInvitationDialog.value = true;
+        } catch (error) {
+          console.error('Error extending invitation:', error);
+          alert(error instanceof Error ? error.message : t('leagues.error'));
+        } finally {
+          extendingToken.value = null;
+        }
+      }
+    } else {
+      // Open invitation details - find invitation from my invitations list
+      const myInvitations = await leagueStore.listMyInvitations();
+      const invitation = myInvitations.find(inv => inv.token === member.invitation_token);
+      if (invitation) {
+        selectedInvitation.value = invitation;
+        showInvitationDialog.value = true;
+      } else {
+        // If not found in active, check expired
+        const expiredInvitations = await leagueStore.listMyExpiredInvitations();
+        const expiredInv = expiredInvitations.find(inv => inv.token === member.invitation_token);
+        if (expiredInv) {
+          selectedInvitation.value = expiredInv;
+          showInvitationDialog.value = true;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error handling invitation:', error);
+    // If preview fails, try to find invitation from lists
+    try {
+      const [myInvitations, expiredInvitations] = await Promise.all([
+        leagueStore.listMyInvitations(),
+        leagueStore.listMyExpiredInvitations()
+      ]);
+      const invitation = myInvitations.find(inv => inv.token === member.invitation_token) ||
+                        expiredInvitations.find(inv => inv.token === member.invitation_token);
+      if (invitation) {
+        selectedInvitation.value = invitation;
+        showInvitationDialog.value = true;
+      } else {
+        alert(error instanceof Error ? error.message : t('leagues.error'));
+      }
+    } catch (err) {
+      console.error('Error getting invitation:', err);
+      alert(error instanceof Error ? error.message : t('leagues.error'));
+    }
   }
 };
 

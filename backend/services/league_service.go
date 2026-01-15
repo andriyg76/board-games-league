@@ -58,13 +58,14 @@ type LeagueService interface {
 
 // LeagueMemberInfo represents a member with user and membership info
 type LeagueMemberInfo struct {
-	MembershipID primitive.ObjectID
-	UserID       primitive.ObjectID
-	UserName     string
-	UserAlias    string
-	UserAvatar   string
-	Status       models.LeagueMembershipStatus
-	JoinedAt     time.Time
+	MembershipID    primitive.ObjectID
+	UserID          primitive.ObjectID
+	UserName        string
+	UserAlias       string
+	UserAvatar      string
+	Status          models.LeagueMembershipStatus
+	JoinedAt        time.Time
+	InvitationToken string // Token of the invitation if exists (for virtual/pending members)
 }
 
 // SuggestedPlayer represents a player suggestion for game creation
@@ -275,6 +276,14 @@ func (s *leagueServiceInstance) GetLeagueMemberships(ctx context.Context, league
 			member.UserName = member.UserAlias
 		}
 
+		// Get invitation token if membership has an invitation
+		if !membership.InvitationID.IsZero() {
+			invitation, err := s.invitationRepo.FindByID(ctx, membership.InvitationID)
+			if err == nil && invitation != nil {
+				member.InvitationToken = invitation.Token
+			}
+		}
+
 		members = append(members, member)
 	}
 
@@ -376,6 +385,19 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 	if existingMembership != nil {
 		// Alias exists - check if it's a virtual member that can be reused
 		if existingMembership.Status == models.MembershipVirtual {
+			// Check if there's an active invitation for this membership
+			if !existingMembership.InvitationID.IsZero() {
+				existingInvitation, err := s.invitationRepo.FindByID(ctx, existingMembership.InvitationID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to check existing invitation: %w", err)
+				}
+				// If invitation exists and is still active (not used and not expired), don't allow creating a new one
+				if existingInvitation != nil && !existingInvitation.IsUsed && time.Now().Before(existingInvitation.ExpiresAt) {
+					return nil, errors.New("an active invitation already exists for this player")
+				}
+				// If invitation is expired or used, clear the InvitationID
+				existingMembership.InvitationID = primitive.NilObjectID
+			}
 			// Reuse virtual membership - convert back to pending
 			existingMembership.Status = models.MembershipPending
 			existingMembership.LastActivityAt = now
@@ -638,9 +660,12 @@ func (s *leagueServiceInstance) CancelInvitation(ctx context.Context, token stri
 					return fmt.Errorf("failed to update membership to virtual: %w", err)
 				}
 			} else {
-				// No games - delete the membership
-				if err := s.membershipRepo.Delete(ctx, membership.ID); err != nil {
-					return fmt.Errorf("failed to delete membership: %w", err)
+				// No games - keep as pending so player remains available for selection
+				// Don't delete membership - player should still be available even with inactive invitation
+				// Just clear the invitation ID link
+				membership.InvitationID = primitive.NilObjectID
+				if err := s.membershipRepo.Update(ctx, membership); err != nil {
+					return fmt.Errorf("failed to clear invitation link: %w", err)
 				}
 			}
 		}
@@ -680,6 +705,27 @@ func (s *leagueServiceInstance) ExtendInvitation(ctx context.Context, token stri
 	// Extend by 7 days
 	if err := s.invitationRepo.Extend(ctx, invitation.ID, 7*24*time.Hour); err != nil {
 		return nil, fmt.Errorf("failed to extend invitation: %w", err)
+	}
+
+	// Update membership if it exists - ensure it's linked to the invitation and is pending
+	if !invitation.MembershipID.IsZero() {
+		membership, err := s.membershipRepo.FindByID(ctx, invitation.MembershipID)
+		if err == nil && membership != nil {
+			// Ensure membership is linked to invitation
+			if membership.InvitationID != invitation.ID {
+				membership.InvitationID = invitation.ID
+			}
+			// If membership is virtual, convert back to pending
+			if membership.Status == models.MembershipVirtual {
+				membership.Status = models.MembershipPending
+				membership.LastActivityAt = time.Now()
+			}
+			// Update membership
+			if err := s.membershipRepo.Update(ctx, membership); err != nil {
+				// Log error but don't fail the extend operation
+				fmt.Printf("Warning: failed to update membership after extending invitation: %v\n", err)
+			}
+		}
 	}
 
 	// Return updated invitation

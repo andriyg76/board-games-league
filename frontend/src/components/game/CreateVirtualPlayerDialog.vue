@@ -125,7 +125,7 @@ const create = async () => {
     
     // Create the suggested player object
     const player: SuggestedPlayer = {
-      membership_id: invitation.membership_id || '',
+      membership_code: invitation.membership_code || invitation.membership_id || '',
       alias: invitation.player_alias,
       is_virtual: true,
     };

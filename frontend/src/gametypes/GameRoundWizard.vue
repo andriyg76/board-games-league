@@ -148,7 +148,7 @@ const selectedModeratorId = ref<string | null>(null);
 
 // Round players for steps 3-4
 interface RoundPlayer {
-  membership_id: string;
+  membership_code: string;
   alias: string;
   is_moderator: boolean;
   role_key?: string;
@@ -220,7 +220,7 @@ const canProceedFromStep2 = computed(() => {
 // Players formatted for different steps
 const wizardPlayers = computed(() => {
   return roundPlayers.value.map(p => ({
-    membership_id: p.membership_id,
+    membership_code: p.membership_code,
     alias: p.alias,
     isCurrentUser: p.isCurrentUser,
   }));
@@ -230,7 +230,7 @@ const rolePlayers = computed(() => roundPlayers.value);
 
 const scoringPlayers = computed(() => {
   return roundPlayers.value.map(p => ({
-    membership_id: p.membership_id,
+    membership_code: p.membership_code,
     alias: p.alias,
     is_moderator: p.is_moderator,
   }));
@@ -304,15 +304,23 @@ const onModeratorSelected = (moderatorId: string | null) => {
   selectedModeratorId.value = moderatorId;
 };
 
+// Helper to get membership code (support both membership_code and legacy membership_id)
+const getMembershipCode = (player: SuggestedPlayer): string => {
+  return player.membership_code || player.membership_id || '';
+};
+
 const goToStep3 = async () => {
   // Build round players
-  roundPlayers.value = selectedPlayersList.value.map(player => ({
-    membership_id: player.membership_id,
-    alias: player.alias,
-    is_moderator: hasModerator.value && player.membership_id === selectedModeratorId.value,
-    role_key: undefined,
-    isCurrentUser: suggestedPlayers.value?.current_player?.membership_id === player.membership_id,
-  }));
+  roundPlayers.value = selectedPlayersList.value.map(player => {
+    const code = getMembershipCode(player);
+    return {
+      membership_code: code,
+      alias: player.alias,
+      is_moderator: hasModerator.value && code === selectedModeratorId.value,
+      role_key: undefined,
+      isCurrentUser: getMembershipCode(suggestedPlayers.value?.current_player || {}) === code,
+    };
+  });
 
   // For wizard games, just go to step 3
   if (isWizardGame.value) {
@@ -325,9 +333,9 @@ const goToStep3 = async () => {
     saving.value = true;
     try {
       const players = selectedPlayersList.value.map((player, index) => ({
-        membership_id: player.membership_id,
+        membership_code: getMembershipCode(player),
         position: index + 1,
-        is_moderator: hasModerator.value && player.membership_id === selectedModeratorId.value,
+        is_moderator: hasModerator.value && getMembershipCode(player) === selectedModeratorId.value,
       }));
 
       const savedRound = await GameApi.createLeagueGameRound(leagueCode.value, {
@@ -380,7 +388,7 @@ const saveRoles = async () => {
   saving.value = true;
   try {
     const players = roundPlayers.value.map(p => ({
-      membership_id: p.membership_id,
+      membership_code: p.membership_code,
       role_key: p.role_key,
       is_moderator: p.is_moderator,
     }));
@@ -399,11 +407,11 @@ const goToStep4 = async () => {
 
   // Initialize scores and positions
   roundPlayers.value.forEach((player, index) => {
-    if (playerScores.value[player.membership_id] === undefined) {
-      playerScores.value[player.membership_id] = 0;
+    if (playerScores.value[player.membership_code] === undefined) {
+      playerScores.value[player.membership_code] = 0;
     }
-    if (playerPositions.value[player.membership_id] === undefined) {
-      playerPositions.value[player.membership_id] = index + 1;
+    if (playerPositions.value[player.membership_code] === undefined) {
+      playerPositions.value[player.membership_code] = index + 1;
     }
   });
 
@@ -459,7 +467,7 @@ const startWizardGame = async () => {
       bid_restriction: bidRestriction.value,
       game_variant: GameVariant.STANDARD,
       first_dealer_index: firstDealerIndex.value,
-      player_membership_ids: roundPlayers.value.map(p => p.membership_id),
+      player_membership_ids: roundPlayers.value.map(p => p.membership_code),
     };
 
     await wizardStore.createGame(wizardRequest);
@@ -500,7 +508,7 @@ const loadExistingRound = async () => {
 
     // Build round players from loaded data
     roundPlayers.value = loadedRound.players.map(p => ({
-      membership_id: p.membership_id || '',
+      membership_code: p.membership_id || '', // API returns membership_id but we use membership_code internally
       alias: p.membership_id || '', // Will be resolved later
       is_moderator: p.is_moderator,
       role_key: p.label_name,
@@ -516,8 +524,9 @@ const loadExistingRound = async () => {
     } else if (status === 'scoring') {
       // Initialize scores
       loadedRound.players.forEach((p, index) => {
-        playerScores.value[p.membership_id || ''] = p.score || 0;
-        playerPositions.value[p.membership_id || ''] = p.position || index + 1;
+        const code = p.membership_id || '';
+        playerScores.value[code] = p.score || 0;
+        playerPositions.value[code] = p.position || index + 1;
       });
       step.value = 4;
     }

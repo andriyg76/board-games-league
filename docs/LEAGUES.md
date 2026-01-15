@@ -556,13 +556,26 @@ Authorization: Bearer <jwt_token>
 ```json
 [
   {
+    "code": "ABC123",
     "user_id": "507f1f77bcf86cd799439012",
     "user_name": "John Doe",
     "user_avatar": "https://example.com/avatar.jpg",
+    "alias": "John",
     "status": "active",
     "joined_at": "2026-01-01T00:00:00Z"
   },
   {
+    "code": "DEF456",
+    "user_id": "",
+    "user_name": "VirtualPlayer",
+    "user_avatar": "",
+    "alias": "VirtualPlayer",
+    "status": "virtual",
+    "joined_at": "2026-01-01T00:00:00Z",
+    "invitation_token": "abc123def456"
+  },
+  {
+    "code": "GHI789",
     "user_id": "507f1f77bcf86cd799439013",
     "user_name": "Jane Smith",
     "user_avatar": "https://example.com/avatar2.jpg",
@@ -577,6 +590,11 @@ Authorization: Bearer <jwt_token>
 - `pending` - Створено через запрошення, очікує прийняття користувачем
 - `virtual` - Гравець брав участь в іграх, але ніколи не входив в систему
 - `banned` - Користувач заблокований в лізі
+
+**Поле `invitation_token`:**
+- Присутнє тільки для віртуальних (status = 'virtual') або pending (status = 'pending') членів
+- Містить токен активного інвайту, якщо він існує
+- Використовується в UI для відображення посилання на інвайт та можливості продовжити закінчений інвайт
 
 **Примітка:** Заблоковані користувачі відображаються в кінці списку. Серед не-заблокованих користувачів сортування відбувається за датою приєднання (новіші спочатку).
 
@@ -725,12 +743,21 @@ Authorization: Bearer <jwt_token>
 ```
 
 Якщо `alias` надано:
-- Створює віртуального гравця (pending membership) з вказаним alias
-- Перевіряє унікальність alias серед активних членів та активних запрошень
-- Створює `LeagueMembership` зі статусом `pending`
+- Перевіряє, чи існує membership з таким alias
+  - Якщо існує віртуальний membership (status = 'virtual') з закінченим/скасованим інвайтом:
+    - Перетворює його на pending
+    - Очищає старий `InvitationID` якщо інвайт закінчився
+    - Створює новий інвайт
+  - Якщо існує активний інвайт для цього membership:
+    - Повертає помилку "an active invitation already exists for this player"
+  - Якщо alias зайнятий активним або pending членом:
+    - Повертає помилку "alias already exists in this league"
+  - Якщо membership не існує:
+    - Створює новий віртуальний гравець (pending membership) з вказаним alias
+- Створює `LeagueMembership` зі статусом `pending` (або оновлює існуючий virtual)
 - Створює `LeagueInvitation` з токеном
 - Оновлює кеш `recent_co_players` поточного користувача (додає нового гравця в кінець)
-- Встановлює `last_activity_at` для нового pending membership
+- Встановлює `last_activity_at` для нового/оновленого pending membership
 
 **Відповідь:**
 ```json
@@ -954,6 +981,9 @@ Authorization: Bearer <jwt_token>
 - При створенні через запрошення з alias, віртуальні гравці одразу додаються в кеш `recent_co_players` створювача в **кінець** списку
 - Якщо кеш повний (10 елементів), найстаріший запис видаляється
 - Віртуальні гравці можуть брати участь в іграх до прийняття запрошення
+- Якщо інвайт закінчився або був скасований, можна створити новий інвайт для того ж віртуального гравця (за тим же alias)
+- В UI для віртуальних користувачів (status = 'virtual' або 'pending') відображається кнопка "Відкрити запрошення", якщо є активний інвайт
+- Якщо інвайт закінчився, система пропонує продовжити його на 7 днів
 
 ### Endpoint запрошень
 - Endpoint `POST /api/leagues/{code}/invitations` використовує **існуючу** функціональність, розширену оновленням кешу

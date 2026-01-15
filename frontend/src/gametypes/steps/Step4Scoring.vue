@@ -12,7 +12,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="player in players" :key="player.membership_id">
+        <tr v-for="player in players" :key="player.membership_code || player.membership_id">
           <td>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span>{{ player.alias }}</span>
@@ -23,8 +23,8 @@
           </td>
           <td>
             <n-input-number
-              :value="scores[player.membership_id] || 0"
-              @update:value="$emit('updateScore', player.membership_id, Number($event || 0))"
+              :value="scores[player.membership_code || player.membership_id] || 0"
+              @update:value="$emit('updateScore', player.membership_code || player.membership_id, Number($event || 0))"
               :min="0"
               size="small"
               style="max-width: 100px"
@@ -32,8 +32,8 @@
           </td>
           <td>
             <n-select
-              :value="positions[player.membership_id] || 1"
-              @update:value="$emit('updatePosition', player.membership_id, $event)"
+              :value="positions[player.membership_code || player.membership_id] || 1"
+              @update:value="$emit('updatePosition', player.membership_code || player.membership_id, $event)"
               :options="positionOptions.map(p => ({ label: String(p), value: p }))"
               size="small"
               style="max-width: 80px"
@@ -84,7 +84,8 @@ import { NCard, NTable, NTag, NInputNumber, NSelect, NButton, NIcon } from 'naiv
 import { ChevronBack as ChevronBackIcon, Save as SaveIcon, Checkmark as CheckIcon } from '@vicons/ionicons5';
 
 export interface ScoringPlayer {
-  membership_id: string;
+  membership_code: string;
+  membership_id?: string; // Legacy support
   alias: string;
   is_moderator: boolean;
 }

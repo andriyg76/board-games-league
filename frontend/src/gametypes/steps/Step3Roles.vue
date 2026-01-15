@@ -21,7 +21,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(player, index) in players" :key="player.membership_id">
+          <tr v-for="(player, index) in players" :key="player.membership_code || player.membership_id">
             <td>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span>{{ player.alias }}</span>
@@ -94,7 +94,8 @@ import { ChevronBack as ChevronBackIcon, ChevronForward as ChevronForwardIcon, S
 import type { Role } from '@/api/GameApi';
 
 export interface RolePlayer {
-  membership_id: string;
+  membership_code: string;
+  membership_id?: string; // Legacy support
   alias: string;
   is_moderator: boolean;
   role_key?: string;

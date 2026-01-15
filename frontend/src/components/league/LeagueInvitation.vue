@@ -243,8 +243,18 @@ const openInvitationDetails = (invitation: LeagueInvitation) => {
 const handleCancelInvitation = async (token: string) => {
   try {
     await leagueStore.cancelInvitation(token);
-    // Remove from list
-    invitations.value = invitations.value.filter(inv => inv.token !== token);
+    // Find the invitation to move it to expired
+    const cancelledInvitation = invitations.value.find(inv => inv.token === token);
+    if (cancelledInvitation) {
+      // Remove from active list
+      invitations.value = invitations.value.filter(inv => inv.token !== token);
+      // Add to expired list (mark as expired by updating expires_at to now)
+      const expiredInvitation = {
+        ...cancelledInvitation,
+        expires_at: new Date().toISOString()
+      };
+      expiredInvitations.value.push(expiredInvitation);
+    }
     showDialog.value = false;
     selectedInvitation.value = null;
   } catch (err) {

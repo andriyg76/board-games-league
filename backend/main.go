@@ -217,17 +217,7 @@ func main() {
 			r.Put("/admin/user/create", userProfileHandler.AdminCreateUserHandler)
 			r.Get("/admin/diagnostics", diagnosticsHandler.GetDiagnosticsHandler)
 
-			gameApiHandler.RegisterRoutes(r)
-
-			// Register wizard routes under /leagues/{code}/wizard/games
-			r.Route("/leagues", func(r chi.Router) {
-				r.Route("/{code}", func(r chi.Router) {
-					r.Use(leagueMiddleware.RequireLeagueMembership)
-					r.Route("/wizard/games", func(r chi.Router) {
-						wizardApiHandler.RegisterWizardLeagueRoutes(r)
-					})
-				})
-			})
+			gameApiHandler.RegisterRoutes(r, wizardApiHandler)
 		})
 		r.Handle("/*", http.NotFoundHandler())
 	})

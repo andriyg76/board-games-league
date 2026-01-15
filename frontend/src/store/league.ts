@@ -204,6 +204,18 @@ export const useLeagueStore = defineStore('league', {
         },
 
         /**
+         * Preview an invitation (public, no auth required)
+         */
+        async previewInvitation(token: string) {
+            try {
+                return await LeagueApi.previewInvitation(token);
+            } catch (error) {
+                console.error('Error previewing invitation:', error);
+                throw error;
+            }
+        },
+
+        /**
          * Update pending member alias
          */
         async updatePendingMemberAlias(memberCode: string, alias: string): Promise<void> {

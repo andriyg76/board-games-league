@@ -565,6 +565,8 @@ Authorization: Bearer <jwt_token>
 - `virtual` - Player participated in games but never logged in
 - `banned` - User banned from the league
 
+**Note:** Banned users are displayed at the end of the list. Among non-banned users, sorting is by join date (newest first).
+
 **Status Codes:**
 - `200 OK` - Success
 - `401 Unauthorized` - Missing or invalid authentication
@@ -574,35 +576,24 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-#### 8. Ban/Unban Member
+#### 8. Ban Member
 
-**Endpoint:** `PUT /api/leagues/{code}/members/{userId}/status`
+**Endpoint:** `POST /api/leagues/{code}/ban/{userCode}`
 
-**Description:** Changes member status (ban/unban). **Requires superadmin privileges.**
+**Description:** Bans a league member. **Requires superadmin privileges.** Superadmin cannot ban themselves.
 
 **URL Parameters:**
 - `code` - League code
-- `userId` - User ID (hex string)
+- `userCode` - User code
 
-**Request Body:**
-```json
-{
-  "status": "banned"
-}
-```
-
-**Valid status values:** `active`, `banned`
+**Request Body:** Not required
 
 **Response:**
-```json
-{
-  "success": true
-}
-```
+- `200 OK` - User successfully banned
 
 **Status Codes:**
 - `200 OK` - Success
-- `400 Bad Request` - Invalid status value
+- `400 Bad Request` - Cannot ban yourself or user is already banned
 - `401 Unauthorized` - Missing or invalid authentication
 - `403 Forbidden` - User is not a superadmin
 - `404 Not Found` - League or member not found
@@ -610,7 +601,34 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-#### 9. Get Suggested Players
+#### 9. Unban Member
+
+**Endpoint:** `POST /api/leagues/{code}/unban/{userCode}`
+
+**Description:** Unbans a league member. **Requires superadmin privileges.**
+
+**URL Parameters:**
+- `code` - League code
+- `userCode` - User code
+
+**Request Body:** Not required
+
+**Response:**
+- `200 OK` - User successfully unbanned
+
+**Status Codes:**
+- `200 OK` - Success
+- `400 Bad Request` - User is not banned
+- `401 Unauthorized` - Missing or invalid authentication
+- `403 Forbidden` - User is not a superadmin
+- `404 Not Found` - League or member not found
+- `500 Internal Server Error` - Server error
+
+**Note:** Banned users are displayed at the end of the league members list.
+
+---
+
+#### 10. Get Suggested Players
 
 **Endpoint:** `GET /api/leagues/{code}/suggested-players`
 
@@ -677,7 +695,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-#### 10. Create Invitation
+#### 11. Create Invitation
 
 **Endpoint:** `POST /api/leagues/{code}/invitations`
 
@@ -731,7 +749,7 @@ If `alias` is provided:
 
 ---
 
-#### 11. Preview Invitation (Public)
+#### 12. Preview Invitation (Public)
 
 **Endpoint:** `GET /api/leagues/join/{token}/preview`
 
@@ -807,7 +825,7 @@ If `alias` is provided:
 
 ---
 
-#### 13. Leave League
+#### 14. Leave League
 
 **Endpoint:** `DELETE /api/leagues/{code}/members/me`
 
@@ -904,6 +922,9 @@ When a game round is finalized, league standings are automatically updated.
 - When created via invitation with alias, virtual players are immediately added to the creator's `recent_co_players` cache at the **end** of the list
 - If cache is full (10 items), the oldest entry is removed
 - Virtual players can participate in games before accepting the invitation
+- If an invitation expires or is cancelled, a new invitation can be created for the same virtual player (with the same alias)
+- In the UI, virtual users (status = 'virtual' or 'pending') display an "Open Invitation" button if there is an active invitation
+- If the invitation has expired, the system offers to extend it for 7 days
 
 ### Invitation Endpoint
 - The `POST /api/leagues/{code}/invitations` endpoint uses **existing** functionality, extended with cache updates
@@ -1022,13 +1043,15 @@ try {
 
 **Affected Components:**
 - `LeagueList.vue` - createLeague action
-- `LeagueDetails.vue` - archiveLeague, unarchiveLeague, banMember actions
+- `LeagueDetails.vue` - archiveLeague, unarchiveLeague, banMember, unbanMember actions
 - All components with API calls
 
 #### 1.2 Loading States for Actions
 
 **Current Issue:**
 Archive/unarchive and ban/unban actions have no loading indicators.
+
+**Note:** Banned users are displayed at the end of the members list with an unban button.
 
 **Recommendation:**
 Add loading states to action buttons.

@@ -103,7 +103,7 @@ func (h *Handler) getLeagueMembers(w http.ResponseWriter, r *http.Request) {
 	for _, member := range members {
 		membershipIdAndCode := h.idCodeCache.GetByID(member.MembershipID)
 		userIdAndCode := h.idCodeCache.GetByID(member.UserID)
-		response = append(response, memberResponse{
+		resp := memberResponse{
 			Code:       membershipIdAndCode.Code,
 			UserID:     userIdAndCode.Code,
 			UserName:   member.UserName,
@@ -111,7 +111,11 @@ func (h *Handler) getLeagueMembers(w http.ResponseWriter, r *http.Request) {
 			Alias:      member.UserAlias,
 			Status:     string(member.Status),
 			JoinedAt:   member.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
-		})
+		}
+		if member.InvitationToken != "" {
+			resp.InvitationToken = member.InvitationToken
+		}
+		response = append(response, resp)
 	}
 
 	utils.WriteJSON(w, response, http.StatusOK)
@@ -665,13 +669,14 @@ type leagueResponse struct {
 }
 
 type memberResponse struct {
-	Code       string `json:"code"`
-	UserID     string `json:"user_id"`
-	UserName   string `json:"user_name"`
-	UserAvatar string `json:"user_avatar"`
-	Alias      string `json:"alias"`
-	Status     string `json:"status"`
-	JoinedAt   string `json:"joined_at"`
+	Code            string `json:"code"`
+	UserID          string `json:"user_id"`
+	UserName        string `json:"user_name"`
+	UserAvatar      string `json:"user_avatar"`
+	Alias           string `json:"alias"`
+	Status          string `json:"status"`
+	JoinedAt        string `json:"joined_at"`
+	InvitationToken string `json:"invitation_token,omitempty"` // Token of the invitation if exists
 }
 
 type standingResponse struct {

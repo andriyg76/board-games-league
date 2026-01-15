@@ -208,7 +208,7 @@ export interface CreateLeagueGameRoundRequest {
     name?: string;
     type: string;
     players: {
-        membership_id: string;
+        membership_code: string;
         position: number;
         is_moderator?: boolean;
         team_name?: string;
@@ -216,7 +216,7 @@ export interface CreateLeagueGameRoundRequest {
 }
 
 export interface PlayerRoleUpdate {
-    membership_id: string;
+    membership_code: string;
     role_key?: string;
     team_name?: string;
     is_moderator?: boolean;

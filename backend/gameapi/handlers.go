@@ -7,6 +7,10 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type WizardHandler interface {
+	RegisterWizardLeagueRoutes(r chi.Router)
+}
+
 type Handler struct {
 	gameRoundRepository repositories.GameRoundRepository
 	gameTypeRepository  repositories.GameTypeRepository
@@ -16,7 +20,7 @@ type Handler struct {
 	idCodeCache         services.IdAndCodeCache
 }
 
-func (h *Handler) RegisterRoutes(r chi.Router) {
+func (h *Handler) RegisterRoutes(r chi.Router, wizardHandler WizardHandler) {
 	r.Route("/game_types", func(r chi.Router) {
 		r.Get("/", h.listGameTypes)
 		r.Post("/", h.createGameType)
@@ -72,6 +76,13 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 			r.Post("/unban/{userCode}", h.unbanUserFromLeague)               // Unban user (superadmin)
 			r.Post("/archive", h.archiveLeague)                              // Archive league (superadmin)
 			r.Post("/unarchive", h.unarchiveLeague)                          // Unarchive league (superadmin)
+
+			// Wizard routes
+			if wizardHandler != nil {
+				r.Route("/wizard/games", func(r chi.Router) {
+					wizardHandler.RegisterWizardLeagueRoutes(r)
+				})
+			}
 		})
 	})
 }

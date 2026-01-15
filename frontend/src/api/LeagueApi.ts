@@ -21,15 +21,19 @@ export interface LeagueMember {
     alias: string;
     status: LeagueMembershipStatus;
     joined_at: string;
+    invitation_token?: string; // Token of the invitation if exists (for virtual/pending members)
 }
 
 export interface LeagueInvitation {
     token: string;
-    league_id: string;
+    league_code: string;
     player_alias: string;
-    membership_id?: string;
+    membership_code?: string;
     expires_at: string;
     created_at: string;
+    // Legacy fields for backward compatibility
+    league_id?: string;
+    membership_id?: string;
 }
 
 export interface LeagueStanding {
@@ -79,11 +83,13 @@ export interface AcceptInvitationError {
 
 // Suggested players for game creation
 export interface SuggestedPlayer {
-    membership_id: string;
+    membership_code: string;
     alias: string;
     avatar?: string;
     last_played_at?: string;
     is_virtual: boolean;
+    // Legacy field for backward compatibility
+    membership_id?: string;
 }
 
 export interface SuggestedPlayersResponse {
