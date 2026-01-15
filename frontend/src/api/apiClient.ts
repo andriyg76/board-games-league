@@ -56,28 +56,15 @@ async function refreshAuthToken(): Promise<boolean> {
  * Wrapper around fetch that automatically:
  * - Includes credentials
  * - Handles 401 by refreshing token and retrying
- * - Adds X-League-Code header if a league is selected
  */
 export async function apiFetch(
     url: string,
     options: RequestInit = {}
 ): Promise<Response> {
-    // Get the current league code from localStorage
-    const currentLeagueCode = localStorage.getItem('currentLeagueCode');
-
-    // Build headers object, preserving any existing headers
-    const headers = new Headers(options.headers);
-
-    // Add league code header if available
-    if (currentLeagueCode) {
-        headers.set('X-League-Code', currentLeagueCode);
-    }
-
     // Always include credentials for auth cookies
     const fetchOptions: RequestInit = {
         ...options,
         credentials: 'include',
-        headers,
     };
 
     let response = await fetch(url, fetchOptions);
