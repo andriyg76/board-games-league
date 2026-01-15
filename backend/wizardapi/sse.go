@@ -59,7 +59,10 @@ func (h *Handler) subscribeToEvents(w http.ResponseWriter, r *http.Request) {
 			"subscribers": h.eventHub.GetSubscriberCount(code),
 		},
 	}
-	sendSSEEvent(w, flusher, initialEvent)
+	if !sendSSEEvent(w, flusher, initialEvent) {
+		log.Info("SSE: Client %s failed to connect to game %s", clientID, code)
+		return
+	}
 
 	// Start heartbeat ticker
 	heartbeat := time.NewTicker(30 * time.Second)
@@ -75,29 +78,45 @@ func (h *Handler) subscribeToEvents(w http.ResponseWriter, r *http.Request) {
 			log.Info("SSE: Client %s unsubscribed from game %s", clientID, code)
 			return
 		case event := <-client.Channel:
-			sendSSEEvent(w, flusher, event)
+			if !sendSSEEvent(w, flusher, event) {
+				log.Info("SSE: Client %s disconnected from game %s (write failed)", clientID, code)
+				return
+			}
 		case <-heartbeat.C:
-			// Send heartbeat to keep connection alive
+			// Send heartbeat to keep connection alive and detect dead connections
 			heartbeatEvent := &services.GameEvent{
 				Type:      "heartbeat",
 				GameCode:  code,
 				Timestamp: time.Now(),
 			}
-			sendSSEEvent(w, flusher, heartbeatEvent)
+			if !sendSSEEvent(w, flusher, heartbeatEvent) {
+				log.Info("SSE: Client %s disconnected from game %s (heartbeat failed)", clientID, code)
+				return
+			}
 		}
 	}
 }
 
 // sendSSEEvent sends an event in SSE format
-func sendSSEEvent(w http.ResponseWriter, flusher http.Flusher, event *services.GameEvent) {
+// Returns false if writing failed (client disconnected)
+func sendSSEEvent(w http.ResponseWriter, flusher http.Flusher, event *services.GameEvent) bool {
 	data, err := services.FormatSSEEvent(event)
 	if err != nil {
 		log.Warn("SSE: Failed to format event: %v", err)
-		return
+		return false
 	}
 
 	// Write SSE format: event: <type>\ndata: <json>\n\n
-	fmt.Fprintf(w, "event: %s\n", event.Type)
-	fmt.Fprintf(w, "data: %s\n\n", data)
+	_, err = fmt.Fprintf(w, "event: %s\n", event.Type)
+	if err != nil {
+		log.Info("SSE: Write failed (client disconnected): %v", err)
+		return false
+	}
+	_, err = fmt.Fprintf(w, "data: %s\n\n", data)
+	if err != nil {
+		log.Info("SSE: Write failed (client disconnected): %v", err)
+		return false
+	}
 	flusher.Flush()
+	return true
 }
