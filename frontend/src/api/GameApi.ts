@@ -98,18 +98,12 @@ export default {
         }
     },
 
-    // Game Rounds
-    listGameRounds: (): Promise<GameRound[]> =>
-        apiJson('/api/game_rounds'),
+    // Game Rounds - all methods require league context
+    updateGameRound: (leagueCode: string, round: GameRound): Promise<GameRound> =>
+        apiJsonPost(`/api/leagues/${leagueCode}/game_rounds/${round.code}`, round, 'PUT'),
 
-    createGameRound: (round: GameRound): Promise<GameRound> =>
-        apiJsonPost('/api/game_rounds', round),
-
-    updateGameRound: (round: GameRound): Promise<GameRound> =>
-        apiJsonPost(`/api/game_rounds/${round.code}`, round, 'PUT'),
-
-    async finalizeGameRound(code: string, finalizationData: FinalizeGameRoundRequest): Promise<void> {
-        const response = await apiFetch(`/api/game_rounds/${code}/finalize`, {
+    async finalizeGameRound(leagueCode: string, code: string, finalizationData: FinalizeGameRoundRequest): Promise<void> {
+        const response = await apiFetch(`/api/leagues/${leagueCode}/game_rounds/${code}/finalize`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(finalizationData),
@@ -119,8 +113,8 @@ export default {
         }
     },
 
-    getGameRound: (code: string): Promise<GameRound> =>
-        apiJson(`/api/game_rounds/${code}`),
+    getGameRound: (leagueCode: string, code: string): Promise<GameRound> =>
+        apiJson(`/api/leagues/${leagueCode}/game_rounds/${code}`),
 
     // Players
     listPlayers: (): Promise<Player[]> =>
@@ -146,32 +140,21 @@ export default {
         apiJsonPost(`/api/leagues/${leagueCode}/game_rounds`, round),
 
     // Update player roles (step 3)
-    updateRoles: (code: string, players: PlayerRoleUpdate[]): Promise<GameRound> =>
-        apiJsonPost(`/api/game_rounds/${code}/roles`, { players }, 'PUT'),
+    updateRoles: (leagueCode: string, code: string, players: PlayerRoleUpdate[]): Promise<GameRound> =>
+        apiJsonPost(`/api/leagues/${leagueCode}/game_rounds/${code}/roles`, { players }, 'PUT'),
 
     // Update scores (step 4)
-    updateScores: (code: string, playerScores: Record<string, number>, teamScores?: Record<string, number>): Promise<GameRound> =>
-        apiJsonPost(`/api/game_rounds/${code}/scores`, { player_scores: playerScores, team_scores: teamScores }, 'PUT'),
+    updateScores: (leagueCode: string, code: string, playerScores: Record<string, number>, teamScores?: Record<string, number>): Promise<GameRound> =>
+        apiJsonPost(`/api/leagues/${leagueCode}/game_rounds/${code}/scores`, { player_scores: playerScores, team_scores: teamScores }, 'PUT'),
 
-    // Update round status
-    async updateRoundStatus(code: string, status: GameRoundStatus, version: number): Promise<void> {
-        const response = await apiFetch(`/api/game_rounds/${code}/status`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status, version }),
-        });
-        if (!response.ok) {
-            throw new Error('Error updating round status');
-        }
-    },
 };
 
 // Game Round Status
 export type GameRoundStatus = 'players_selected' | 'in_progress' | 'scoring' | 'completed';
 
 export interface GameRoundPlayer {
-    user_id: string;
-    membership_id?: string;
+    user_id?: string;
+    membership_code?: string;
     score: number;
     is_moderator: boolean;
     team_name?: string;

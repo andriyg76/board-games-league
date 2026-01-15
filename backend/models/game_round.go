@@ -38,12 +38,13 @@ func (s GameRoundStatus) IsValidStatus() bool {
 }
 
 type GameRoundPlayer struct {
-	IsModerator  bool               `bson:"is_moderator" json:"is_moderator"`
-	TeamName     string             `bson:"team_name,omitempty" json:"team_name,omitempty"`
-	LabelName    string             `bson:"label_name,omitempty" json:"label_name,omitempty"`
-	Score        int64              `bson:"cooperative_score,omitempty" json:"score,omitempty"`
-	Position     int                `bson:"position,omitempty" json:"position,omitempty"`
+	IsModerator   bool               `bson:"is_moderator" json:"is_moderator"`
+	TeamName      string             `bson:"team_name,omitempty" json:"team_name,omitempty"`
+	LabelName     string             `bson:"label_name,omitempty" json:"label_name,omitempty"`
+	Score         int64              `bson:"cooperative_score,omitempty" json:"score,omitempty"`
+	Position      int                `bson:"position,omitempty" json:"position,omitempty"`
 	MembershipID primitive.ObjectID `bson:"membership_id,omitempty" json:"-"`
+	MembershipCode string            `bson:"-" json:"membership_code,omitempty"` // Populated from MembershipID
 	// Deprecated: use MembershipID instead. Kept for backward compatibility during migration.
 	PlayerID primitive.ObjectID `bson:"player_id,omitempty" json:"-"`
 }
@@ -55,12 +56,13 @@ type TeamScore struct {
 }
 
 type GameRound struct {
-	ID               primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	ID               primitive.ObjectID `bson:"_id,omitempty" json:"-"` // Never expose ObjectID - use Code instead
 	Code             string             `bson:"-" json:"code"`
 	Version          int64              `bson:"version" json:"version,omitempty"`
 	LeagueID         primitive.ObjectID `bson:"league_id,omitempty" json:"-"`
 	Name             string             `bson:"name" json:"name"`
 	GameTypeID       primitive.ObjectID `bson:"game_type_id,omitempty" json:"-"`
+	GameType         string             `bson:"-" json:"game_type,omitempty"` // Game type key or code (populated from GameTypeID)
 	Status           GameRoundStatus    `bson:"status" json:"status"`
 	StartTime        time.Time          `bson:"start_time" json:"start_time"`
 	EndTime          time.Time          `bson:"end_time" json:"end_time,omitempty"`

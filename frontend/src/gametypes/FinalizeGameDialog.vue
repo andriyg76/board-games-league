@@ -89,6 +89,7 @@ import { ref, computed, watch } from 'vue';
 import { NModal, NAlert, NSpin, NCard, NList, NListItem, NGrid, NGi, NInputNumber, NButton } from 'naive-ui';
 import GameApi, { FinalizeGameRoundRequest } from '@/api/GameApi';
 import { GameRoundView } from './types';
+import { useLeagueStore } from '@/store/league';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -105,6 +106,7 @@ const dialog = computed({
   set: (value) => emit('update:modelValue', value)
 });
 
+const leagueStore = useLeagueStore();
 const roundData = ref<GameRoundView | null>(null);
 const loading = ref(false);
 const submitting = ref(false);
@@ -137,11 +139,17 @@ const getPlayerName = (userId: string) => {
 const loadGameRound = async () => {
   if (!props.roundCode) return;
 
+  const leagueCode = leagueStore.currentLeagueCode;
+  if (!leagueCode) {
+    error.value = 'No league selected';
+    return;
+  }
+
   loading.value = true;
   error.value = null;
 
   try {
-    roundData.value = await GameApi.getGameRound(props.roundCode) as any;
+    roundData.value = await GameApi.getGameRound(leagueCode, props.roundCode) as any;
 
     // Initialize player scores
     playerScores.value = {};
@@ -182,6 +190,12 @@ const loadPlayerNames = async () => {
 const submitFinalization = async () => {
   if (!props.roundCode) return;
 
+  const leagueCode = leagueStore.currentLeagueCode;
+  if (!leagueCode) {
+    error.value = 'No league selected';
+    return;
+  }
+
   submitting.value = true;
   error.value = null;
 
@@ -194,7 +208,7 @@ const submitFinalization = async () => {
       finalizationData.team_scores = teamScores.value;
     }
 
-    await GameApi.finalizeGameRound(props.roundCode, finalizationData);
+    await GameApi.finalizeGameRound(leagueCode, props.roundCode, finalizationData);
 
     emit('finalized');
     closeDialog();

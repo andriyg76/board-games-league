@@ -28,7 +28,7 @@ export interface WizardGameConfig {
 }
 
 export interface WizardPlayer {
-  membership_id: string
+  membership_code: string
   player_name: string
   total_score: number
 }
@@ -52,7 +52,7 @@ export interface WizardRound {
 
 export interface WizardGame {
   code: string
-  game_round_id: string
+  game_round_code: string
   config: WizardGameConfig
   players: WizardPlayer[]
   rounds: WizardRound[]
@@ -74,7 +74,7 @@ export interface CreateGameRequest {
 
 export interface CreateGameResponse {
   code: string
-  game_round_id: string
+  game_round_code: string
   current_round: number
   max_rounds: number
   status: string
@@ -116,6 +116,6 @@ export interface FinalStanding {
 
 export interface FinalizeGameResponse {
   wizard_game_code: string
-  game_round_id: string
+  game_round_code: string
   final_standings: FinalStanding[]
 }

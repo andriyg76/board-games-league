@@ -152,10 +152,31 @@ func (h *Handler) listGameRounds(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fill Code for each round
+	// Fill Code, GameType, and MembershipCode for each round
 	for _, round := range rounds {
 		if idAndCode := h.idCodeCache.GetByID(round.ID); idAndCode != nil {
 			round.Code = idAndCode.Code
+		}
+
+		// Fill GameType
+		if !round.GameTypeID.IsZero() {
+			gameType, err := h.gameTypeRepository.FindByID(r.Context(), round.GameTypeID)
+			if err == nil && gameType != nil {
+				if idAndCode := h.idCodeCache.GetByID(gameType.ID); idAndCode != nil {
+					round.GameType = idAndCode.Code
+				} else {
+					round.GameType = gameType.Key
+				}
+			}
+		}
+
+		// Fill MembershipCode for each player
+		for i := range round.Players {
+			if !round.Players[i].MembershipID.IsZero() {
+				if idAndCode := h.idCodeCache.GetByID(round.Players[i].MembershipID); idAndCode != nil {
+					round.Players[i].MembershipCode = idAndCode.Code
+				}
+			}
 		}
 	}
 
@@ -182,6 +203,28 @@ func (h *Handler) getGameRound(w http.ResponseWriter, r *http.Request) {
 	// Fill Code
 	if idAndCode := h.idCodeCache.GetByID(round.ID); idAndCode != nil {
 		round.Code = idAndCode.Code
+	}
+
+	// Fill GameType (key or code)
+	if !round.GameTypeID.IsZero() {
+		gameType, err := h.gameTypeRepository.FindByID(r.Context(), round.GameTypeID)
+		if err == nil && gameType != nil {
+			// Try to get code from cache, fallback to key
+			if idAndCode := h.idCodeCache.GetByID(gameType.ID); idAndCode != nil {
+				round.GameType = idAndCode.Code
+			} else {
+				round.GameType = gameType.Key
+			}
+		}
+	}
+
+	// Fill MembershipCode for each player
+	for i := range round.Players {
+		if !round.Players[i].MembershipID.IsZero() {
+			if idAndCode := h.idCodeCache.GetByID(round.Players[i].MembershipID); idAndCode != nil {
+				round.Players[i].MembershipCode = idAndCode.Code
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

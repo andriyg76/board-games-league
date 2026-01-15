@@ -220,6 +220,7 @@ const canProceedFromStep2 = computed(() => {
 // Players formatted for different steps
 const wizardPlayers = computed(() => {
   return roundPlayers.value.map(p => ({
+    membership_id: p.membership_code, // WizardPlayer expects membership_id
     membership_code: p.membership_code,
     alias: p.alias,
     isCurrentUser: p.isCurrentUser,
@@ -311,6 +312,10 @@ const getMembershipCode = (player: SuggestedPlayer): string => {
 
 const goToStep3 = async () => {
   // Build round players
+  const currentPlayerCode = suggestedPlayers.value?.current_player 
+    ? getMembershipCode(suggestedPlayers.value.current_player)
+    : '';
+  
   roundPlayers.value = selectedPlayersList.value.map(player => {
     const code = getMembershipCode(player);
     return {
@@ -318,7 +323,7 @@ const goToStep3 = async () => {
       alias: player.alias,
       is_moderator: hasModerator.value && code === selectedModeratorId.value,
       role_key: undefined,
-      isCurrentUser: getMembershipCode(suggestedPlayers.value?.current_player || {}) === code,
+      isCurrentUser: code === currentPlayerCode,
     };
   });
 
@@ -383,7 +388,7 @@ const updatePlayerModerator = (index: number, isModerator: boolean) => {
 };
 
 const saveRoles = async () => {
-  if (!roundCode.value) return;
+  if (!roundCode.value || !leagueCode.value) return;
 
   saving.value = true;
   try {
@@ -393,7 +398,7 @@ const saveRoles = async () => {
       is_moderator: p.is_moderator,
     }));
 
-    const updatedRound = await GameApi.updateRoles(roundCode.value, players);
+    const updatedRound = await GameApi.updateRoles(leagueCode.value, roundCode.value, players);
     roundVersion.value = updatedRound.version;
   } catch (error) {
     handleError(error, t('errors.savingData'));
@@ -427,11 +432,11 @@ const updatePlayerPosition = (membershipId: string, position: number) => {
 };
 
 const saveScores = async () => {
-  if (!roundCode.value) return;
+  if (!roundCode.value || !leagueCode.value) return;
 
   saving.value = true;
   try {
-    const updatedRound = await GameApi.updateScores(roundCode.value, playerScores.value);
+    const updatedRound = await GameApi.updateScores(leagueCode.value, roundCode.value, playerScores.value);
     roundVersion.value = updatedRound.version;
   } catch (error) {
     handleError(error, t('errors.savingData'));
@@ -441,12 +446,12 @@ const saveScores = async () => {
 };
 
 const finishGame = async () => {
-  if (!roundCode.value) return;
+  if (!roundCode.value || !leagueCode.value) return;
 
   saving.value = true;
   try {
     await saveScores();
-    await GameApi.finalizeGameRound(roundCode.value, {
+    await GameApi.finalizeGameRound(leagueCode.value, roundCode.value, {
       player_scores: playerScores.value,
     });
     showSuccess(t('game.gameFinished'));
@@ -491,9 +496,14 @@ const startWizardGame = async () => {
 const loadExistingRound = async () => {
   if (!props.id) return;
 
+  if (!leagueCode.value) {
+    handleError(new Error('No league selected'), t('errors.loadingData'));
+    return;
+  }
+
   loading.value = true;
   try {
-    const loadedRound = await GameApi.getGameRound(props.id);
+    const loadedRound = await GameApi.getGameRound(leagueCode.value, props.id);
     
     // Redirect to edit page for completed rounds
     if (loadedRound.status === 'completed') {
@@ -510,13 +520,17 @@ const loadExistingRound = async () => {
     roundVersion.value = loadedRound.version;
 
     // Build round players from loaded data
-    roundPlayers.value = loadedRound.players.map(p => ({
-      membership_code: p.membership_id || '', // API returns membership_id but we use membership_code internally
-      alias: p.membership_id || '', // Will be resolved later
-      is_moderator: p.is_moderator,
-      role_key: p.label_name,
-      isCurrentUser: false,
-    }));
+    roundPlayers.value = loadedRound.players.map(p => {
+      // Support both membership_code (new) and membership_id (legacy)
+      const membershipCode = (p as any).membership_code || (p as any).membership_id || '';
+      return {
+        membership_code: membershipCode,
+        alias: membershipCode, // Will be resolved later
+        is_moderator: p.is_moderator,
+        role_key: p.label_name,
+        isCurrentUser: false,
+      };
+    });
 
     // Set step based on status
     const status = loadedRound.status;
@@ -527,7 +541,8 @@ const loadExistingRound = async () => {
     } else if (status === 'scoring') {
       // Initialize scores
       loadedRound.players.forEach((p, index) => {
-        const code = p.membership_id || '';
+        // Support both membership_code (new) and membership_id (legacy)
+        const code = (p as any).membership_code || (p as any).membership_id || '';
         playerScores.value[code] = p.score || 0;
         playerPositions.value[code] = p.position || index + 1;
       });

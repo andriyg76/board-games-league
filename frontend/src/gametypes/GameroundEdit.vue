@@ -79,6 +79,7 @@ import { Save as SaveIcon } from '@vicons/ionicons5';
 import { useRouter } from 'vue-router';
 import { useGameStore } from '@/store/game';
 import { usePlayerStore } from '@/store/player';
+import { useLeagueStore } from '@/store/league';
 import GameApi, { GameRound, GameRoundPlayer } from '@/api/GameApi';
 
 const props = defineProps<{
@@ -88,6 +89,7 @@ const props = defineProps<{
 const router = useRouter();
 const gameStore = useGameStore();
 const playerStore = usePlayerStore();
+const leagueStore = useLeagueStore();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -110,9 +112,15 @@ const getPlayerAlias = (player: GameRoundPlayer): string => {
 };
 
 const loadRound = async () => {
+  const leagueCode = leagueStore.currentLeagueCode;
+  if (!leagueCode) {
+    console.error('No league selected');
+    return;
+  }
+
   loading.value = true;
   try {
-    const loadedRound = await GameApi.getGameRound(props.id);
+    const loadedRound = await GameApi.getGameRound(leagueCode, props.id);
     round.value = {
       code: props.id,
       name: loadedRound.name,
@@ -129,9 +137,15 @@ const loadRound = async () => {
 };
 
 const saveRound = async () => {
+  const leagueCode = leagueStore.currentLeagueCode;
+  if (!leagueCode) {
+    console.error('No league selected');
+    return;
+  }
+
   saving.value = true;
   try {
-    await gameStore.updateRound(round.value);
+    await GameApi.updateGameRound(leagueCode, round.value);
     await router.push({ name: 'GameRounds' });
   } catch (error) {
     console.error('Error saving game round:', error);

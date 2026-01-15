@@ -49,7 +49,8 @@ type WizardGameConfig struct {
 
 // WizardPlayer represents a player in the game
 type WizardPlayer struct {
-	MembershipID primitive.ObjectID `bson:"membership_id" json:"membership_id"`
+	MembershipID primitive.ObjectID `bson:"membership_id" json:"-"` // Never expose ObjectID - use membership_code instead
+	MembershipCode string            `bson:"-" json:"membership_code,omitempty"` // Populated from MembershipID
 	PlayerName   string             `bson:"player_name" json:"player_name"`
 	TotalScore   int                `bson:"total_score" json:"total_score"`
 }
@@ -75,9 +76,10 @@ type WizardRound struct {
 
 // WizardGame represents a complete Wizard game
 type WizardGame struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"-"` // Never expose ObjectID - use Code instead
 	Code        string             `bson:"code" json:"code"`
-	GameRoundID primitive.ObjectID `bson:"game_round_id" json:"game_round_id"`
+	GameRoundID primitive.ObjectID `bson:"game_round_id" json:"-"` // Never expose ObjectID - use game_round_code instead
+	GameRoundCode string            `bson:"-" json:"game_round_code,omitempty"` // Populated from GameRoundID
 
 	Config  WizardGameConfig `bson:"config" json:"config"`
 	Players []WizardPlayer   `bson:"players" json:"players"`

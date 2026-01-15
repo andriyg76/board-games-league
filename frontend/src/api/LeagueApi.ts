@@ -31,9 +31,6 @@ export interface LeagueInvitation {
     membership_code?: string;
     expires_at: string;
     created_at: string;
-    // Legacy fields for backward compatibility
-    league_id?: string;
-    membership_id?: string;
 }
 
 export interface LeagueStanding {

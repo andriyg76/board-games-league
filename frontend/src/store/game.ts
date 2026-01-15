@@ -30,22 +30,7 @@ export const useGameStore = defineStore('game', {
             }
         },
 
-        async addActiveRound(round: GameRound): Promise<GameRound> {
-            const savedRound = await GameApi.createGameRound(round);
-            this.activeRounds.push(savedRound);
-            return savedRound;
-        },
-
-        async updateRound(round: GameRound): Promise<GameRound> {
-            const savedRound = await GameApi.updateGameRound(round);
-            const ix = this.activeRounds.findIndex(i => i.code === savedRound.code)
-            if (ix !== -1) {
-                this.activeRounds[ix] = savedRound;
-            } else {
-                this.activeRounds.push(savedRound);
-            }
-            return savedRound
-        }
+        // Note: updateRound removed - use GameApi.updateGameRound directly with leagueCode
     },
 
     getters: {
