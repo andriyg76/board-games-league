@@ -1,4 +1,4 @@
-import { apiFetch } from './apiClient';
+import { apiFetch, apiJson, apiJsonPost } from './apiClient';
 
 export type ScoringType =
     | 'classic'
@@ -73,130 +73,45 @@ export interface Label {
 }
 
 export default {
-    async getGameTypes(): Promise<GameType[]> {
-        try {
-            const response = await apiFetch(`/api/game_types`);
-            if (!response.ok) {
-                throw new Error('Error fetching game types');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Error fetching game types:', error);
-            throw error;
-        }
-    },
+    // Game Types
+    getGameTypes: (): Promise<GameType[]> =>
+        apiJson('/api/game_types'),
 
-    async getGameType(code: string): Promise<GameType> {
-        try {
-            const response = await apiFetch(`/api/game_types/${code}`);
-            if (!response.ok) {
-                throw new Error('Error fetching game type');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Error fetching game type:', error);
-            throw error;
-        }
-    },
+    getGameType: (code: string): Promise<GameType> =>
+        apiJson(`/api/game_types/${code}`),
 
-    async createGameType(gameType: Partial<GameType>): Promise<GameType> {
-        try {
-            const response = await apiFetch(`/api/game_types`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(gameType),
-            });
-            if (!response.ok) {
-                throw new Error('Error creating game type');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Error creating game type:', error);
-            throw error;
-        }
-    },
+    createGameType: (gameType: Partial<GameType>): Promise<GameType> =>
+        apiJsonPost('/api/game_types', gameType),
 
-    async updateGameType(code: string, gameType: Partial<GameType>): Promise<GameType> {
-        try {
-            console.debug("Storing gametype", gameType)
-            const response = await apiFetch(`/api/game_types/${code}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(gameType),
-            });
-            if (!response.ok) {
-                throw new Error('Error updating game type');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Error updating game type:', error);
-            throw error;
-        }
-    },
+    updateGameType: (code: string, gameType: Partial<GameType>): Promise<GameType> =>
+        apiJsonPost(`/api/game_types/${code}`, gameType, 'PUT'),
 
     async deleteGameType(code: string): Promise<void> {
-        try {
-            const response = await apiFetch(`/api/game_types/${code}`, {
-                method: 'DELETE',
-            });
-            if (!response.ok) {
-                if (response.status === 403) {
-                    throw new Error('Cannot delete built-in game type');
-                }
-                throw new Error('Error deleting game type');
-            }
-        } catch (error) {
-            console.error('Error deleting game type:', error);
-            throw error;
-        }
-    },
-
-    async listGameRounds(): Promise<GameRound[]> {
-        const response = await apiFetch('/api/game_rounds');
-        if (!response.ok) {
-            throw new Error('Failed to load game rounds');
-        }
-        return await response.json();
-    },
-
-    async createGameRound(round: GameRound): Promise<GameRound> {
-        const response = await apiFetch('/api/game_rounds', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(round),
+        const response = await apiFetch(`/api/game_types/${code}`, {
+            method: 'DELETE',
         });
         if (!response.ok) {
-            throw new Error('Error creating game round');
+            if (response.status === 403) {
+                throw new Error('Cannot delete built-in game type');
+            }
+            throw new Error('Error deleting game type');
         }
-        return await response.json();
     },
 
-    async updateGameRound(round: GameRound): Promise<GameRound> {
-        const response = await apiFetch(`/api/game_rounds/${round.code}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(round),
-        })
-        if (!response.ok) {
-            throw new Error('Error updating game round');
-        }
-        return await response.json();
-    },
+    // Game Rounds
+    listGameRounds: (): Promise<GameRound[]> =>
+        apiJson('/api/game_rounds'),
+
+    createGameRound: (round: GameRound): Promise<GameRound> =>
+        apiJsonPost('/api/game_rounds', round),
+
+    updateGameRound: (round: GameRound): Promise<GameRound> =>
+        apiJsonPost(`/api/game_rounds/${round.code}`, round, 'PUT'),
 
     async finalizeGameRound(code: string, finalizationData: FinalizeGameRoundRequest): Promise<void> {
         const response = await apiFetch(`/api/game_rounds/${code}/finalize`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(finalizationData),
         });
         if (!response.ok) {
@@ -204,37 +119,18 @@ export default {
         }
     },
 
-    async getGameRound(code: string): Promise<GameRound> {
-        const response = await apiFetch(`/api/game_rounds/${code}`);
-        if (!response.ok) {
-            throw new Error('Failed to get game round');
-        }
-        return await response.json();
-    },
+    getGameRound: (code: string): Promise<GameRound> =>
+        apiJson(`/api/game_rounds/${code}`),
 
-    async listPlayers(): Promise<Player[]> {
-        const response = await apiFetch('/api/players');
-        if (!response.ok) {
-            throw new Error('Failed to load players');
-        }
-        return await response.json();
-    },
+    // Players
+    listPlayers: (): Promise<Player[]> =>
+        apiJson('/api/players'),
 
-    async getPlayer(code: string): Promise<Player> {
-        const response = await apiFetch(`/api/players/${code}`);
-        if (!response.ok) {
-            throw new Error('Failed to get player');
-        }
-        return await response.json();
-    },
+    getPlayer: (code: string): Promise<Player> =>
+        apiJson(`/api/players/${code}`),
 
-    async getCurrentPlayer(): Promise<Player> {
-        const response = await apiFetch('/api/players/i_am');
-        if (!response.ok) {
-            throw new Error('Failed to get current player');
-        }
-        return await response.json();
-    },
+    getCurrentPlayer: (): Promise<Player> =>
+        apiJson('/api/players/i_am'),
 
     // League-specific game round methods
     async listLeagueGameRounds(leagueCode: string, options?: { active?: boolean; status?: GameRoundStatus }): Promise<GameRound[]> {
@@ -243,51 +139,19 @@ export default {
         if (options?.active) params.set('active', 'true');
         if (options?.status) params.set('status', options.status);
         if (params.toString()) url += `?${params.toString()}`;
-
-        const response = await apiFetch(url);
-        if (!response.ok) {
-            throw new Error('Failed to load league game rounds');
-        }
-        return await response.json();
+        return apiJson(url);
     },
 
-    async createLeagueGameRound(leagueCode: string, round: CreateLeagueGameRoundRequest): Promise<GameRound> {
-        const response = await apiFetch(`/api/leagues/${leagueCode}/game_rounds`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(round),
-        });
-        if (!response.ok) {
-            throw new Error('Error creating game round');
-        }
-        return await response.json();
-    },
+    createLeagueGameRound: (leagueCode: string, round: CreateLeagueGameRoundRequest): Promise<GameRound> =>
+        apiJsonPost(`/api/leagues/${leagueCode}/game_rounds`, round),
 
     // Update player roles (step 3)
-    async updateRoles(code: string, players: PlayerRoleUpdate[]): Promise<GameRound> {
-        const response = await apiFetch(`/api/game_rounds/${code}/roles`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ players }),
-        });
-        if (!response.ok) {
-            throw new Error('Error updating roles');
-        }
-        return await response.json();
-    },
+    updateRoles: (code: string, players: PlayerRoleUpdate[]): Promise<GameRound> =>
+        apiJsonPost(`/api/game_rounds/${code}/roles`, { players }, 'PUT'),
 
     // Update scores (step 4)
-    async updateScores(code: string, playerScores: Record<string, number>, teamScores?: Record<string, number>): Promise<GameRound> {
-        const response = await apiFetch(`/api/game_rounds/${code}/scores`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ player_scores: playerScores, team_scores: teamScores }),
-        });
-        if (!response.ok) {
-            throw new Error('Error updating scores');
-        }
-        return await response.json();
-    },
+    updateScores: (code: string, playerScores: Record<string, number>, teamScores?: Record<string, number>): Promise<GameRound> =>
+        apiJsonPost(`/api/game_rounds/${code}/scores`, { player_scores: playerScores, team_scores: teamScores }, 'PUT'),
 
     // Update round status
     async updateRoundStatus(code: string, status: GameRoundStatus, version: number): Promise<void> {
