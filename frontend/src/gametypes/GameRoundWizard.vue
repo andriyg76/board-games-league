@@ -162,7 +162,7 @@ const playerPositions = ref<Record<string, number>>({});
 
 // Computed
 const leagueCode = computed(() => {
-  return (route.query.league as string) || leagueStore.currentLeague?.code || '';
+  return (route.query.league as string) || leagueStore.currentLeagueCode || '';
 });
 
 const gameTypes = computed(() => gameStore.gameTypes);

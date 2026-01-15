@@ -347,6 +347,18 @@ export const useLeagueStore = defineStore('league', {
 
     getters: {
         /**
+         * Get the current league code from state or localStorage
+         */
+        currentLeagueCode: (state) => {
+            // First check if we have currentLeague in state
+            if (state.currentLeague?.code) {
+                return state.currentLeague.code;
+            }
+            // Fallback to localStorage
+            return localStorage.getItem(CURRENT_LEAGUE_CODE_KEY) || '';
+        },
+
+        /**
          * Get active leagues only
          */
         activeLeagues: (state) => {
