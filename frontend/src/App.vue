@@ -43,56 +43,94 @@
             <!-- Mobile side menu -->
             <n-drawer
                 v-model:show="drawer"
-                :width="280"
+                :width="drawerWidth"
                 placement="left"
             >
-              <n-list>
-                <n-list-item>
-                  <router-link to="/" style="text-decoration: none; color: inherit;">
-                    {{ t('nav.home') }}
-                  </router-link>
-                </n-list-item>
-                <n-list-item v-if="loggedIn">
-                  <router-link to="/ui/admin/game-types" style="text-decoration: none; color: inherit;">
-                    {{ t('nav.gameTypes') }}
-                  </router-link>
-                </n-list-item>
-                <n-list-item v-if="loggedIn">
-                  <router-link to="/ui/leagues" style="text-decoration: none; color: inherit;">
-                    {{ t('nav.leagues') }}
-                  </router-link>
-                </n-list-item>
-                <n-list-item v-if="loggedIn">
-                  <router-link to="/ui/game-rounds" style="text-decoration: none; color: inherit;">
-                    {{ t('gameRounds.title') }}
-                  </router-link>
-                </n-list-item>
-                <n-list-item v-if="loggedIn">
-                  <router-link to="/ui/game-rounds/new" style="text-decoration: none; color: inherit;">
-                    {{ t('gameRounds.start') }}
-                  </router-link>
-                </n-list-item>
-                <n-list-item v-if="loggedIn">
-                  <router-link to="/ui/game-rounds/new?gameType=wizard" style="text-decoration: none; color: inherit;">
-                    {{ t('wizard.newGame') }}
-                  </router-link>
-                </n-list-item>
-                <n-list-item v-if="loggedIn">
-                  <router-link to="/ui/game-rounds" style="text-decoration: none; color: inherit;">
-                    {{ t('gameRounds.list') }}
-                  </router-link>
-                </n-list-item>
-                <n-list-item v-if="loggedIn">
-                  <router-link to="/ui/user" style="text-decoration: none; color: inherit;">
-                    {{ t('nav.user') }}
-                  </router-link>
-                </n-list-item>
-                <n-list-item v-if="isSuperAdmin">
-                  <router-link to="/ui/admin/diagnostics" style="text-decoration: none; color: inherit;">
-                    {{ t('nav.diagnostics') }}
-                  </router-link>
-                </n-list-item>
-              </n-list>
+              <n-drawer-content class="mobile-drawer-content" closable>
+                <n-list class="mobile-drawer-list">
+                  <n-list-item class="mobile-drawer-item">
+                    <router-link
+                      to="/"
+                      class="mobile-drawer-link"
+                      @click="drawer = false"
+                    >
+                      {{ t('nav.home') }}
+                    </router-link>
+                  </n-list-item>
+                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
+                    <router-link
+                      to="/ui/admin/game-types"
+                      class="mobile-drawer-link"
+                      @click="drawer = false"
+                    >
+                      {{ t('nav.gameTypes') }}
+                    </router-link>
+                  </n-list-item>
+                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
+                    <router-link
+                      to="/ui/leagues"
+                      class="mobile-drawer-link"
+                      @click="drawer = false"
+                    >
+                      {{ t('nav.leagues') }}
+                    </router-link>
+                  </n-list-item>
+                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
+                    <router-link
+                      to="/ui/game-rounds"
+                      class="mobile-drawer-link"
+                      @click="drawer = false"
+                    >
+                      {{ t('gameRounds.title') }}
+                    </router-link>
+                  </n-list-item>
+                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
+                    <router-link
+                      to="/ui/game-rounds/new"
+                      class="mobile-drawer-link"
+                      @click="drawer = false"
+                    >
+                      {{ t('gameRounds.start') }}
+                    </router-link>
+                  </n-list-item>
+                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
+                    <router-link
+                      to="/ui/game-rounds/new?gameType=wizard"
+                      class="mobile-drawer-link"
+                      @click="drawer = false"
+                    >
+                      {{ t('wizard.newGame') }}
+                    </router-link>
+                  </n-list-item>
+                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
+                    <router-link
+                      to="/ui/game-rounds"
+                      class="mobile-drawer-link"
+                      @click="drawer = false"
+                    >
+                      {{ t('gameRounds.list') }}
+                    </router-link>
+                  </n-list-item>
+                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
+                    <router-link
+                      to="/ui/user"
+                      class="mobile-drawer-link"
+                      @click="drawer = false"
+                    >
+                      {{ t('nav.user') }}
+                    </router-link>
+                  </n-list-item>
+                  <n-list-item v-if="isSuperAdmin" class="mobile-drawer-item">
+                    <router-link
+                      to="/ui/admin/diagnostics"
+                      class="mobile-drawer-link"
+                      @click="drawer = false"
+                    >
+                      {{ t('nav.diagnostics') }}
+                    </router-link>
+                  </n-list-item>
+                </n-list>
+              </n-drawer-content>
             </n-drawer>
 
             <n-layout-content style="padding: 24px;">
@@ -119,8 +157,9 @@ import {
   NSpace, 
   NDivider, 
   NDrawer, 
-  NList, 
+  NList,
   NListItem,
+  NDrawerContent,
   NIcon,
 } from 'naive-ui';
 import { Menu as MenuIcon } from '@vicons/ionicons5';
@@ -142,4 +181,27 @@ const isMobile = breakpoints.smaller('md')
 const drawer = ref(false);
 const loggedIn = computed(() => userStore.$state.loggedIn);
 const isSuperAdmin = computed(() => userStore.isSuperAdmin);
+const drawerWidth = computed(() => (isMobile.value ? '100%' : 320));
 </script>
+
+<style scoped>
+.mobile-drawer-content {
+  padding: 8px 0;
+}
+
+.mobile-drawer-list {
+  font-size: 1.125rem;
+}
+
+.mobile-drawer-item {
+  padding: 16px 20px;
+}
+
+.mobile-drawer-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+</style>
