@@ -3,13 +3,14 @@ package repositories
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"time"
 )
 
 type LeagueMembershipRepository interface {
@@ -45,8 +46,13 @@ func NewLeagueMembershipRepository(mongodb *db.MongoDB) (LeagueMembershipReposit
 func ensureLeagueMembershipIndexes(r *LeagueMembershipRepositoryInstance) error {
 	_, err := r.collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
 		{
-			Keys:    bson.D{{"league_id", 1}, {"user_id", 1}},
-			Options: options.Index().SetUnique(true),
+			Keys: bson.D{{"league_id", 1}, {"user_id", 1}},
+			// Partial unique index: only enforce uniqueness when user_id is not null
+			// This allows multiple pending memberships (with null user_id) per league
+			// while still preventing duplicate active memberships per user
+			Options: options.Index().
+				SetUnique(true).
+				SetPartialFilterExpression(bson.M{"user_id": bson.M{"$ne": nil}}),
 		},
 		{
 			Keys: bson.D{{"league_id", 1}},

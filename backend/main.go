@@ -91,7 +91,13 @@ func main() {
 
 	log.Info("Database connector initialised")
 
-	userService := services.NewUserService(userRepository)
+	// Initialize caches first (needed for services)
+	idCodeCache := services.NewIdAndCodeCache()
+	leagueCache := services.NewLeagueCache()
+	membershipCache := services.NewMembershipCache()
+	userCache := services.NewUserCache(idCodeCache)
+
+	userService := services.NewUserService(userRepository, userCache)
 	sessionService := services.NewSessionService(sessionRepository, userRepository)
 	requestService := services.NewRequestService()
 	geoIPService := services.NewGeoIPService()
@@ -111,12 +117,6 @@ func main() {
 	if err := gameTypeService.LoadBuiltInGames(context.Background()); err != nil {
 		log.Warn("Failed to load built-in game types: %v", err)
 	}
-
-	// Initialize caches
-	idCodeCache := services.NewIdAndCodeCache()
-	leagueCache := services.NewLeagueCache()
-	membershipCache := services.NewMembershipCache()
-	userCache := services.NewUserCache(idCodeCache)
 
 	// Initialize cache cleanup service
 	cacheCleanupService := services.NewCacheCleanupService()

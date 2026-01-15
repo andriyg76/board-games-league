@@ -16,23 +16,48 @@ type UserService interface {
 
 type userService struct {
 	userRepository repositories.UserRepository
+	userCache       UserCache
 }
 
-func NewUserService(userRepository repositories.UserRepository) UserService {
+func NewUserService(userRepository repositories.UserRepository, userCache UserCache) UserService {
 	return &userService{
 		userRepository: userRepository,
+		userCache:       userCache,
 	}
 }
 
 func (s *userService) FindByID(ctx context.Context, ID primitive.ObjectID) (*models.User, error) {
-	return s.userRepository.FindByID(ctx, ID)
+	// Try cache first
+	if user, ok := s.userCache.GetByID(ID); ok {
+		return user, nil
+	}
+
+	// Cache miss - fetch from repository
+	user, err := s.userRepository.FindByID(ctx, ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store in cache
+	if user != nil {
+		s.userCache.Set(user)
+	}
+
+	return user, nil
 }
 
 func (s *userService) FindByCode(ctx context.Context, code string) (*models.User, error) {
+	// Try cache first
+	if user, ok := s.userCache.GetByCode(code); ok {
+		return user, nil
+	}
+
+	// Cache miss - convert code to ID and fetch
 	id, err := utils.CodeToID(code)
 	if err != nil {
 		return nil, err
 	}
+
 	return s.FindByID(ctx, id)
 }
 
