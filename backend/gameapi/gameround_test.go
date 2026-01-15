@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories/mocks"
+	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -17,27 +18,6 @@ import (
 	"testing"
 	"time"
 )
-
-// MockIdAndCodeCache is a mock implementation of IdAndCodeCache for testing
-type MockIdAndCodeCache struct {
-	mock.Mock
-}
-
-func (m *MockIdAndCodeCache) GetByID(id primitive.ObjectID) *models.IdAndCode {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil
-	}
-	return args.Get(0).(*models.IdAndCode)
-}
-
-func (m *MockIdAndCodeCache) GetByCode(code string) (*models.IdAndCode, error) {
-	args := m.Called(code)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.IdAndCode), args.Error(1)
-}
 
 // leagueIDMiddleware creates a middleware that adds league ID to context
 func leagueIDMiddleware(leagueID primitive.ObjectID) func(http.Handler) http.Handler {
@@ -52,14 +32,20 @@ func leagueIDMiddleware(leagueID primitive.ObjectID) func(http.Handler) http.Han
 func TestStartGame(t *testing.T) {
 	mockGameRoundRepo := new(mocks.MockGameRoundRepository)
 	mockGameTypeRepo := new(mocks.MockGameTypeRepository)
-	mockIdCodeCache := new(MockIdAndCodeCache)
+	idCodeCache := services.NewIdAndCodeCache()
 	
 	leagueID := primitive.NewObjectID()
+	
+	// Create membership IDs and get their codes
+	membership1ID := primitive.NewObjectID()
+	membership2ID := primitive.NewObjectID()
+	membership1Code := utils.IdToCode(membership1ID)
+	membership2Code := utils.IdToCode(membership2ID)
 	
 	handler := &Handler{
 		gameRoundRepository: mockGameRoundRepo,
 		gameTypeRepository:  mockGameTypeRepo,
-		idCodeCache:         mockIdCodeCache,
+		idCodeCache:         idCodeCache,
 		leagueService:       nil,
 	}
 
@@ -69,8 +55,6 @@ func TestStartGame(t *testing.T) {
 
 	t.Run("Start game with valid team assignments", func(t *testing.T) {
 		gameTypeID := primitive.NewObjectID()
-		membership1ID := primitive.NewObjectID()
-		membership2ID := primitive.NewObjectID()
 
 		gameType := &models.GameType{
 			ID:  gameTypeID,
@@ -89,15 +73,11 @@ func TestStartGame(t *testing.T) {
 			Type:      "test_game",
 			StartTime: time.Now(),
 			Players: []playerSetup{
-				{MembershipCode: "player1-code", Position: 1, TeamName: "team_a"},
-				{MembershipCode: "player2-code", Position: 2, TeamName: "team_b"},
+				{MembershipCode: membership1Code, Position: 1, TeamName: "team_a"},
+				{MembershipCode: membership2Code, Position: 2, TeamName: "team_b"},
 			},
 		}
 
-		// Mock idCodeCache.GetByCode for membership codes
-		mockIdCodeCache.On("GetByCode", "player1-code").Return(&models.IdAndCode{ID: membership1ID, Code: "player1-code"}, nil).Once()
-		mockIdCodeCache.On("GetByCode", "player2-code").Return(&models.IdAndCode{ID: membership2ID, Code: "player2-code"}, nil).Once()
-		
 		mockGameTypeRepo.On("FindByKey", mock.Anything, "test_game").Return(gameType, nil).Once()
 		mockGameRoundRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil).Once()
 
@@ -112,7 +92,6 @@ func TestStartGame(t *testing.T) {
 
 	t.Run("Start game with missing team assignments", func(t *testing.T) {
 		gameTypeID := primitive.NewObjectID()
-		membership1ID := primitive.NewObjectID()
 
 		gameType := &models.GameType{
 			ID:  gameTypeID,
@@ -131,13 +110,10 @@ func TestStartGame(t *testing.T) {
 			Type:      "test_game2",
 			StartTime: time.Now(),
 			Players: []playerSetup{
-				{MembershipCode: "player1-code-2", Position: 1, TeamName: "team_a"},
+				{MembershipCode: membership1Code, Position: 1, TeamName: "team_a"},
 			},
 		}
 
-		// Mock idCodeCache.GetByCode for membership codes
-		mockIdCodeCache.On("GetByCode", "player1-code-2").Return(&models.IdAndCode{ID: membership1ID, Code: "player1-code-2"}, nil).Once()
-		
 		mockGameTypeRepo.On("FindByKey", mock.Anything, "test_game2").Return(gameType, nil).Once()
 
 		body, _ := json.Marshal(req)
@@ -153,11 +129,11 @@ func TestStartGame(t *testing.T) {
 
 func TestUpdatePlayerScore(t *testing.T) {
 	mockRepo := new(mocks.MockGameRoundRepository)
-	mockIdCodeCache := new(MockIdAndCodeCache)
+	idCodeCache := services.NewIdAndCodeCache()
 	
 	handler := &Handler{
 		gameRoundRepository: mockRepo,
-		idCodeCache:         mockIdCodeCache,
+		idCodeCache:         idCodeCache,
 		leagueService:       nil,
 	}
 
@@ -179,10 +155,6 @@ func TestUpdatePlayerScore(t *testing.T) {
 			},
 		}
 
-		// Mock idCodeCache calls
-		mockIdCodeCache.On("GetByCode", gameCode).Return(&models.IdAndCode{ID: gameID, Code: gameCode}, nil).Once()
-		mockIdCodeCache.On("GetByCode", playerCode).Return(&models.IdAndCode{ID: membershipID, Code: playerCode}, nil).Once()
-		
 		mockRepo.On("FindByID", mock.Anything, gameID).Return(gameRound, nil).Once()
 		mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil).Once()
 
@@ -208,10 +180,6 @@ func TestUpdatePlayerScore(t *testing.T) {
 			Players: []models.GameRoundPlayer{},
 		}
 
-		// Mock idCodeCache calls
-		mockIdCodeCache.On("GetByCode", gameCode).Return(&models.IdAndCode{ID: gameID, Code: gameCode}, nil).Once()
-		mockIdCodeCache.On("GetByCode", playerCode).Return(&models.IdAndCode{ID: membershipID, Code: playerCode}, nil).Once()
-		
 		mockRepo.On("FindByID", mock.Anything, gameID).Return(gameRound, nil).Once()
 
 		req := updateScoreRequest{Score: 100}
@@ -227,11 +195,11 @@ func TestUpdatePlayerScore(t *testing.T) {
 
 func TestFinalizeGame(t *testing.T) {
 	mockRepo := new(mocks.MockGameRoundRepository)
-	mockIdCodeCache := new(MockIdAndCodeCache)
+	idCodeCache := services.NewIdAndCodeCache()
 	
 	handler := &Handler{
 		gameRoundRepository: mockRepo,
-		idCodeCache:         mockIdCodeCache,
+		idCodeCache:         idCodeCache,
 		leagueService:       nil,
 	}
 
@@ -260,9 +228,6 @@ func TestFinalizeGame(t *testing.T) {
 			},
 		}
 
-		// Mock idCodeCache - for the URL code parsing 
-		mockIdCodeCache.On("GetByCode", gameCode).Return(&models.IdAndCode{ID: gameID, Code: gameCode}, nil).Once()
-		
 		mockRepo.On("FindByID", mock.Anything, gameID).Return(gameRound, nil).Once()
 		mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil).Once()
 
