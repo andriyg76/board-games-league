@@ -126,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { 
   NConfigProvider, 
   NMessageProvider, 
@@ -145,7 +145,7 @@ import {
   NIcon,
 } from 'naive-ui';
 import { Menu as MenuIcon } from '@vicons/ionicons5';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRoute } from 'vue-router';
 import LogoutButton from "@/components/LogoutButton.vue";
 import { useUserStore } from '@/store/user';
 import GameroundMenuItem from "@/components/GameroundMenuItem.vue";
@@ -155,6 +155,7 @@ import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 const userStore = useUserStore();
+const route = useRoute();
 import { useBreakpoints, breakpointsTailwind } from '@vueuse/core'
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
@@ -168,6 +169,13 @@ const handleDrawerNavigate = (navigate: (event?: MouseEvent) => void) => {
   navigate();
   drawer.value = false;
 };
+
+watch(
+  () => route.fullPath,
+  () => {
+    drawer.value = false;
+  }
+);
 </script>
 
 <style scoped>
