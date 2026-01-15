@@ -22,8 +22,10 @@ import { NButton, NAlert } from 'naive-ui';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import UserApi from '../api/UserApi';
+import { useErrorHandler } from '@/composables/useErrorHandler';
 
 const { t } = useI18n();
+const { handleError, showSuccess } = useErrorHandler();
 const externalIDs = ref<string[]>([]);
 const message = ref('');
 const route = useRoute();
@@ -32,8 +34,10 @@ const createUser = async () => {
   try {
     await UserApi.adminCreateUser(externalIDs.value);
     message.value = t('createUser.userCreated');
-  } catch (_error) {
+    showSuccess(t('createUser.userCreated'));
+  } catch (error) {
     message.value = t('createUser.createFailed');
+    handleError(error, t('createUser.createFailed'));
   }
 };
 

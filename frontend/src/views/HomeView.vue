@@ -123,9 +123,11 @@ import { useI18n } from 'vue-i18n';
 import GameApi from '@/api/GameApi';
 import { GameRoundView } from '@/gametypes/types';
 import { GameType } from '@/api/GameApi';
+import { useErrorHandler } from '@/composables/useErrorHandler';
 
 const { t, locale } = useI18n();
 const router = useRouter();
+const { handleError } = useErrorHandler();
 
 const gameRounds = ref<GameRoundView[]>([]);
 const gameTypes = ref<GameType[]>([]);
@@ -172,7 +174,7 @@ onMounted(async () => {
     gameRounds.value = roundsData as GameRoundView[];
     gameTypes.value = typesData;
   } catch (error) {
-    console.error('Error loading dashboard data:', error);
+    handleError(error, t('errors.loadingData'));
   } finally {
     loading.value = false;
   }

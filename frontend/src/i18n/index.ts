@@ -202,10 +202,12 @@ const messages = {
             enterScores: 'Enter Scores',
             saveRoles: 'Save Roles',
             finishGame: 'Finish Game',
+            gameFinished: 'Game finished successfully!',
             position: 'Position',
         },
         wizard: {
             newGame: 'New Wizard Game',
+            gameCreated: 'Wizard game created successfully!',
             bidRestriction: 'Bid Restriction',
             noRestrictions: 'No Restrictions',
             cannotMatchCards: 'Total Bids Cannot Match Cards',
@@ -236,6 +238,7 @@ const messages = {
         leagues: {
             title: 'Leagues',
             createLeague: 'Create League',
+            leagueCreated: 'League created successfully!',
             leagueName: 'League Name',
             create: 'Create',
             cancel: 'Cancel',
@@ -317,6 +320,19 @@ const messages = {
             loadingInvitation: 'Loading invitation...',
             invitationUsed: 'This invitation has already been used.',
             aliasExists: 'This alias already exists in the league.'
+        },
+        errors: {
+            unknown: 'An unknown error occurred',
+            networkError: 'Network error. Please check your connection.',
+            badRequest: 'Invalid request. Please check your input.',
+            unauthorized: 'You need to log in to perform this action.',
+            forbidden: 'You do not have permission to perform this action.',
+            notFound: 'The requested resource was not found.',
+            conflict: 'A conflict occurred. The resource may already exist.',
+            serverError: 'Server error. Please try again later.',
+            loadingData: 'Failed to load data',
+            savingData: 'Failed to save data',
+            deletingData: 'Failed to delete data'
         }
     },
     uk: {
@@ -520,9 +536,12 @@ const messages = {
             enterScores: 'Введення очок',
             saveRoles: 'Зберегти ролі',
             finishGame: 'Завершити гру',
+            gameFinished: 'Гру успішно завершено!',
+            position: 'Позиція',
         },
         wizard: {
             newGame: 'Нова гра Wizard',
+            gameCreated: 'Гру Wizard успішно створено!',
             bidRestriction: 'Обмеження ставок',
             noRestrictions: 'Без обмежень',
             cannotMatchCards: 'Сума ставок не може дорівнювати кількості карт',
@@ -553,6 +572,7 @@ const messages = {
         leagues: {
             title: 'Ліги',
             createLeague: 'Створити лігу',
+            leagueCreated: 'Лігу успішно створено!',
             leagueName: 'Назва ліги',
             create: 'Створити',
             cancel: 'Скасувати',
@@ -634,6 +654,19 @@ const messages = {
             loadingInvitation: 'Завантаження запрошення...',
             invitationUsed: 'Це запрошення вже використано.',
             aliasExists: 'Цей псевдонім вже існує в лізі.'
+        },
+        errors: {
+            unknown: 'Сталася невідома помилка',
+            networkError: 'Помилка мережі. Перевірте підключення.',
+            badRequest: 'Невірний запит. Перевірте введені дані.',
+            unauthorized: 'Для виконання цієї дії потрібно увійти в систему.',
+            forbidden: 'У вас немає прав для виконання цієї дії.',
+            notFound: 'Запитуваний ресурс не знайдено.',
+            conflict: 'Виникла конфліктна ситуація. Ресурс можливо вже існує.',
+            serverError: 'Помилка сервера. Спробуйте пізніше.',
+            loadingData: 'Не вдалося завантажити дані',
+            savingData: 'Не вдалося зберегти дані',
+            deletingData: 'Не вдалося видалити дані'
         }
     },
     et: {
@@ -837,9 +870,12 @@ const messages = {
             enterScores: 'Sisesta punktid',
             saveRoles: 'Salvesta rollid',
             finishGame: 'Lõpeta mäng',
+            gameFinished: 'Mäng lõpetatud edukalt!',
+            position: 'Positsioon',
         },
         wizard: {
             newGame: 'Uus Wizard mäng',
+            gameCreated: 'Wizard mäng loodud edukalt!',
             bidRestriction: 'Pakkumise piirang',
             noRestrictions: 'Piiranguteta',
             cannotMatchCards: 'Pakkumiste summa ei tohi võrduda kaartide arvuga',
@@ -870,6 +906,7 @@ const messages = {
         leagues: {
             title: 'Liigad',
             createLeague: 'Loo liiga',
+            leagueCreated: 'Liiga loodud edukalt!',
             leagueName: 'Liiga nimi',
             create: 'Loo',
             cancel: 'Tühista',
@@ -951,6 +988,19 @@ const messages = {
             loadingInvitation: 'Kutse laadimine...',
             invitationUsed: 'See kutse on juba kasutatud.',
             aliasExists: 'See hüüdnimi on liigas juba olemas.'
+        },
+        errors: {
+            unknown: 'Tekkis tundmatu viga',
+            networkError: 'Võrgu viga. Kontrollige ühendust.',
+            badRequest: 'Vale päring. Kontrollige sisestatud andmeid.',
+            unauthorized: 'Selle tegevuse jaoks peate sisse logima.',
+            forbidden: 'Teil pole selle tegevuse jaoks õigusi.',
+            notFound: 'Soovitud ressurssi ei leitud.',
+            conflict: 'Tekkis konflikt. Ressurss võib juba eksisteerida.',
+            serverError: 'Serveri viga. Proovige hiljem uuesti.',
+            loadingData: 'Andmete laadimine ebaõnnestus',
+            savingData: 'Andmete salvestamine ebaõnnestus',
+            deletingData: 'Andmete kustutamine ebaõnnestus'
         }
     }
 }

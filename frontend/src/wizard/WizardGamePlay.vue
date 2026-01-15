@@ -209,14 +209,18 @@ import { ref, computed, onMounted } from 'vue'
 import { NGrid, NGi, NAlert, NSpin, NCard, NIcon, NTag, NDivider, NButton, NList, NListItem, NAvatar } from 'naive-ui'
 import { Sparkles as WizardIcon, Card as CardsIcon, Star as StarIcon, Gift as HandCoinIcon, Trophy as TrophyIcon, CheckmarkCircle as CheckCircleIcon, ArrowForward as ArrowForwardIcon, Flag as FlagIcon, Grid as TableIcon, Person as PersonIcon } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useWizardStore } from '@/store/wizard'
+import { useErrorHandler } from '@/composables/useErrorHandler'
 import WizardBidDialog from './WizardBidDialog.vue'
 import WizardResultDialog from './WizardResultDialog.vue'
 import WizardScoreboard from './WizardScoreboard.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const wizardStore = useWizardStore()
+const { handleError, showSuccess } = useErrorHandler()
 
 const showBidDialog = ref(false)
 const showResultDialog = ref(false)
@@ -257,7 +261,7 @@ async function submitBids(bids: number[]) {
   try {
     await wizardStore.submitBids(bids)
   } catch (error) {
-    console.error('Error submitting bids:', error)
+    handleError(error, t('errors.savingData'))
   }
 }
 
@@ -265,7 +269,7 @@ async function submitResults(results: number[]) {
   try {
     await wizardStore.submitResults(results)
   } catch (error) {
-    console.error('Error submitting results:', error)
+    handleError(error, t('errors.savingData'))
   }
 }
 
@@ -274,7 +278,7 @@ async function completeRound() {
   try {
     await wizardStore.completeRound()
   } catch (error) {
-    console.error('Error completing round:', error)
+    handleError(error, t('errors.savingData'))
   } finally {
     completing.value = false
   }
@@ -284,7 +288,7 @@ async function moveToNextRound() {
   try {
     await wizardStore.nextRound()
   } catch (error) {
-    console.error('Error moving to next round:', error)
+    handleError(error, t('errors.savingData'))
   }
 }
 
@@ -295,7 +299,7 @@ async function finalizeGame() {
     // Redirect to game rounds list or league page
     router.push('/ui/game-rounds')
   } catch (error) {
-    console.error('Error finalizing game:', error)
+    handleError(error, t('errors.savingData'))
   } finally {
     finalizing.value = false
   }
@@ -311,7 +315,7 @@ onMounted(async () => {
     try {
       await wizardStore.loadGame(code)
     } catch (error) {
-      console.error('Error loading game:', error)
+      handleError(error, t('errors.loadingData'))
     }
   }
 })
