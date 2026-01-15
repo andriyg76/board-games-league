@@ -7,6 +7,9 @@ import LeagueApi, {
     LeagueStanding,
 } from '@/api/LeagueApi';
 
+// LocalStorage key for storing the current league code
+const CURRENT_LEAGUE_CODE_KEY = 'currentLeagueCode';
+
 interface LeagueState {
     leagues: League[];
     currentLeague: League | null;
@@ -72,6 +75,9 @@ export const useLeagueStore = defineStore('league', {
             try {
                 // Load league details
                 this.currentLeague = await LeagueApi.getLeague(code);
+
+                // Save to localStorage
+                localStorage.setItem(CURRENT_LEAGUE_CODE_KEY, code);
 
                 // Load members and standings in parallel
                 await Promise.all([
@@ -327,6 +333,15 @@ export const useLeagueStore = defineStore('league', {
             this.currentLeague = null;
             this.currentLeagueMembers = [];
             this.currentLeagueStandings = [];
+            // Clear from localStorage
+            localStorage.removeItem(CURRENT_LEAGUE_CODE_KEY);
+        },
+
+        /**
+         * Get the saved league code from localStorage
+         */
+        getSavedLeagueCode(): string | null {
+            return localStorage.getItem(CURRENT_LEAGUE_CODE_KEY);
         },
     },
 

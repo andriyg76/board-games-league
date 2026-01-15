@@ -122,3 +122,20 @@ func (m *LeagueMiddleware) RequireLeagueMembershipByToken(next http.Handler) htt
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+
+// ExtractLeagueCodeFromHeader reads the X-League-Code header and adds it to the request context
+// This middleware is optional and doesn't fail if the header is missing
+func (m *LeagueMiddleware) ExtractLeagueCodeFromHeader(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Try to get league code from header
+		leagueCode := r.Header.Get("X-League-Code")
+
+		// Add league code to context if present
+		ctx := r.Context()
+		if leagueCode != "" {
+			ctx = context.WithValue(ctx, "leagueCodeFromHeader", leagueCode)
+		}
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}

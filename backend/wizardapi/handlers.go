@@ -1,39 +1,48 @@
 package wizardapi
 
 import (
+	"github.com/andriyg76/bgl/middleware"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/services"
 	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
-	wizardRepo     repositories.WizardGameRepository
-	gameRoundRepo  repositories.GameRoundRepository
-	gameTypeRepo   repositories.GameTypeRepository
-	leagueService  services.LeagueService
-	userService    services.UserService
+	wizardRepo       repositories.WizardGameRepository
+	gameRoundRepo    repositories.GameRoundRepository
+	gameTypeRepo     repositories.GameTypeRepository
+	leagueService    services.LeagueService
+	userService      services.UserService
+	leagueMiddleware *middleware.LeagueMiddleware
 }
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
-	r.Route("/wizard/games", func(r chi.Router) {
-		// Game Management
-		r.Post("/", h.createGame)
-		r.Get("/{code}", h.getGame)
-		r.Get("/by-round/{gameRoundId}", h.getGameByRoundID)
-		r.Delete("/{code}", h.deleteGame)
+	// Apply league code extraction middleware to all routes
+	r.Group(func(r chi.Router) {
+		if h.leagueMiddleware != nil {
+			r.Use(h.leagueMiddleware.ExtractLeagueCodeFromHeader)
+		}
 
-		// Round Operations
-		r.Put("/{code}/rounds/{round}/bids", h.submitBids)
-		r.Put("/{code}/rounds/{round}/results", h.submitResults)
-		r.Post("/{code}/rounds/{round}/complete", h.completeRound)
-		r.Post("/{code}/rounds/{round}/restart", h.restartRound)
-		r.Put("/{code}/rounds/{round}/edit", h.editRound)
+		r.Route("/wizard/games", func(r chi.Router) {
+			// Game Management
+			r.Post("/", h.createGame)
+			r.Get("/{code}", h.getGame)
+			r.Get("/by-round/{gameRoundId}", h.getGameByRoundID)
+			r.Delete("/{code}", h.deleteGame)
 
-		// Game State
-		r.Get("/{code}/scoreboard", h.getScoreboard)
-		r.Post("/{code}/finalize", h.finalizeGame)
-		r.Post("/{code}/next-round", h.nextRound)
-		r.Post("/{code}/prev-round", h.prevRound)
+			// Round Operations
+			r.Put("/{code}/rounds/{round}/bids", h.submitBids)
+			r.Put("/{code}/rounds/{round}/results", h.submitResults)
+			r.Post("/{code}/rounds/{round}/complete", h.completeRound)
+			r.Post("/{code}/rounds/{round}/restart", h.restartRound)
+			r.Put("/{code}/rounds/{round}/edit", h.editRound)
+
+			// Game State
+			r.Get("/{code}/scoreboard", h.getScoreboard)
+			r.Post("/{code}/finalize", h.finalizeGame)
+			r.Post("/{code}/next-round", h.nextRound)
+			r.Post("/{code}/prev-round", h.prevRound)
+		})
 	})
 }
 
@@ -43,12 +52,14 @@ func NewHandler(
 	gameTypeRepo repositories.GameTypeRepository,
 	leagueService services.LeagueService,
 	userService services.UserService,
+	leagueMiddleware *middleware.LeagueMiddleware,
 ) *Handler {
 	return &Handler{
-		wizardRepo:    wizardRepo,
-		gameRoundRepo: gameRoundRepo,
-		gameTypeRepo:  gameTypeRepo,
-		leagueService: leagueService,
-		userService:   userService,
+		wizardRepo:       wizardRepo,
+		gameRoundRepo:    gameRoundRepo,
+		gameTypeRepo:     gameTypeRepo,
+		leagueService:    leagueService,
+		userService:      userService,
+		leagueMiddleware: leagueMiddleware,
 	}
 }
