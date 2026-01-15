@@ -48,87 +48,69 @@
             >
               <n-drawer-content class="mobile-drawer-content" closable>
                 <n-list class="mobile-drawer-list">
-                  <n-list-item class="mobile-drawer-item">
-                    <router-link
-                      to="/"
-                      class="mobile-drawer-link"
-                      @click="drawer = false"
-                    >
-                      {{ t('nav.home') }}
-                    </router-link>
-                  </n-list-item>
-                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
-                    <router-link
-                      to="/ui/admin/game-types"
-                      class="mobile-drawer-link"
-                      @click="drawer = false"
-                    >
-                      {{ t('nav.gameTypes') }}
-                    </router-link>
-                  </n-list-item>
-                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
-                    <router-link
-                      to="/ui/leagues"
-                      class="mobile-drawer-link"
-                      @click="drawer = false"
-                    >
-                      {{ t('nav.leagues') }}
-                    </router-link>
-                  </n-list-item>
-                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
-                    <router-link
-                      to="/ui/game-rounds"
-                      class="mobile-drawer-link"
-                      @click="drawer = false"
-                    >
-                      {{ t('gameRounds.title') }}
-                    </router-link>
-                  </n-list-item>
-                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
-                    <router-link
-                      to="/ui/game-rounds/new"
-                      class="mobile-drawer-link"
-                      @click="drawer = false"
-                    >
-                      {{ t('gameRounds.start') }}
-                    </router-link>
-                  </n-list-item>
-                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
-                    <router-link
-                      to="/ui/game-rounds/new?gameType=wizard"
-                      class="mobile-drawer-link"
-                      @click="drawer = false"
-                    >
-                      {{ t('wizard.newGame') }}
-                    </router-link>
-                  </n-list-item>
-                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
-                    <router-link
-                      to="/ui/game-rounds"
-                      class="mobile-drawer-link"
-                      @click="drawer = false"
-                    >
-                      {{ t('gameRounds.list') }}
-                    </router-link>
-                  </n-list-item>
-                  <n-list-item v-if="loggedIn" class="mobile-drawer-item">
-                    <router-link
-                      to="/ui/user"
-                      class="mobile-drawer-link"
-                      @click="drawer = false"
-                    >
-                      {{ t('nav.user') }}
-                    </router-link>
-                  </n-list-item>
-                  <n-list-item v-if="isSuperAdmin" class="mobile-drawer-item">
-                    <router-link
-                      to="/ui/admin/diagnostics"
-                      class="mobile-drawer-link"
-                      @click="drawer = false"
-                    >
-                      {{ t('nav.diagnostics') }}
-                    </router-link>
-                  </n-list-item>
+                  <router-link to="/" custom v-slot="{ navigate, href, isActive }">
+                    <n-list-item class="mobile-drawer-item" :class="{ 'mobile-drawer-item--active': isActive }">
+                      <a :href="href" class="mobile-drawer-link" @click="handleDrawerNavigate(navigate)">
+                        {{ t('nav.home') }}
+                      </a>
+                    </n-list-item>
+                  </router-link>
+                  <router-link v-if="loggedIn" to="/ui/admin/game-types" custom v-slot="{ navigate, href, isActive }">
+                    <n-list-item class="mobile-drawer-item" :class="{ 'mobile-drawer-item--active': isActive }">
+                      <a :href="href" class="mobile-drawer-link" @click="handleDrawerNavigate(navigate)">
+                        {{ t('nav.gameTypes') }}
+                      </a>
+                    </n-list-item>
+                  </router-link>
+                  <router-link v-if="loggedIn" to="/ui/leagues" custom v-slot="{ navigate, href, isActive }">
+                    <n-list-item class="mobile-drawer-item" :class="{ 'mobile-drawer-item--active': isActive }">
+                      <a :href="href" class="mobile-drawer-link" @click="handleDrawerNavigate(navigate)">
+                        {{ t('nav.leagues') }}
+                      </a>
+                    </n-list-item>
+                  </router-link>
+                  <router-link v-if="loggedIn" to="/ui/game-rounds" custom v-slot="{ navigate, href, isActive }">
+                    <n-list-item class="mobile-drawer-item" :class="{ 'mobile-drawer-item--active': isActive }">
+                      <a :href="href" class="mobile-drawer-link" @click="handleDrawerNavigate(navigate)">
+                        {{ t('gameRounds.title') }}
+                      </a>
+                    </n-list-item>
+                  </router-link>
+                  <router-link v-if="loggedIn" to="/ui/game-rounds/new" custom v-slot="{ navigate, href, isActive }">
+                    <n-list-item class="mobile-drawer-item" :class="{ 'mobile-drawer-item--active': isActive }">
+                      <a :href="href" class="mobile-drawer-link" @click="handleDrawerNavigate(navigate)">
+                        {{ t('gameRounds.start') }}
+                      </a>
+                    </n-list-item>
+                  </router-link>
+                  <router-link v-if="loggedIn" to="/ui/game-rounds/new?gameType=wizard" custom v-slot="{ navigate, href, isActive }">
+                    <n-list-item class="mobile-drawer-item" :class="{ 'mobile-drawer-item--active': isActive }">
+                      <a :href="href" class="mobile-drawer-link" @click="handleDrawerNavigate(navigate)">
+                        {{ t('wizard.newGame') }}
+                      </a>
+                    </n-list-item>
+                  </router-link>
+                  <router-link v-if="loggedIn" to="/ui/game-rounds" custom v-slot="{ navigate, href, isActive }">
+                    <n-list-item class="mobile-drawer-item" :class="{ 'mobile-drawer-item--active': isActive }">
+                      <a :href="href" class="mobile-drawer-link" @click="handleDrawerNavigate(navigate)">
+                        {{ t('gameRounds.list') }}
+                      </a>
+                    </n-list-item>
+                  </router-link>
+                  <router-link v-if="loggedIn" to="/ui/user" custom v-slot="{ navigate, href, isActive }">
+                    <n-list-item class="mobile-drawer-item" :class="{ 'mobile-drawer-item--active': isActive }">
+                      <a :href="href" class="mobile-drawer-link" @click="handleDrawerNavigate(navigate)">
+                        {{ t('nav.user') }}
+                      </a>
+                    </n-list-item>
+                  </router-link>
+                  <router-link v-if="isSuperAdmin" to="/ui/admin/diagnostics" custom v-slot="{ navigate, href, isActive }">
+                    <n-list-item class="mobile-drawer-item" :class="{ 'mobile-drawer-item--active': isActive }">
+                      <a :href="href" class="mobile-drawer-link" @click="handleDrawerNavigate(navigate)">
+                        {{ t('nav.diagnostics') }}
+                      </a>
+                    </n-list-item>
+                  </router-link>
                 </n-list>
               </n-drawer-content>
             </n-drawer>
@@ -182,6 +164,10 @@ const drawer = ref(false);
 const loggedIn = computed(() => userStore.$state.loggedIn);
 const isSuperAdmin = computed(() => userStore.isSuperAdmin);
 const drawerWidth = computed(() => (isMobile.value ? '100%' : 320));
+const handleDrawerNavigate = (navigate: (event?: MouseEvent) => void) => {
+  navigate();
+  drawer.value = false;
+};
 </script>
 
 <style scoped>
@@ -194,7 +180,13 @@ const drawerWidth = computed(() => (isMobile.value ? '100%' : 320));
 }
 
 .mobile-drawer-item {
-  padding: 16px 20px;
+  padding: 0;
+}
+
+.mobile-drawer-item--active .mobile-drawer-link {
+  background: rgba(32, 128, 240, 0.12);
+  color: #2080f0;
+  font-weight: 600;
 }
 
 .mobile-drawer-link {
@@ -203,5 +195,17 @@ const drawerWidth = computed(() => (isMobile.value ? '100%' : 320));
   width: 100%;
   color: inherit;
   text-decoration: none;
+  padding: 16px 20px;
+  border-radius: 10px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mobile-drawer-link:active {
+  background: rgba(32, 128, 240, 0.18);
+}
+
+.mobile-drawer-link:focus-visible {
+  outline: 2px solid rgba(32, 128, 240, 0.4);
+  outline-offset: 2px;
 }
 </style>
