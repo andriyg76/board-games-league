@@ -51,7 +51,12 @@ export function useErrorHandler() {
    * Show error message to user and log to console
    */
   const handleError = (error: unknown, customMessage?: string) => {
-    console.error('Error occurred:', error);
+    // Log full error details to console for debugging
+    if (customMessage) {
+      console.error(`${customMessage}:`, error);
+    } else {
+      console.error('Error occurred:', error);
+    }
 
     const errorMessage = customMessage || getErrorMessage(error);
     message.error(errorMessage, {
