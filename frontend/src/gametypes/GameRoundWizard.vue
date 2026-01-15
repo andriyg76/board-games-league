@@ -105,6 +105,7 @@ import { useWizardStore } from '@/store/wizard';
 import GameApi, { GameType, Role, getLocalizedName } from '@/api/GameApi';
 import LeagueApi, { SuggestedPlayer, SuggestedPlayersResponse } from '@/api/LeagueApi';
 import { BidRestriction, GameVariant } from '@/wizard/types';
+import { useErrorHandler } from '@/composables/useErrorHandler';
 
 import Step1GameType from './steps/Step1GameType.vue';
 import Step2Players from './steps/Step2Players.vue';
@@ -118,10 +119,11 @@ const props = defineProps<{
 
 const router = useRouter();
 const route = useRoute();
-const { locale } = useI18n();
+const { locale, t } = useI18n();
 const gameStore = useGameStore();
 const leagueStore = useLeagueStore();
 const wizardStore = useWizardStore();
+const { handleError, showSuccess } = useErrorHandler();
 
 // State
 const loading = ref(false);
@@ -245,7 +247,7 @@ const goToStep2 = async () => {
     try {
       suggestedPlayers.value = await LeagueApi.getSuggestedPlayers(leagueCode.value);
     } catch (error) {
-      console.error('Failed to load suggested players:', error);
+      handleError(error, t('errors.loadingData'));
     } finally {
       loadingSuggested.value = false;
     }
@@ -302,7 +304,7 @@ const goToStep3 = async () => {
         query: route.query,
       });
     } catch (error) {
-      console.error('Failed to save round:', error);
+      handleError(error, t('errors.savingData'));
       saving.value = false;
       return;
     } finally {
@@ -344,7 +346,7 @@ const saveRoles = async () => {
     const updatedRound = await GameApi.updateRoles(roundCode.value, players);
     roundVersion.value = updatedRound.version;
   } catch (error) {
-    console.error('Failed to save roles:', error);
+    handleError(error, t('errors.savingData'));
   } finally {
     saving.value = false;
   }
@@ -382,7 +384,7 @@ const saveScores = async () => {
     const updatedRound = await GameApi.updateScores(roundCode.value, playerScores.value);
     roundVersion.value = updatedRound.version;
   } catch (error) {
-    console.error('Failed to save scores:', error);
+    handleError(error, t('errors.savingData'));
   } finally {
     saving.value = false;
   }
@@ -397,9 +399,10 @@ const finishGame = async () => {
     await GameApi.finalizeGameRound(roundCode.value, {
       player_scores: playerScores.value,
     });
+    showSuccess(t('game.gameFinished'));
     await router.push({ name: 'GameRounds' });
   } catch (error) {
-    console.error('Failed to finish game:', error);
+    handleError(error, t('errors.savingData'));
   } finally {
     saving.value = false;
   }
@@ -420,12 +423,13 @@ const startWizardGame = async () => {
     await wizardStore.createGame(wizardRequest);
 
     if (wizardStore.currentGame) {
+      showSuccess(t('wizard.gameCreated'));
       await router.push(`/ui/wizard/${wizardStore.currentGame.code}`);
     } else {
       await router.push({ name: 'GameRounds' });
     }
   } catch (error) {
-    console.error('Error starting wizard game:', error);
+    handleError(error, t('errors.savingData'));
   } finally {
     saving.value = false;
   }
@@ -476,7 +480,7 @@ const loadExistingRound = async () => {
       step.value = 4;
     }
   } catch (error) {
-    console.error('Error loading game round:', error);
+    handleError(error, t('errors.loadingData'));
   } finally {
     loading.value = false;
   }
@@ -505,7 +509,7 @@ onMounted(async () => {
       }
     }
   } catch (error) {
-    console.error('Failed to load data:', error);
+    handleError(error, t('errors.loadingData'));
   }
 });
 </script>

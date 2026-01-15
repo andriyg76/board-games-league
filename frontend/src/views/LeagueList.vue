@@ -75,11 +75,13 @@ import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
 import { useUserStore } from '@/store/user';
 import LeagueCard from '@/components/league/LeagueCard.vue';
+import { useErrorHandler } from '@/composables/useErrorHandler';
 
 const { t } = useI18n();
 const router = useRouter();
 const leagueStore = useLeagueStore();
 const userStore = useUserStore();
+const { handleError, showSuccess } = useErrorHandler();
 
 const showCreateDialog = ref(false);
 const newLeagueName = ref('');
@@ -104,10 +106,11 @@ const handleCreate = async () => {
     const league = await leagueStore.createLeague(newLeagueName.value);
     showCreateDialog.value = false;
     newLeagueName.value = '';
+    showSuccess(t('leagues.leagueCreated'));
     router.push({ name: 'LeagueDetails', params: { code: league.code } });
     return true;
   } catch (error) {
-    console.error('Error creating league:', error);
+    handleError(error, t('errors.savingData'));
     return false;
   } finally {
     creating.value = false;
@@ -120,7 +123,7 @@ onMounted(async () => {
   try {
     await leagueStore.loadLeagues();
   } catch (error) {
-    console.error('Error loading leagues:', error);
+    handleError(error, t('errors.loadingData'));
   }
 });
 </script>
