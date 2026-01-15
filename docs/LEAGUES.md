@@ -297,6 +297,19 @@ type GameRound struct {
 
 ## API Документація
 
+### Важливо: Використання Code замість ID
+
+Всі API endpoints використовують **коди (Code)** замість MongoDB ObjectID:
+- **League Code**: Використовується в URL як `{code}` параметр (наприклад `/api/leagues/{code}`)
+- **Membership Code**: Використовується в JSON як `membership_code` (замість `membership_id`)
+- **User Code**: Використовується в JSON як `user_code` або в URL як `{userCode}`
+- **Game Round Code**: Використовується в URL та JSON як `game_round_code`
+
+**Примітки:**
+- Всі коди є base58-encoded версіями MongoDB ObjectID
+- Коди передаються клієнту, ID використовуються тільки внутрішньо в backend
+- При роботі з API не потрібно передавати `league_id` в body - він автоматично береться з URL через middleware
+
 ### Аутентифікація
 
 Всі endpoints ліг потребують аутентифікації через JWT токен в заголовку `Authorization`:
@@ -565,6 +578,8 @@ Authorization: Bearer <jwt_token>
 - `virtual` - Гравець брав участь в іграх, але ніколи не входив в систему
 - `banned` - Користувач заблокований в лізі
 
+**Примітка:** Заблоковані користувачі відображаються в кінці списку. Серед не-заблокованих користувачів сортування відбувається за датою приєднання (новіші спочатку).
+
 **Статус коди:**
 - `200 OK` - Успіх
 - `401 Unauthorized` - Відсутня або недійсна аутентифікація
@@ -574,35 +589,24 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-#### 8. Заблокувати/Розблокувати члена
+#### 8. Заблокувати члена
 
-**Endpoint:** `PUT /api/leagues/{code}/members/{userId}/status`
+**Endpoint:** `POST /api/leagues/{code}/ban/{userCode}`
 
-**Опис:** Змінює статус члена (ban/unban). **Потребує прав суперадміна.**
+**Опис:** Блокує члена ліги. **Потребує прав суперадміна.** Суперадмін не може забанити себе.
 
 **URL параметри:**
 - `code` - Код ліги
-- `userId` - ID користувача (hex string)
+- `userCode` - Код користувача
 
-**Тіло запиту:**
-```json
-{
-  "status": "banned"
-}
-```
-
-**Допустимі значення статусу:** `active`, `banned`
+**Тіло запиту:** Не потрібно
 
 **Відповідь:**
-```json
-{
-  "success": true
-}
-```
+- `200 OK` - Користувач успішно заблокований
 
 **Статус коди:**
 - `200 OK` - Успіх
-- `400 Bad Request` - Недійсне значення статусу
+- `400 Bad Request` - Неможливо забанити себе або користувач вже заблокований
 - `401 Unauthorized` - Відсутня або недійсна аутентифікація
 - `403 Forbidden` - Користувач не є суперадміном
 - `404 Not Found` - Ліга або член не знайдені
@@ -610,7 +614,34 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-#### 9. Отримати рекомендованих гравців
+#### 9. Розблокувати члена
+
+**Endpoint:** `POST /api/leagues/{code}/unban/{userCode}`
+
+**Опис:** Розблоковує члена ліги. **Потребує прав суперадміна.**
+
+**URL параметри:**
+- `code` - Код ліги
+- `userCode` - Код користувача
+
+**Тіло запиту:** Не потрібно
+
+**Відповідь:**
+- `200 OK` - Користувач успішно розблокований
+
+**Статус коди:**
+- `200 OK` - Успіх
+- `400 Bad Request` - Користувач не заблокований
+- `401 Unauthorized` - Відсутня або недійсна аутентифікація
+- `403 Forbidden` - Користувач не є суперадміном
+- `404 Not Found` - Ліга або член не знайдені
+- `500 Internal Server Error` - Помилка сервера
+
+**Примітка:** Заблоковані користувачі відображаються в кінці списку учасників ліги.
+
+---
+
+#### 10. Отримати рекомендованих гравців
 
 **Endpoint:** `GET /api/leagues/{code}/suggested-players`
 
@@ -623,14 +654,14 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "current_player": {
-    "membership_id": "507f1f77bcf86cd799439012",
+    "membership_code": "ABC123",
     "alias": "John",
     "avatar": "https://example.com/avatar.jpg",
     "is_member": true
   },
   "recent_players": [
     {
-      "membership_id": "507f1f77bcf86cd799439013",
+      "membership_code": "DEF456",
       "alias": "Jane",
       "avatar": "https://example.com/avatar2.jpg",
       "last_played_at": "2026-01-10T18:00:00Z",
@@ -639,7 +670,7 @@ Authorization: Bearer <jwt_token>
   ],
   "other_players": [
     {
-      "membership_id": "507f1f77bcf86cd799439014",
+      "membership_code": "GHI789",
       "alias": "Bob",
       "avatar": "https://example.com/avatar3.jpg",
       "is_virtual": true
@@ -677,7 +708,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-#### 10. Створити запрошення
+#### 11. Створити запрошення
 
 **Endpoint:** `POST /api/leagues/{code}/invitations`
 
@@ -706,11 +737,11 @@ Authorization: Bearer <jwt_token>
 {
   "invitation": {
     "token": "abc123def456",
-    "league_id": "507f1f77bcf86cd799439011",
-    "created_by": "507f1f77bcf86cd799439012",
+    "league_code": "ABC123",
+    "player_alias": "NewPlayer",
+    "membership_code": "DEF456",
     "created_at": "2026-01-12T00:00:00Z",
-    "expires_at": "2026-01-19T00:00:00Z",
-    "used": false
+    "expires_at": "2026-01-19T00:00:00Z"
   },
   "invitation_link": "https://example.com/ui/leagues/join/abc123def456"
 }
@@ -731,7 +762,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-#### 11. Перегляд запрошення (Публічний)
+#### 12. Перегляд запрошення (Публічний)
 
 **Endpoint:** `GET /api/leagues/join/{token}/preview`
 
@@ -807,7 +838,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-#### 13. Покинути лігу
+#### 14. Покинути лігу
 
 **Endpoint:** `DELETE /api/leagues/{code}/members/me`
 
@@ -865,9 +896,12 @@ Authorization: Bearer <jwt_token>
 
 ## Ігрові раунди в лігах
 
-При створенні ігрового раунду можна опціонально пов'язати його з лігою:
+Всі ігрові раунди створюються в контексті ліги. League ID автоматично береться з контексту через middleware.
 
-**Endpoint:** `POST /api/games`
+**Endpoint:** `POST /api/leagues/{code}/game_rounds`
+
+**URL параметри:**
+- `code` - Код ліги
 
 **Тіло запиту:**
 ```json
@@ -875,16 +909,32 @@ Authorization: Bearer <jwt_token>
   "name": "Game 1",
   "type": "Carcassonne",
   "start_time": "2026-01-12T18:00:00Z",
-  "league_id": "507f1f77bcf86cd799439011",
   "players": [
     {
-      "user_id": "507f1f77bcf86cd799439012",
+      "membership_code": "ABC123",
       "position": 1,
-      "team_name": "Red"
+      "team_name": "Red",
+      "is_moderator": false
     }
   ]
 }
 ```
+
+**Примітки:**
+- `league_id` більше не передається в body - він автоматично береться з URL параметра через middleware
+- Кожен гравець визначається через `membership_code` замість `user_id`
+- League membership middleware автоматично перевіряє, що користувач є активним членом ліги
+
+**Інші endpoints для game rounds:**
+- `GET /api/leagues/{code}/game_rounds` - Список всіх ігрових раундів ліги
+- `GET /api/leagues/{code}/game_rounds/{code}` - Отримати конкретний раунд
+- `PUT /api/leagues/{code}/game_rounds/{code}` - Оновити раунд
+- `PUT /api/leagues/{code}/game_rounds/{code}/finalize` - Фіналізувати раунд
+
+**Wizard ігри:**
+- `POST /api/leagues/{code}/wizard/games` - Створити wizard гру
+- `GET /api/leagues/{code}/wizard/games/{code}` - Отримати wizard гру
+- Інші wizard endpoints також доступні під `/api/leagues/{code}/wizard/games/...`
 
 Коли ігровий раунд фіналізується, таблиця лідерів ліги автоматично оновлюється.
 
@@ -1022,13 +1072,15 @@ try {
 
 **Затронуті компоненти:**
 - `LeagueList.vue` - дія createLeague
-- `LeagueDetails.vue` - дії archiveLeague, unarchiveLeague, banMember
+- `LeagueDetails.vue` - дії archiveLeague, unarchiveLeague, banMember, unbanMember
 - Всі компоненти з API викликами
 
 #### 1.2 Стани завантаження для дій
 
 **Поточна проблема:**
 Дії архівування/розархівування та бану/розбану не мають індикаторів завантаження.
+
+**Примітка:** Заблоковані користувачі відображаються в кінці списку учасників з кнопкою розбану.
 
 **Рекомендація:**
 Додати стани завантаження до кнопок дій.
