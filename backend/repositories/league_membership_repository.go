@@ -44,6 +44,12 @@ func NewLeagueMembershipRepository(mongodb *db.MongoDB) (LeagueMembershipReposit
 }
 
 func ensureLeagueMembershipIndexes(r *LeagueMembershipRepositoryInstance) error {
+	// Drop old unique index if it exists (before migration to partial index)
+	// Ignore error if index doesn't exist
+	oldIndexName := "league_id_1_user_id_1"
+	_, _ = r.collection.Indexes().DropOne(context.Background(), oldIndexName)
+
+	// Create indexes
 	_, err := r.collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
 		{
 			Keys: bson.D{{"league_id", 1}, {"user_id", 1}},

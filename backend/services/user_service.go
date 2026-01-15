@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/utils"
@@ -16,13 +17,13 @@ type UserService interface {
 
 type userService struct {
 	userRepository repositories.UserRepository
-	userCache       UserCache
+	userCache      UserCache
 }
 
 func NewUserService(userRepository repositories.UserRepository, userCache UserCache) UserService {
 	return &userService{
 		userRepository: userRepository,
-		userCache:       userCache,
+		userCache:      userCache,
 	}
 }
 
