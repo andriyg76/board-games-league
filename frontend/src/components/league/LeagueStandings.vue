@@ -4,12 +4,101 @@
       {{ t('leagues.noLeagueData') }}
     </n-alert>
 
-    <n-data-table
-      v-else
-      :columns="columns"
-      :data="standings"
-      :pagination="{ pageSize: 10 }"
-    />
+    <div v-else>
+      <n-data-table
+        class="standings-table"
+        :columns="columns"
+        :data="standings"
+        :pagination="{ pageSize: 10 }"
+      />
+
+      <n-list class="standings-cards">
+        <n-list-item
+          v-for="(row, index) in standings"
+          :key="row.membership_id || row.user_id"
+          clickable
+          @click="showDetails(row)"
+        >
+          <div class="standings-card">
+            <div class="standings-card-header">
+              <div class="standings-rank">
+                <n-icon v-if="index < 3" :color="getMedalColor(index)" size="16">
+                  <MedalIcon />
+                </n-icon>
+                <span>#{{ index + 1 }}</span>
+              </div>
+              <div class="standings-player">
+                <n-avatar :src="row.user_avatar" size="36" round />
+                <div class="standings-player-text">
+                  <div class="standings-name">{{ row.user_name }}</div>
+                  <div class="standings-subtitle">
+                    {{ t('leagues.games') }}: {{ row.games_played }}
+                  </div>
+                </div>
+              </div>
+              <n-button
+                quaternary
+                circle
+                size="medium"
+                @click.stop="showDetails(row)"
+              >
+                <template #icon>
+                  <n-icon size="18"><InformationIcon /></n-icon>
+                </template>
+              </n-button>
+            </div>
+
+            <div v-if="row.is_pending" class="standings-pending">
+              <n-tag type="warning" size="small">
+                {{ t('leagues.pendingMember') }}
+              </n-tag>
+            </div>
+
+            <div class="standings-card-stats">
+              <div class="standings-stat">
+                <div class="standings-stat-label">{{ t('leagues.points') }}</div>
+                <n-tag type="primary" size="small">{{ row.total_points }}</n-tag>
+              </div>
+              <div class="standings-stat">
+                <div class="standings-stat-label">{{ t('leagues.podiums') }}</div>
+                <div class="standings-podiums">
+                  <n-tag
+                    v-if="row.first_place_count > 0"
+                    class="standings-podium-tag standings-podium-tag--gold"
+                    size="small"
+                  >
+                    <n-icon size="12"><TrophyIcon /></n-icon>
+                    {{ row.first_place_count }}
+                  </n-tag>
+                  <n-tag
+                    v-if="row.second_place_count > 0"
+                    class="standings-podium-tag standings-podium-tag--silver"
+                    size="small"
+                  >
+                    <n-icon size="12"><TrophyIcon /></n-icon>
+                    {{ row.second_place_count }}
+                  </n-tag>
+                  <n-tag
+                    v-if="row.third_place_count > 0"
+                    class="standings-podium-tag standings-podium-tag--bronze"
+                    size="small"
+                  >
+                    <n-icon size="12"><TrophyIcon /></n-icon>
+                    {{ row.third_place_count }}
+                  </n-tag>
+                  <span
+                    v-if="row.first_place_count === 0 && row.second_place_count === 0 && row.third_place_count === 0"
+                    class="standings-empty"
+                  >
+                    0
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </n-list-item>
+      </n-list>
+    </div>
 
     <!-- Details Dialog -->
     <n-modal v-model:show="detailsDialog" preset="card" :title="selectedPlayer?.user_name" style="max-width: 600px;">
@@ -25,13 +114,13 @@
         <n-divider />
 
         <n-grid :cols="24" :x-gap="16" style="margin-bottom: 16px;">
-          <n-gi :span="12">
+          <n-gi :span="24" :responsive="{ m: 12 }">
             <n-card style="text-align: center; background: rgba(32, 128, 240, 0.1);">
               <div style="font-size: 2rem; font-weight: 500;">{{ selectedPlayer.total_points }}</div>
               <div style="font-size: 0.875rem; opacity: 0.7;">{{ t('leagues.totalPoints') }}</div>
             </n-card>
           </n-gi>
-          <n-gi :span="12">
+          <n-gi :span="24" :responsive="{ m: 12 }">
             <n-card style="text-align: center; background: rgba(24, 160, 88, 0.1);">
               <div style="font-size: 2rem; font-weight: 500;">{{ selectedPlayer.games_played }}</div>
               <div style="font-size: 0.875rem; opacity: 0.7;">{{ t('leagues.gamesPlayed') }}</div>
@@ -76,7 +165,7 @@
 
         <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 8px;">{{ t('leagues.podiums') }}:</div>
         <n-grid :cols="24" :x-gap="16">
-          <n-gi :span="8">
+          <n-gi :span="24" :responsive="{ m: 8 }">
             <n-card style="text-align: center; background: rgba(255, 215, 0, 0.1);">
               <n-icon size="32" color="#ffd700" style="margin-bottom: 8px;">
                 <TrophyIcon />
@@ -85,7 +174,7 @@
               <div style="font-size: 0.875rem; opacity: 0.7;">{{ t('leagues.firstPlace') }}</div>
             </n-card>
           </n-gi>
-          <n-gi :span="8">
+          <n-gi :span="24" :responsive="{ m: 8 }">
             <n-card style="text-align: center; background: rgba(192, 192, 192, 0.1);">
               <n-icon size="32" color="#c0c0c0" style="margin-bottom: 8px;">
                 <TrophyIcon />
@@ -94,7 +183,7 @@
               <div style="font-size: 0.875rem; opacity: 0.7;">{{ t('leagues.secondPlace') }}</div>
             </n-card>
           </n-gi>
-          <n-gi :span="8">
+          <n-gi :span="24" :responsive="{ m: 8 }">
             <n-card style="text-align: center; background: rgba(205, 127, 50, 0.1);">
               <n-icon size="32" color="#cd7f32" style="margin-bottom: 8px;">
                 <TrophyIcon />
@@ -235,4 +324,145 @@ const showDetails = (player: LeagueStanding) => {
   selectedPlayer.value = player;
   detailsDialog.value = true;
 };
+
+const getMedalColor = (index: number) => {
+  if (index === 0) return '#ffd700';
+  if (index === 1) return '#c0c0c0';
+  if (index === 2) return '#cd7f32';
+  return '';
+};
 </script>
+
+<style scoped>
+.standings-table {
+  display: block;
+}
+
+.standings-cards {
+  display: none;
+  margin-top: 8px;
+}
+
+.standings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.standings-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.standings-rank {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  min-width: 56px;
+}
+
+.standings-player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.standings-player-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.standings-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.standings-subtitle {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.standings-pending {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.standings-card-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.standings-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 120px;
+}
+
+.standings-stat-label {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+
+.standings-podiums {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.standings-podium-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.standings-podium-tag--gold {
+  background: #ffd700;
+  color: #000;
+}
+
+.standings-podium-tag--silver {
+  background: #c0c0c0;
+  color: #000;
+}
+
+.standings-podium-tag--bronze {
+  background: #cd7f32;
+  color: #fff;
+}
+
+.standings-empty {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .standings-table {
+    display: none;
+  }
+
+  .standings-cards {
+    display: block;
+  }
+
+  .standings-card-header {
+    align-items: flex-start;
+  }
+
+  .standings-rank {
+    min-width: auto;
+  }
+}
+</style>
