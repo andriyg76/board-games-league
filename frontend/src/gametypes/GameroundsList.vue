@@ -14,10 +14,10 @@
         <div v-if="activeRounds.length > 0" style="margin-bottom: 24px;">
           <h3 style="font-size: 1.25rem; font-weight: 500; margin-bottom: 8px;">{{ $t('common.inProgress') }}</h3>
           <n-list>
-            <n-list-item v-for="round in activeRounds" :key="round.code">
+            <n-list-item v-for="round in activeRounds" :key="round.code || round.id || round.name">
               <div style="flex: 1;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                  <span style="font-weight: 500;">{{ round.name || $t('common.unknown') }}</span>
+                  <span style="font-weight: 500;">{{ (round.name && round.name.trim()) ? round.name : $t('common.unknown') }}</span>
                   <n-tag :type="getStatusTagType(round.status)" size="small">
                     {{ getStatusLabel(round.status) }}
                   </n-tag>
@@ -42,9 +42,9 @@
         <div v-if="completedRounds.length > 0" style="margin-bottom: 24px;">
           <h3 style="font-size: 1.25rem; font-weight: 500; margin-bottom: 8px;">{{ $t('common.completed') }}</h3>
           <n-list>
-            <n-list-item v-for="round in completedRounds" :key="round.code">
+            <n-list-item v-for="round in completedRounds" :key="round.code || round.id || round.name">
               <div style="flex: 1;">
-                <div style="font-weight: 500; margin-bottom: 4px;">{{ round.name || $t('common.unknown') }}</div>
+                <div style="font-weight: 500; margin-bottom: 4px;">{{ (round.name && round.name.trim()) ? round.name : $t('common.unknown') }}</div>
                 <div style="font-size: 0.875rem; opacity: 0.7;">
                   {{ $t('gameRounds.started') }}: {{ formatDate(round.start_time) }}
                   {{ round.end_time ? ` | ${$t('gameRounds.ended')}: ${formatDate(round.end_time)}` : '' }}
@@ -93,9 +93,11 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import GameApi from '@/api/GameApi';
 import FinalizeGameDialog from './FinalizeGameDialog.vue';
+import { useLeagueStore } from '@/store/league';
 
 const router = useRouter();
 const { t } = useI18n();
+const leagueStore = useLeagueStore();
 
 const gameRounds = ref<GameRoundView[]>([]);
 const loading = ref(false);
@@ -113,8 +115,15 @@ const completedRounds = computed(() =>
   gameRounds.value.filter(r => !r.status || r.status === 'completed')
 );
 
-const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString();
+const formatDate = (dateStr?: string | null) => {
+  if (!dateStr) {
+    return t('common.unknown');
+  }
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    return t('common.unknown');
+  }
+  return date.toLocaleDateString();
 };
 
 const getStatusTagType = (status?: GameRoundStatus): 'default' | 'info' | 'success' | 'warning' | 'error' => {
@@ -141,7 +150,19 @@ const loadGameRounds = async () => {
   loading.value = true;
   error.value = null;
   try {
-    gameRounds.value = await GameApi.listGameRounds() as any;
+    const leagueCode = leagueStore.currentLeagueCode;
+    if (!leagueCode) {
+      error.value = 'No league selected. Please select a league first.';
+      loading.value = false;
+      return;
+    }
+    const rounds = await GameApi.listLeagueGameRounds(leagueCode) as any;
+    // Validate that all rounds have code
+    const roundsWithoutCode = rounds.filter((r: any) => !r.code);
+    if (roundsWithoutCode.length > 0) {
+      console.warn('Some rounds are missing code:', roundsWithoutCode);
+    }
+    gameRounds.value = rounds;
   } catch (err) {
     console.error('Error fetching game rounds:', err);
     error.value = 'Failed to load game rounds';
@@ -155,10 +176,20 @@ const handleFinalized = async () => {
 };
 
 const continueRound = (round: GameRoundView) => {
+  if (!round.code) {
+    error.value = 'Game round code is missing';
+    console.error('Round code is missing:', round);
+    return;
+  }
   router.push({ name: 'EditGameRound', params: { id: round.code }});
 };
 
 const editRound = (round: GameRoundView) => {
+  if (!round.code) {
+    error.value = 'Game round code is missing';
+    console.error('Round code is missing:', round);
+    return;
+  }
   // Use edit page for completed rounds
   router.push({ name: 'EditCompletedGameRound', params: { id: round.code }});
 };

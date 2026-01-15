@@ -152,6 +152,13 @@ func (h *Handler) listGameRounds(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fill Code for each round
+	for _, round := range rounds {
+		if idAndCode := h.idCodeCache.GetByID(round.ID); idAndCode != nil {
+			round.Code = idAndCode.Code
+		}
+	}
+
 	utils.WriteJSON(w, rounds, http.StatusOK)
 }
 
@@ -170,6 +177,11 @@ func (h *Handler) getGameRound(w http.ResponseWriter, r *http.Request) {
 	if round == nil {
 		http.Error(w, "Game round not found", http.StatusNotFound)
 		return
+	}
+
+	// Fill Code
+	if idAndCode := h.idCodeCache.GetByID(round.ID); idAndCode != nil {
+		round.Code = idAndCode.Code
 	}
 
 	w.Header().Set("Content-Type", "application/json")

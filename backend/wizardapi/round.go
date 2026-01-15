@@ -174,9 +174,8 @@ func (h *Handler) completeRound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return round results
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(game.Rounds[roundIndex])
+	// Return full game (not just round) so frontend can update properly
+	h.respondWithGame(w, game)
 }
 
 func (h *Handler) restartRound(w http.ResponseWriter, r *http.Request) {

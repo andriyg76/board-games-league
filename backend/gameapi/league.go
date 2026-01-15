@@ -777,6 +777,15 @@ func (h *Handler) listLeagueGameRounds(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fill Code for each round
+	for _, round := range rounds {
+		if idAndCode := h.idCodeCache.GetByID(round.ID); idAndCode != nil {
+			round.Code = idAndCode.Code
+		}
+		// Note: If code is missing, it means the round is not in the cache yet.
+		// This can happen for newly created rounds. The frontend will handle this gracefully.
+	}
+
 	utils.WriteJSON(w, rounds, http.StatusOK)
 }
 

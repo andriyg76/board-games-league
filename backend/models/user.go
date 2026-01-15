@@ -13,7 +13,7 @@ type User struct {
 	Avatar       string             `bson:"picture,omitempty"`
 	CreatedAt    time.Time          `bson:"created_at"`
 	UpdatedAt    time.Time          `bson:"updated_at"`
-	LastActivity time.Time          `bson:"last_activity,omitempty"`
+	LastActivity time.Time          `bson:"last_activity_at,omitempty"`
 	Alias        string             `bson:"alias"`
 	Names        []string           `bson:"names,omitempty"`
 	Avatars      []string           `bson:"avatars,omitempty"`

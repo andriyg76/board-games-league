@@ -229,12 +229,19 @@ onMounted(async () => {
     }
 
     // If no leagues, load other data for display
-    const [roundsData, typesData] = await Promise.all([
-      GameApi.listGameRounds(),
-      GameApi.getGameTypes()
-    ]);
-    gameRounds.value = roundsData as GameRoundView[];
-    gameTypes.value = typesData;
+    // Note: Game rounds are league-scoped, so only load if we have a league code
+    const leagueCode = leagueStore.currentLeagueCode;
+    const loadPromises: Promise<any>[] = [GameApi.getGameTypes()];
+    
+    if (leagueCode) {
+      loadPromises.push(GameApi.listLeagueGameRounds(leagueCode));
+    }
+    
+    const results = await Promise.all(loadPromises);
+    gameTypes.value = results[0];
+    if (leagueCode && results.length > 1) {
+      gameRounds.value = results[1] as GameRoundView[];
+    }
   } catch (error) {
     handleError(error, t('errors.loadingData'));
   } finally {

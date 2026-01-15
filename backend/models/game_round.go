@@ -38,35 +38,35 @@ func (s GameRoundStatus) IsValidStatus() bool {
 }
 
 type GameRoundPlayer struct {
-	IsModerator  bool               `bson:"is_moderator"`
-	TeamName     string             `bson:"team_name,omitempty"`
-	LabelName    string             `bson:"label_name,omitempty"`
-	Score        int64              `bson:"cooperative_score,omitempty"`
-	Position     int                `bson:"position,omitempty"`
-	MembershipID primitive.ObjectID `bson:"membership_id,omitempty"`
+	IsModerator  bool               `bson:"is_moderator" json:"is_moderator"`
+	TeamName     string             `bson:"team_name,omitempty" json:"team_name,omitempty"`
+	LabelName    string             `bson:"label_name,omitempty" json:"label_name,omitempty"`
+	Score        int64              `bson:"cooperative_score,omitempty" json:"score,omitempty"`
+	Position     int                `bson:"position,omitempty" json:"position,omitempty"`
+	MembershipID primitive.ObjectID `bson:"membership_id,omitempty" json:"-"`
 	// Deprecated: use MembershipID instead. Kept for backward compatibility during migration.
-	PlayerID primitive.ObjectID `bson:"player_id,omitempty"`
+	PlayerID primitive.ObjectID `bson:"player_id,omitempty" json:"-"`
 }
 
 type TeamScore struct {
-	Name     string `bson:"name"`
-	Score    int64  `bson:"cooperative_score,omitempty"`
-	Position int    `bson:"position"`
+	Name     string `bson:"name" json:"name"`
+	Score    int64  `bson:"cooperative_score,omitempty" json:"score,omitempty"`
+	Position int    `bson:"position" json:"position"`
 }
 
 type GameRound struct {
-	ID               primitive.ObjectID `bson:"_id,omitempty"`
-	Code             string             `bson:"-"`
-	Version          int64              `bson:"version"`
-	LeagueID         primitive.ObjectID `bson:"league_id,omitempty"`
-	Name             string             `bson:"name"`
-	GameTypeID       primitive.ObjectID `bson:"game_type_id,omitempty"`
+	ID               primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Code             string             `bson:"-" json:"code"`
+	Version          int64              `bson:"version" json:"version,omitempty"`
+	LeagueID         primitive.ObjectID `bson:"league_id,omitempty" json:"-"`
+	Name             string             `bson:"name" json:"name"`
+	GameTypeID       primitive.ObjectID `bson:"game_type_id,omitempty" json:"-"`
 	Status           GameRoundStatus    `bson:"status" json:"status"`
-	StartTime        time.Time          `bson:"start_time"`
-	EndTime          time.Time          `bson:"end_time"`
-	Players          []GameRoundPlayer  `bson:"players"`
-	TeamScores       []TeamScore        `bson:"team_scores,omitempty"`
-	CooperativeScore int64              `bson:"cooperative_score,omitempty"`
-	CreatedAt        time.Time          `bson:"created_at"`
-	UpdatedAt        time.Time          `bson:"updated_at"`
+	StartTime        time.Time          `bson:"start_time" json:"start_time"`
+	EndTime          time.Time          `bson:"end_time" json:"end_time,omitempty"`
+	Players          []GameRoundPlayer  `bson:"players" json:"players"`
+	TeamScores       []TeamScore        `bson:"team_scores,omitempty" json:"team_scores,omitempty"`
+	CooperativeScore int64              `bson:"cooperative_score,omitempty" json:"cooperative_score,omitempty"`
+	CreatedAt        time.Time          `bson:"created_at" json:"created_at,omitempty"`
+	UpdatedAt        time.Time          `bson:"updated_at" json:"updated_at,omitempty"`
 }
