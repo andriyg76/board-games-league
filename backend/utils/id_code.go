@@ -12,8 +12,9 @@ import (
 
 const base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
-// encodeBase58 encodes a byte slice to a base58 string
-func encodeBase58(data []byte) string {
+// EncodeBase58 encodes a byte slice to a base58 string
+// This is a public function for encoding arbitrary byte data (e.g., invitation tokens)
+func EncodeBase58(data []byte) string {
 	if len(data) == 0 {
 		return ""
 	}
@@ -103,7 +104,7 @@ func decodeBase58(s string) ([]byte, error) {
 // Returns:
 //   - string: base58 encoded representation of the ID
 func IdToCode(id primitive.ObjectID) string {
-	return encodeBase58(id[:])
+	return EncodeBase58(id[:])
 }
 
 // CodeToID converts a base58 encoded string back to a MongoDB ObjectID.

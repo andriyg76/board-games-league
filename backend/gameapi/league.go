@@ -3,7 +3,6 @@ package gameapi
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/andriyg76/bgl/auth"
@@ -255,17 +254,10 @@ func (h *Handler) listMyInvitations(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/leagues/:code/invitations/:token/cancel - Cancel invitation by token
 func (h *Handler) cancelInvitation(w http.ResponseWriter, r *http.Request) {
-	tokenRaw := chi.URLParam(r, "token")
-	if tokenRaw == "" {
+	token := chi.URLParam(r, "token")
+	if token == "" {
 		http.Error(w, "Invalid invitation token", http.StatusBadRequest)
 		return
-	}
-
-	// URL decode the token (chi.URLParam may not decode it automatically)
-	token, err := url.QueryUnescape(tokenRaw)
-	if err != nil {
-		// If decoding fails, use raw token
-		token = tokenRaw
 	}
 
 	// Get current user

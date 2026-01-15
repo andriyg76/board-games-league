@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -693,12 +692,13 @@ func (s *leagueServiceInstance) UpdatePendingMemberAlias(ctx context.Context, me
 }
 
 // generateInvitationToken generates a cryptographically secure random token
+// Returns a base58 encoded string (URL-safe, no encoding needed)
 func generateInvitationToken() (string, error) {
 	b := make([]byte, 32) // 32 bytes = 256 bits
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	return base64.URLEncoding.EncodeToString(b), nil
+	return utils.EncodeBase58(b), nil
 }
 
 // UpdatePlayersAfterGame updates recent_co_players and last_activity_at for all players after a game
