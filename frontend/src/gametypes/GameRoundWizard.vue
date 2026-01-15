@@ -470,11 +470,15 @@ const startWizardGame = async () => {
       player_membership_ids: roundPlayers.value.map(p => p.membership_code),
     };
 
-    await wizardStore.createGame(wizardRequest);
+    await wizardStore.createGame(leagueCode.value, wizardRequest);
 
     if (wizardStore.currentGame) {
       showSuccess(t('wizard.gameCreated'));
-      await router.push(`/ui/wizard/${wizardStore.currentGame.code}`);
+      await router.push({
+        name: 'WizardGame',
+        params: { code: wizardStore.currentGame.code },
+        query: { league: leagueCode.value }
+      });
     } else {
       await router.push({ name: 'GameRounds' });
     }

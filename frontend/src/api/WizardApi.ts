@@ -15,9 +15,9 @@ export default {
   /**
    * Create a new Wizard game
    */
-  async createGame(request: CreateGameRequest): Promise<CreateGameResponse> {
+  async createGame(leagueCode: string, request: CreateGameRequest): Promise<CreateGameResponse> {
     try {
-      const response = await apiFetch('/api/wizard/games', {
+      const response = await apiFetch(`/api/leagues/${leagueCode}/wizard/games`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -37,9 +37,9 @@ export default {
   /**
    * Get game by code
    */
-  async getGame(code: string): Promise<WizardGame> {
+  async getGame(leagueCode: string, code: string): Promise<WizardGame> {
     try {
-      const response = await apiFetch(`/api/wizard/games/${code}`)
+      const response = await apiFetch(`/api/leagues/${leagueCode}/wizard/games/${code}`)
       if (!response.ok) {
         throw new Error('Error fetching Wizard game')
       }
@@ -53,9 +53,9 @@ export default {
   /**
    * Get game by GameRound ID
    */
-  async getGameByRoundID(gameRoundId: string): Promise<WizardGame> {
+  async getGameByRoundID(leagueCode: string, gameRoundId: string): Promise<WizardGame> {
     try {
-      const response = await apiFetch(`/api/wizard/games/by-round/${gameRoundId}`)
+      const response = await apiFetch(`/api/leagues/${leagueCode}/wizard/games/by-round/${gameRoundId}`)
       if (!response.ok) {
         throw new Error('Error fetching Wizard game')
       }
@@ -69,9 +69,9 @@ export default {
   /**
    * Delete game
    */
-  async deleteGame(code: string): Promise<void> {
+  async deleteGame(leagueCode: string, code: string): Promise<void> {
     try {
-      const response = await apiFetch(`/api/wizard/games/${code}`, {
+      const response = await apiFetch(`/api/leagues/${leagueCode}/wizard/games/${code}`, {
         method: 'DELETE'
       })
       if (!response.ok) {
@@ -86,9 +86,9 @@ export default {
   /**
    * Submit bids for a round
    */
-  async submitBids(code: string, roundNumber: number, bids: number[]): Promise<void> {
+  async submitBids(leagueCode: string, code: string, roundNumber: number, bids: number[]): Promise<void> {
     try {
-      const response = await apiFetch(`/api/wizard/games/${code}/rounds/${roundNumber}/bids`, {
+      const response = await apiFetch(`/api/leagues/${leagueCode}/wizard/games/${code}/rounds/${roundNumber}/bids`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -108,10 +108,10 @@ export default {
   /**
    * Submit results for a round
    */
-  async submitResults(code: string, roundNumber: number, results: number[]): Promise<void> {
+  async submitResults(leagueCode: string, code: string, roundNumber: number, results: number[]): Promise<void> {
     try {
       const response = await apiFetch(
-        `/api/wizard/games/${code}/rounds/${roundNumber}/results`,
+        `/api/leagues/${leagueCode}/wizard/games/${code}/rounds/${roundNumber}/results`,
         {
           method: 'PUT',
           headers: {
@@ -133,10 +133,10 @@ export default {
   /**
    * Complete a round (calculate scores)
    */
-  async completeRound(code: string, roundNumber: number): Promise<WizardGame> {
+  async completeRound(leagueCode: string, code: string, roundNumber: number): Promise<WizardGame> {
     try {
       const response = await apiFetch(
-        `/api/wizard/games/${code}/rounds/${roundNumber}/complete`,
+        `/api/leagues/${leagueCode}/wizard/games/${code}/rounds/${roundNumber}/complete`,
         {
           method: 'POST'
         }
@@ -154,10 +154,10 @@ export default {
   /**
    * Restart a round (clear bids/results)
    */
-  async restartRound(code: string, roundNumber: number): Promise<void> {
+  async restartRound(leagueCode: string, code: string, roundNumber: number): Promise<void> {
     try {
       const response = await apiFetch(
-        `/api/wizard/games/${code}/rounds/${roundNumber}/restart`,
+        `/api/leagues/${leagueCode}/wizard/games/${code}/rounds/${roundNumber}/restart`,
         {
           method: 'POST'
         }
@@ -175,12 +175,13 @@ export default {
    * Edit round (fix mistakes)
    */
   async editRound(
+    leagueCode: string,
     code: string,
     roundNumber: number,
     data: EditRoundRequest
   ): Promise<EditRoundResponse> {
     try {
-      const response = await apiFetch(`/api/wizard/games/${code}/rounds/${roundNumber}/edit`, {
+      const response = await apiFetch(`/api/leagues/${leagueCode}/wizard/games/${code}/rounds/${roundNumber}/edit`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -200,9 +201,9 @@ export default {
   /**
    * Get full scoreboard
    */
-  async getScoreboard(code: string): Promise<ScoreboardResponse> {
+  async getScoreboard(leagueCode: string, code: string): Promise<ScoreboardResponse> {
     try {
-      const response = await apiFetch(`/api/wizard/games/${code}/scoreboard`)
+      const response = await apiFetch(`/api/leagues/${leagueCode}/wizard/games/${code}/scoreboard`)
       if (!response.ok) {
         throw new Error('Error fetching scoreboard')
       }
@@ -216,9 +217,9 @@ export default {
   /**
    * Finalize game (update GameRound scores)
    */
-  async finalizeGame(code: string): Promise<FinalizeGameResponse> {
+  async finalizeGame(leagueCode: string, code: string): Promise<FinalizeGameResponse> {
     try {
-      const response = await apiFetch(`/api/wizard/games/${code}/finalize`, {
+      const response = await apiFetch(`/api/leagues/${leagueCode}/wizard/games/${code}/finalize`, {
         method: 'POST'
       })
       if (!response.ok) {
@@ -234,9 +235,9 @@ export default {
   /**
    * Move to next round
    */
-  async nextRound(code: string): Promise<void> {
+  async nextRound(leagueCode: string, code: string): Promise<void> {
     try {
-      const response = await apiFetch(`/api/wizard/games/${code}/next-round`, {
+      const response = await apiFetch(`/api/leagues/${leagueCode}/wizard/games/${code}/next-round`, {
         method: 'POST'
       })
       if (!response.ok) {
@@ -251,9 +252,9 @@ export default {
   /**
    * Move to previous round (view only)
    */
-  async prevRound(code: string): Promise<void> {
+  async prevRound(leagueCode: string, code: string): Promise<void> {
     try {
-      const response = await apiFetch(`/api/wizard/games/${code}/prev-round`, {
+      const response = await apiFetch(`/api/leagues/${leagueCode}/wizard/games/${code}/prev-round`, {
         method: 'POST'
       })
       if (!response.ok) {

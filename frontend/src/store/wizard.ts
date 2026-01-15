@@ -11,6 +11,7 @@ interface WizardState {
   scoreboard: ScoreboardResponse | null
   loading: boolean
   error: string | null
+  leagueCode: string | null
 }
 
 export const useWizardStore = defineStore('wizard', {
@@ -18,7 +19,8 @@ export const useWizardStore = defineStore('wizard', {
     currentGame: null,
     scoreboard: null,
     loading: false,
-    error: null
+    error: null,
+    leagueCode: null
   }),
 
   getters: {
@@ -90,13 +92,14 @@ export const useWizardStore = defineStore('wizard', {
     /**
      * Create new Wizard game
      */
-    async createGame(request: CreateGameRequest): Promise<void> {
+    async createGame(leagueCode: string, request: CreateGameRequest): Promise<void> {
       this.loading = true
       this.error = null
+      this.leagueCode = leagueCode
       try {
-        const response = await WizardApi.createGame(request)
+        const response = await WizardApi.createGame(leagueCode, request)
         // Load full game data
-        await this.loadGame(response.code)
+        await this.loadGame(leagueCode, response.code)
       } catch (error: any) {
         this.error = error.message || 'Failed to create game'
         console.error('Error creating game:', error)
@@ -109,11 +112,12 @@ export const useWizardStore = defineStore('wizard', {
     /**
      * Load game by code
      */
-    async loadGame(code: string): Promise<void> {
+    async loadGame(leagueCode: string, code: string): Promise<void> {
       this.loading = true
       this.error = null
+      this.leagueCode = leagueCode
       try {
-        this.currentGame = await WizardApi.getGame(code)
+        this.currentGame = await WizardApi.getGame(leagueCode, code)
       } catch (error: any) {
         this.error = error.message || 'Failed to load game'
         console.error('Error loading game:', error)
@@ -126,11 +130,12 @@ export const useWizardStore = defineStore('wizard', {
     /**
      * Load game by GameRound ID
      */
-    async loadGameByRoundID(gameRoundId: string): Promise<void> {
+    async loadGameByRoundID(leagueCode: string, gameRoundId: string): Promise<void> {
       this.loading = true
       this.error = null
+      this.leagueCode = leagueCode
       try {
-        this.currentGame = await WizardApi.getGameByRoundID(gameRoundId)
+        this.currentGame = await WizardApi.getGameByRoundID(leagueCode, gameRoundId)
       } catch (error: any) {
         this.error = error.message || 'Failed to load game'
         console.error('Error loading game:', error)
@@ -144,20 +149,21 @@ export const useWizardStore = defineStore('wizard', {
      * Submit bids for current round
      */
     async submitBids(bids: number[]): Promise<void> {
-      if (!this.currentGame) {
-        throw new Error('No active game')
+      if (!this.currentGame || !this.leagueCode) {
+        throw new Error('No active game or league code')
       }
 
       this.loading = true
       this.error = null
       try {
         await WizardApi.submitBids(
+          this.leagueCode,
           this.currentGame.code,
           this.currentGame.current_round,
           bids
         )
         // Reload game to get updated state
-        await this.loadGame(this.currentGame.code)
+        await this.loadGame(this.leagueCode, this.currentGame.code)
       } catch (error: any) {
         this.error = error.message || 'Failed to submit bids'
         console.error('Error submitting bids:', error)
@@ -171,20 +177,21 @@ export const useWizardStore = defineStore('wizard', {
      * Submit results for current round
      */
     async submitResults(results: number[]): Promise<void> {
-      if (!this.currentGame) {
-        throw new Error('No active game')
+      if (!this.currentGame || !this.leagueCode) {
+        throw new Error('No active game or league code')
       }
 
       this.loading = true
       this.error = null
       try {
         await WizardApi.submitResults(
+          this.leagueCode,
           this.currentGame.code,
           this.currentGame.current_round,
           results
         )
         // Reload game to get updated state
-        await this.loadGame(this.currentGame.code)
+        await this.loadGame(this.leagueCode, this.currentGame.code)
       } catch (error: any) {
         this.error = error.message || 'Failed to submit results'
         console.error('Error submitting results:', error)
@@ -198,14 +205,15 @@ export const useWizardStore = defineStore('wizard', {
      * Complete current round
      */
     async completeRound(): Promise<void> {
-      if (!this.currentGame) {
-        throw new Error('No active game')
+      if (!this.currentGame || !this.leagueCode) {
+        throw new Error('No active game or league code')
       }
 
       this.loading = true
       this.error = null
       try {
         this.currentGame = await WizardApi.completeRound(
+          this.leagueCode,
           this.currentGame.code,
           this.currentGame.current_round
         )
@@ -222,16 +230,16 @@ export const useWizardStore = defineStore('wizard', {
      * Restart current round
      */
     async restartRound(): Promise<void> {
-      if (!this.currentGame) {
-        throw new Error('No active game')
+      if (!this.currentGame || !this.leagueCode) {
+        throw new Error('No active game or league code')
       }
 
       this.loading = true
       this.error = null
       try {
-        await WizardApi.restartRound(this.currentGame.code, this.currentGame.current_round)
+        await WizardApi.restartRound(this.leagueCode, this.currentGame.code, this.currentGame.current_round)
         // Reload game to get updated state
-        await this.loadGame(this.currentGame.code)
+        await this.loadGame(this.leagueCode, this.currentGame.code)
       } catch (error: any) {
         this.error = error.message || 'Failed to restart round'
         console.error('Error restarting round:', error)
@@ -245,16 +253,16 @@ export const useWizardStore = defineStore('wizard', {
      * Edit round (fix mistakes)
      */
     async editRound(roundNumber: number, bids?: number[], results?: number[]): Promise<void> {
-      if (!this.currentGame) {
-        throw new Error('No active game')
+      if (!this.currentGame || !this.leagueCode) {
+        throw new Error('No active game or league code')
       }
 
       this.loading = true
       this.error = null
       try {
-        await WizardApi.editRound(this.currentGame.code, roundNumber, { bids, results })
+        await WizardApi.editRound(this.leagueCode, this.currentGame.code, roundNumber, { bids, results })
         // Reload game to get updated state
-        await this.loadGame(this.currentGame.code)
+        await this.loadGame(this.leagueCode, this.currentGame.code)
       } catch (error: any) {
         this.error = error.message || 'Failed to edit round'
         console.error('Error editing round:', error)
@@ -268,14 +276,14 @@ export const useWizardStore = defineStore('wizard', {
      * Load scoreboard
      */
     async loadScoreboard(): Promise<void> {
-      if (!this.currentGame) {
-        throw new Error('No active game')
+      if (!this.currentGame || !this.leagueCode) {
+        throw new Error('No active game or league code')
       }
 
       this.loading = true
       this.error = null
       try {
-        this.scoreboard = await WizardApi.getScoreboard(this.currentGame.code)
+        this.scoreboard = await WizardApi.getScoreboard(this.leagueCode, this.currentGame.code)
       } catch (error: any) {
         this.error = error.message || 'Failed to load scoreboard'
         console.error('Error loading scoreboard:', error)
@@ -289,16 +297,16 @@ export const useWizardStore = defineStore('wizard', {
      * Finalize game
      */
     async finalizeGame(): Promise<void> {
-      if (!this.currentGame) {
-        throw new Error('No active game')
+      if (!this.currentGame || !this.leagueCode) {
+        throw new Error('No active game or league code')
       }
 
       this.loading = true
       this.error = null
       try {
-        await WizardApi.finalizeGame(this.currentGame.code)
+        await WizardApi.finalizeGame(this.leagueCode, this.currentGame.code)
         // Reload game to get updated state
-        await this.loadGame(this.currentGame.code)
+        await this.loadGame(this.leagueCode, this.currentGame.code)
       } catch (error: any) {
         this.error = error.message || 'Failed to finalize game'
         console.error('Error finalizing game:', error)
@@ -312,16 +320,16 @@ export const useWizardStore = defineStore('wizard', {
      * Move to next round
      */
     async nextRound(): Promise<void> {
-      if (!this.currentGame) {
-        throw new Error('No active game')
+      if (!this.currentGame || !this.leagueCode) {
+        throw new Error('No active game or league code')
       }
 
       this.loading = true
       this.error = null
       try {
-        await WizardApi.nextRound(this.currentGame.code)
+        await WizardApi.nextRound(this.leagueCode, this.currentGame.code)
         // Reload game to get updated state
-        await this.loadGame(this.currentGame.code)
+        await this.loadGame(this.leagueCode, this.currentGame.code)
       } catch (error: any) {
         this.error = error.message || 'Failed to move to next round'
         console.error('Error moving to next round:', error)
@@ -335,16 +343,16 @@ export const useWizardStore = defineStore('wizard', {
      * Move to previous round
      */
     async prevRound(): Promise<void> {
-      if (!this.currentGame) {
-        throw new Error('No active game')
+      if (!this.currentGame || !this.leagueCode) {
+        throw new Error('No active game or league code')
       }
 
       this.loading = true
       this.error = null
       try {
-        await WizardApi.prevRound(this.currentGame.code)
+        await WizardApi.prevRound(this.leagueCode, this.currentGame.code)
         // Reload game to get updated state
-        await this.loadGame(this.currentGame.code)
+        await this.loadGame(this.leagueCode, this.currentGame.code)
       } catch (error: any) {
         this.error = error.message || 'Failed to move to previous round'
         console.error('Error moving to previous round:', error)
@@ -361,6 +369,7 @@ export const useWizardStore = defineStore('wizard', {
       this.currentGame = null
       this.scoreboard = null
       this.error = null
+      this.leagueCode = null
     }
   }
 })

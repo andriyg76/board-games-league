@@ -211,6 +211,7 @@ import { Sparkles as WizardIcon, Card as CardsIcon, Star as StarIcon, Gift as Ha
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useWizardStore } from '@/store/wizard'
+import { useLeagueStore } from '@/store/league'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import WizardBidDialog from './WizardBidDialog.vue'
 import WizardResultDialog from './WizardResultDialog.vue'
@@ -220,6 +221,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const wizardStore = useWizardStore()
+const leagueStore = useLeagueStore()
 const { handleError, showSuccess } = useErrorHandler()
 
 const showBidDialog = ref(false)
