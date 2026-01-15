@@ -65,12 +65,11 @@ export interface WizardGame {
 
 // API Request/Response types
 export interface CreateGameRequest {
-  league_id: string
   game_name: string
   bid_restriction: BidRestriction
   game_variant: GameVariant
   first_dealer_index: number
-  player_membership_ids: string[]
+  player_membership_codes: string[]
 }
 
 export interface CreateGameResponse {

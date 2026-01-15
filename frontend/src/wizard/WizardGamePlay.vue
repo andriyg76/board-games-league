@@ -243,17 +243,17 @@ const getRoundStatusTagType = (status?: string): 'default' | 'info' | 'success' 
 }
 
 const currentRoundBids = computed(() => {
-  if (!currentRound.value) return []
+  if (!currentRound.value || !currentRound.value.player_results) return []
   return currentRound.value.player_results.map(pr => pr.bid)
 })
 
 const currentRoundResults = computed(() => {
-  if (!currentRound.value) return []
+  if (!currentRound.value || !currentRound.value.player_results) return []
   return currentRound.value.player_results.map(pr => pr.actual)
 })
 
 function currentPlayerResult(index: number) {
-  if (!currentRound.value) {
+  if (!currentRound.value || !currentRound.value.player_results) {
     return { bid: -1, actual: -1, score: 0 }
   }
   return currentRound.value.player_results[index] || { bid: -1, actual: -1, score: 0 }
@@ -313,12 +313,15 @@ function showScoreboard() {
 
 onMounted(async () => {
   const code = route.params.code as string
-  if (code) {
+  const leagueCode = (route.query.league as string) || leagueStore.currentLeagueCode
+  if (code && leagueCode) {
     try {
-      await wizardStore.loadGame(code)
+      await wizardStore.loadGame(leagueCode, code)
     } catch (error) {
       handleError(error, t('errors.loadingData'))
     }
+  } else if (code) {
+    handleError(new Error('League code is required'), t('errors.loadingData'))
   }
 })
 </script>

@@ -462,12 +462,11 @@ const startWizardGame = async () => {
   saving.value = true;
   try {
     const wizardRequest = {
-      league_id: leagueCode.value,
       game_name: roundName.value || `Wizard ${new Date().toLocaleDateString()}`,
       bid_restriction: bidRestriction.value,
       game_variant: GameVariant.STANDARD,
       first_dealer_index: firstDealerIndex.value,
-      player_membership_ids: roundPlayers.value.map(p => p.membership_code),
+      player_membership_codes: roundPlayers.value.map(p => p.membership_code),
     };
 
     await wizardStore.createGame(leagueCode.value, wizardRequest);

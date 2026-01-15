@@ -90,6 +90,14 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate membership codes are not empty
+	for i, code := range req.PlayerMembershipCodes {
+		if code == "" {
+			http.Error(w, fmt.Sprintf("Empty membership code at index %d", i), http.StatusBadRequest)
+			return
+		}
+	}
+
 	// Parse membership codes and get player names
 	membershipIDs := make([]primitive.ObjectID, len(req.PlayerMembershipCodes))
 	players := make([]models.WizardPlayer, len(req.PlayerMembershipCodes))
@@ -98,7 +106,12 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		// Convert membership code to ID
 		membershipIdAndCode, err := h.idCodeCache.GetByCode(membershipCode)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid membership code at index %d: %s", i, membershipCode), http.StatusBadRequest)
+			utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err,
+				fmt.Sprintf("Invalid membership code at index %d: %s", i, membershipCode))
+			return
+		}
+		if membershipIdAndCode == nil {
+			http.Error(w, fmt.Sprintf("Membership code at index %d returned nil: %s", i, membershipCode), http.StatusBadRequest)
 			return
 		}
 		membershipID := membershipIdAndCode.ID
@@ -108,7 +121,11 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		member, err := h.leagueService.GetMemberByID(r.Context(), membershipID)
 		if err != nil {
 			utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err,
-				fmt.Sprintf("Error fetching member info for index %d", i))
+				fmt.Sprintf("Error fetching member info for membership code %s at index %d", membershipCode, i))
+			return
+		}
+		if member == nil {
+			http.Error(w, fmt.Sprintf("Membership not found for code %s at index %d", membershipCode, i), http.StatusBadRequest)
 			return
 		}
 
@@ -188,6 +205,11 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 	for i, player := range players {
 		// Convert membership ID to code
 		membershipIdAndCode := h.idCodeCache.GetByID(player.MembershipID)
+		if membershipIdAndCode == nil {
+			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, fmt.Errorf("failed to get membership code for ID %s", player.MembershipID.Hex()),
+				fmt.Sprintf("Error converting membership ID to code at index %d", i))
+			return
+		}
 		playerResponses[i] = playerResponse{
 			MembershipCode: membershipIdAndCode.Code,
 			PlayerName:     player.PlayerName,
@@ -197,6 +219,11 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 
 	// Convert GameRoundID to code
 	gameRoundIdAndCode := h.idCodeCache.GetByID(wizardGame.GameRoundID)
+	if gameRoundIdAndCode == nil {
+		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, fmt.Errorf("failed to get game round code for ID %s", wizardGame.GameRoundID.Hex()),
+			"Error converting game round ID to code")
+		return
+	}
 	response := createGameResponse{
 		Code:          wizardGame.Code,
 		GameRoundCode: gameRoundIdAndCode.Code,
