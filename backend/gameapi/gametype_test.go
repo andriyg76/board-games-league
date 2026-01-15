@@ -26,7 +26,7 @@ func setupTestRouter(repo *mocks.MockGameTypeRepository) *chi.Mux {
 		gameTypeRepository: repo,
 		leagueService:      nil, // Not needed for game type tests
 	}
-	handler.RegisterRoutes(r)
+	handler.RegisterRoutes(r, nil)
 	return r
 }
 
