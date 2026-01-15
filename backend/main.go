@@ -15,6 +15,7 @@ import (
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/frontendfs"
 	"github.com/andriyg76/bgl/gameapi"
+	bglmiddleware "github.com/andriyg76/bgl/middleware"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/userapi"
@@ -97,7 +98,10 @@ func main() {
 		log.Warn("Failed to load built-in game types: %v", err)
 	}
 
-	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository, leagueService)
+	// Create league middleware
+	leagueMiddleware := bglmiddleware.NewLeagueMiddleware(leagueService)
+
+	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository, leagueService, leagueMiddleware)
 	wizardApiHandler := wizardapi.NewHandler(wizardGameRepository, gameRoundRepository, gameTypeRepository, leagueService, userService)
 	authHandler := auth.NewDefaultHandler(userRepository, sessionService, requestService)
 	userProfileHandler := userapi.NewHandlerWithServices(userRepository, sessionRepository, geoIPService)

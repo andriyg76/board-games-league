@@ -24,6 +24,7 @@ func NewLeagueMiddleware(leagueService services.LeagueService) *LeagueMiddleware
 }
 
 // RequireLeagueMembership verifies that the authenticated user is an active member of the league
+// and loads the league and membership objects into the request context
 func (m *LeagueMiddleware) RequireLeagueMembership(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Get user from context (set by authentication middleware)
@@ -47,20 +48,36 @@ func (m *LeagueMiddleware) RequireLeagueMembership(next http.Handler) http.Handl
 			return
 		}
 
-		// Check if user is a member of the league
-		isMember, err := m.leagueService.IsUserMember(r.Context(), leagueID, user.ID)
+		// Load league object
+		league, err := m.leagueService.GetLeague(r.Context(), leagueID)
 		if err != nil {
-			http.Error(w, "Failed to check league membership", http.StatusInternalServerError)
+			http.Error(w, "League not found", http.StatusNotFound)
 			return
 		}
 
-		if !isMember && !auth.IsSuperAdmin(user) {
-			http.Error(w, "You are not a member of this league", http.StatusForbidden)
+		// Load membership object
+		membership, err := m.leagueService.GetMembershipByLeagueAndUser(r.Context(), leagueID, user.ID)
+		if err != nil {
+			// User is not a member - check if superadmin
+			if !auth.IsSuperAdmin(user) {
+				http.Error(w, "You are not a member of this league", http.StatusForbidden)
+				return
+			}
+			// Superadmin can access without membership
+			membership = nil
+		}
+
+		// Verify membership is active (if not superadmin)
+		if membership != nil && membership.Status != "active" && !auth.IsSuperAdmin(user) {
+			http.Error(w, "Your membership is not active", http.StatusForbidden)
 			return
 		}
 
-		// Add league ID to context for use in handlers
-		ctx := context.WithValue(r.Context(), "leagueID", leagueID)
+		// Add league, membership, and leagueID to context for use in handlers
+		ctx := context.WithValue(r.Context(), "league", league)
+		ctx = context.WithValue(ctx, "membership", membership)
+		ctx = context.WithValue(ctx, "leagueID", leagueID)
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -119,23 +136,6 @@ func (m *LeagueMiddleware) RequireLeagueMembershipByToken(next http.Handler) htt
 		// Add membership status to context
 		ctx := context.WithValue(r.Context(), "isMember", isMember)
 		ctx = context.WithValue(ctx, "invitation", invitation)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-// ExtractLeagueCodeFromHeader reads the X-League-Code header and adds it to the request context
-// This middleware is optional and doesn't fail if the header is missing
-func (m *LeagueMiddleware) ExtractLeagueCodeFromHeader(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Try to get league code from header
-		leagueCode := r.Header.Get("X-League-Code")
-
-		// Add league code to context if present
-		ctx := r.Context()
-		if leagueCode != "" {
-			ctx = context.WithValue(ctx, "leagueCodeFromHeader", leagueCode)
-		}
-
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
