@@ -1,11 +1,12 @@
 package utils
 
 import (
-	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -39,6 +40,10 @@ func TestIdToCode(t *testing.T) {
 }
 
 func TestCodeToID(t *testing.T) {
+	// Test with a known ObjectID to verify base58 encoding
+	knownID := primitive.ObjectID{0x67, 0xbd, 0x71, 0xef, 0x85, 0xb5, 0xaf, 0xf5, 0xca, 0x52, 0xc8, 0xea}
+	knownCode := IdToCode(knownID)
+
 	tests := []struct {
 		name    string
 		code    string
@@ -51,14 +56,14 @@ func TestCodeToID(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "URL encoded code",
-			code:    "Z71x74W1r/XKUsjq",
+			name:    "known ObjectID base58 code",
+			code:    knownCode,
 			wantErr: false,
-			id:      primitive.ObjectID{0x67, 0xbd, 0x71, 0xef, 0x85, 0xb5, 0xaf, 0xf5, 0xca, 0x52, 0xc8, 0xea},
+			id:      knownID,
 		},
 		{
-			name:    "invalid base64",
-			code:    "invalid-base64",
+			name:    "invalid base58 character",
+			code:    "invalid-base58-0OlI",
 			wantErr: true,
 		},
 		{
@@ -67,8 +72,8 @@ func TestCodeToID(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "wrong length",
-			code:    "AA==",
+			name:    "invalid base58 format",
+			code:    "===invalid===",
 			wantErr: true,
 		},
 	}

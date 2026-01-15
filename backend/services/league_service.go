@@ -6,11 +6,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"time"
 )
 
 type LeagueService interface {
@@ -66,18 +67,18 @@ type LeagueMemberInfo struct {
 
 // SuggestedPlayer represents a player suggestion for game creation
 type SuggestedPlayer struct {
-	MembershipID string    `json:"membership_id"`
-	Alias        string    `json:"alias"`
-	Avatar       string    `json:"avatar,omitempty"`
-	LastPlayedAt string    `json:"last_played_at,omitempty"`
-	IsVirtual    bool      `json:"is_virtual"`
+	MembershipID string `json:"membership_id"`
+	Alias        string `json:"alias"`
+	Avatar       string `json:"avatar,omitempty"`
+	LastPlayedAt string `json:"last_played_at,omitempty"`
+	IsVirtual    bool   `json:"is_virtual"`
 }
 
 // SuggestedPlayersResponse contains suggested players for game creation
 type SuggestedPlayersResponse struct {
-	CurrentPlayer *SuggestedPlayer   `json:"current_player"`
-	RecentPlayers []SuggestedPlayer  `json:"recent_players"`
-	OtherPlayers  []SuggestedPlayer  `json:"other_players"`
+	CurrentPlayer *SuggestedPlayer  `json:"current_player"`
+	RecentPlayers []SuggestedPlayer `json:"recent_players"`
+	OtherPlayers  []SuggestedPlayer `json:"other_players"`
 }
 
 // InvitationPreview represents public invitation preview data

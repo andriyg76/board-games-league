@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/andriyg76/bgl/auth"
-	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/services"
+	"github.com/andriyg76/bgl/user_profile"
+	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // LeagueMiddleware provides middleware functions for league access control
@@ -27,10 +27,17 @@ func NewLeagueMiddleware(leagueService services.LeagueService) *LeagueMiddleware
 // and loads the league and membership objects into the request context
 func (m *LeagueMiddleware) RequireLeagueMembership(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get user from context (set by authentication middleware)
-		user, ok := r.Context().Value("user").(*models.User)
-		if !ok || user == nil {
+		// Get user profile from context (set by authentication middleware)
+		profile, ok := r.Context().Value("user").(*user_profile.UserProfile)
+		if !ok || profile == nil {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Convert user code to ObjectID
+		userID, err := utils.CodeToID(profile.Code)
+		if err != nil {
+			http.Error(w, "Invalid user code", http.StatusBadRequest)
 			return
 		}
 
@@ -41,8 +48,8 @@ func (m *LeagueMiddleware) RequireLeagueMembership(next http.Handler) http.Handl
 			return
 		}
 
-		// Parse league code as ObjectID
-		leagueID, err := primitive.ObjectIDFromHex(leagueCode)
+		// Parse league code using CodeToID (base64 encoded, not hex)
+		leagueID, err := utils.CodeToID(leagueCode)
 		if err != nil {
 			http.Error(w, "Invalid league code", http.StatusBadRequest)
 			return
@@ -55,11 +62,14 @@ func (m *LeagueMiddleware) RequireLeagueMembership(next http.Handler) http.Handl
 			return
 		}
 
+		// Check if user is superadmin
+		isSuperAdmin := auth.IsSuperAdminByExternalIDs(profile.ExternalIDs)
+
 		// Load membership object
-		membership, err := m.leagueService.GetMembershipByLeagueAndUser(r.Context(), leagueID, user.ID)
+		membership, err := m.leagueService.GetMembershipByLeagueAndUser(r.Context(), leagueID, userID)
 		if err != nil {
 			// User is not a member - check if superadmin
-			if !auth.IsSuperAdmin(user) {
+			if !isSuperAdmin {
 				http.Error(w, "You are not a member of this league", http.StatusForbidden)
 				return
 			}
@@ -68,7 +78,7 @@ func (m *LeagueMiddleware) RequireLeagueMembership(next http.Handler) http.Handl
 		}
 
 		// Verify membership is active (if not superadmin)
-		if membership != nil && membership.Status != "active" && !auth.IsSuperAdmin(user) {
+		if membership != nil && membership.Status != "active" && !isSuperAdmin {
 			http.Error(w, "Your membership is not active", http.StatusForbidden)
 			return
 		}
@@ -85,15 +95,15 @@ func (m *LeagueMiddleware) RequireLeagueMembership(next http.Handler) http.Handl
 // RequireSuperAdmin verifies that the authenticated user has superadmin privileges
 func (m *LeagueMiddleware) RequireSuperAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get user from context (set by authentication middleware)
-		user, ok := r.Context().Value("user").(*models.User)
-		if !ok || user == nil {
+		// Get user profile from context (set by authentication middleware)
+		profile, ok := r.Context().Value("user").(*user_profile.UserProfile)
+		if !ok || profile == nil {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		// Check if user is superadmin
-		if !auth.IsSuperAdmin(user) {
+		if !auth.IsSuperAdminByExternalIDs(profile.ExternalIDs) {
 			http.Error(w, "Superadmin privileges required", http.StatusForbidden)
 			return
 		}
@@ -105,10 +115,17 @@ func (m *LeagueMiddleware) RequireSuperAdmin(next http.Handler) http.Handler {
 // RequireLeagueMembershipByToken verifies league membership for endpoints that use token instead of code
 func (m *LeagueMiddleware) RequireLeagueMembershipByToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get user from context (set by authentication middleware)
-		user, ok := r.Context().Value("user").(*models.User)
-		if !ok || user == nil {
+		// Get user profile from context (set by authentication middleware)
+		profile, ok := r.Context().Value("user").(*user_profile.UserProfile)
+		if !ok || profile == nil {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Convert user code to ObjectID
+		userID, err := utils.CodeToID(profile.Code)
+		if err != nil {
+			http.Error(w, "Invalid user code", http.StatusBadRequest)
 			return
 		}
 
@@ -127,7 +144,7 @@ func (m *LeagueMiddleware) RequireLeagueMembershipByToken(next http.Handler) htt
 		}
 
 		// Check if user is already a member
-		isMember, err := m.leagueService.IsUserMember(r.Context(), invitation.LeagueID, user.ID)
+		isMember, err := m.leagueService.IsUserMember(r.Context(), invitation.LeagueID, userID)
 		if err != nil {
 			http.Error(w, "Failed to check league membership", http.StatusInternalServerError)
 			return

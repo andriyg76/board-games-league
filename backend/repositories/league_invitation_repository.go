@@ -3,13 +3,14 @@ package repositories
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"time"
 )
 
 type LeagueInvitationRepository interface {

@@ -3,6 +3,7 @@ package gameapi
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/andriyg76/bgl/auth"
@@ -254,10 +255,17 @@ func (h *Handler) listMyInvitations(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/leagues/:code/invitations/:token/cancel - Cancel invitation by token
 func (h *Handler) cancelInvitation(w http.ResponseWriter, r *http.Request) {
-	token := chi.URLParam(r, "token")
-	if token == "" {
+	tokenRaw := chi.URLParam(r, "token")
+	if tokenRaw == "" {
 		http.Error(w, "Invalid invitation token", http.StatusBadRequest)
 		return
+	}
+
+	// URL decode the token (chi.URLParam may not decode it automatically)
+	token, err := url.QueryUnescape(tokenRaw)
+	if err != nil {
+		// If decoding fails, use raw token
+		token = tokenRaw
 	}
 
 	// Get current user
@@ -603,7 +611,6 @@ type leagueResponse struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
-
 type memberResponse struct {
 	Code       string `json:"code"`
 	UserID     string `json:"user_id"`
@@ -664,7 +671,6 @@ func invitationToResponse(inv *models.LeagueInvitation) invitationResponse {
 	return resp
 }
 
-
 // GET /api/leagues/:code/game_rounds - List game rounds for league
 func (h *Handler) listLeagueGameRounds(w http.ResponseWriter, r *http.Request) {
 	leagueID, err := utils.GetIDFromChiURL(r, "code")
@@ -702,9 +708,9 @@ func (h *Handler) listLeagueGameRounds(w http.ResponseWriter, r *http.Request) {
 
 // createLeagueGameRoundRequest - запит на створення раунду в лізі
 type createLeagueGameRoundRequest struct {
-	Name      string        `json:"name"`
-	Type      string        `json:"type" validate:"required"`
-	Players   []playerSetup `json:"players" validate:"required,min=1"`
+	Name    string        `json:"name"`
+	Type    string        `json:"type" validate:"required"`
+	Players []playerSetup `json:"players" validate:"required,min=1"`
 }
 
 // POST /api/leagues/:code/game_rounds - Create game round in league
