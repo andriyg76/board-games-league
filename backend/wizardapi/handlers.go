@@ -13,6 +13,7 @@ type Handler struct {
 	leagueService   services.LeagueService
 	userService     services.UserService
 	idCodeCache     services.IdAndCodeCache
+	eventHub        services.GameEventHub
 }
 
 // RegisterRoutes registers wizard game routes (deprecated - use RegisterWizardLeagueRoutes instead)
@@ -59,6 +60,9 @@ func (h *Handler) RegisterWizardLeagueRoutes(r chi.Router) {
 	r.Post("/{code}/finalize", h.finalizeGame)
 	r.Post("/{code}/next-round", h.nextRound)
 	r.Post("/{code}/prev-round", h.prevRound)
+
+	// Real-time updates (SSE)
+	r.Get("/{code}/events", h.subscribeToEvents)
 }
 
 func NewHandler(
@@ -68,6 +72,7 @@ func NewHandler(
 	leagueService services.LeagueService,
 	userService services.UserService,
 	idCodeCache services.IdAndCodeCache,
+	eventHub services.GameEventHub,
 ) *Handler {
 	return &Handler{
 		wizardRepo:    wizardRepo,
@@ -76,5 +81,6 @@ func NewHandler(
 		leagueService: leagueService,
 		userService:   userService,
 		idCodeCache:   idCodeCache,
+		eventHub:      eventHub,
 	}
 }

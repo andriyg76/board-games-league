@@ -3,12 +3,12 @@ import type {
   CreateGameRequest,
   CreateGameResponse,
   WizardGame,
-  SubmitBidsRequest,
-  SubmitResultsRequest,
   EditRoundRequest,
   EditRoundResponse,
   ScoreboardResponse,
-  FinalizeGameResponse
+  FinalizeGameResponse,
+  GameEvent,
+  GameEventSubscription
 } from '@/wizard/types'
 
 export default {
@@ -263,6 +263,64 @@ export default {
     } catch (error) {
       console.error('Error moving to previous round:', error)
       throw error
+    }
+  },
+
+  /**
+   * Subscribe to real-time game events via SSE
+   * @param leagueCode - The league code
+   * @param gameCode - The game code
+   * @param onEvent - Callback for incoming events
+   * @param onError - Optional callback for errors
+   * @returns Subscription object with unsubscribe method
+   */
+  subscribeToEvents(
+    leagueCode: string,
+    gameCode: string,
+    onEvent: (event: GameEvent) => void,
+    onError?: (error: Event) => void
+  ): GameEventSubscription {
+    const url = `/api/leagues/${leagueCode}/wizard/games/${gameCode}/events`
+    
+    const eventSource = new EventSource(url, { withCredentials: true })
+    
+    // Handle all event types
+    const eventTypes = [
+      'connected',
+      'heartbeat',
+      'bids_submitted',
+      'results_submitted',
+      'round_completed',
+      'round_restarted',
+      'round_edited',
+      'next_round',
+      'prev_round',
+      'game_finalized'
+    ]
+    
+    eventTypes.forEach(eventType => {
+      eventSource.addEventListener(eventType, (e: MessageEvent) => {
+        try {
+          const event = JSON.parse(e.data) as GameEvent
+          onEvent(event)
+        } catch (error) {
+          console.error('Failed to parse SSE event:', error)
+        }
+      })
+    })
+    
+    eventSource.onerror = (error) => {
+      console.error('SSE connection error:', error)
+      if (onError) {
+        onError(error)
+      }
+    }
+    
+    return {
+      unsubscribe: () => {
+        eventSource.close()
+        console.log('SSE: Unsubscribed from game events')
+      }
     }
   }
 }

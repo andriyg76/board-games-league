@@ -119,3 +119,27 @@ export interface FinalizeGameResponse {
   game_round_code: string
   final_standings: FinalStanding[]
 }
+
+// SSE Event types
+export type GameEventType =
+  | 'connected'
+  | 'heartbeat'
+  | 'bids_submitted'
+  | 'results_submitted'
+  | 'round_completed'
+  | 'round_restarted'
+  | 'round_edited'
+  | 'next_round'
+  | 'prev_round'
+  | 'game_finalized'
+
+export interface GameEvent {
+  type: GameEventType
+  game_code: string
+  timestamp: string
+  data?: WizardGame | { client_id: string; subscribers: number }
+}
+
+export interface GameEventSubscription {
+  unsubscribe: () => void
+}
