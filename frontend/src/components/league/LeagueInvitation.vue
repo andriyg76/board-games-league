@@ -19,6 +19,7 @@
         <n-button
             type="primary"
             size="large"
+            data-testid="create-invitation-button"
             @click="showCreateDialog = true"
         >
           <template #icon>
@@ -127,6 +128,7 @@
         <n-input
           v-model:value="newPlayerAlias"
           :placeholder="t('leagues.playerAliasHint')"
+          data-testid="invitation-alias-input"
           autofocus
           @keyup.enter="generateInvitation"
         />
@@ -140,6 +142,7 @@
             type="primary"
             :loading="generating"
             :disabled="!newPlayerAlias.trim()"
+            data-testid="create-invitation-confirm-button"
             @click="generateInvitation"
           >
             {{ t('leagues.createInvitation') }}

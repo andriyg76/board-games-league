@@ -10,6 +10,7 @@
               size="small"
               quaternary
               type="primary"
+              data-testid="add-virtual-player-button"
               @click="showCreateDialog = true"
             >
               <template #icon>
@@ -25,6 +26,7 @@
           :placeholder="$t('common.search')"
           clearable
           style="margin-bottom: 16px;"
+          data-testid="player-search-input"
         >
           <template #prefix>
             <n-icon><SearchIcon /></n-icon>

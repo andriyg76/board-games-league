@@ -34,6 +34,7 @@
         <n-button
           type="primary"
           :disabled="!selectedGameType"
+          data-testid="game-type-next-button"
           @click="$emit('next')"
         >
           {{ $t('game.next') }}

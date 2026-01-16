@@ -39,7 +39,7 @@
             </template>
 
             <n-tabs v-model:value="activeTab" type="line">
-              <n-tab name="standings">
+              <n-tab name="standings" data-testid="league-standings-tab">
                 <template #tab>
                   <n-icon style="margin-right: 4px; vertical-align: middle;"><ChartLineIcon /></n-icon>
                   {{ t('leagues.standings') }}
@@ -47,7 +47,7 @@
                 <league-standings :standings="standings" />
               </n-tab>
 
-              <n-tab name="members">
+              <n-tab name="members" data-testid="league-members-tab">
                 <template #tab>
                   <n-icon style="margin-right: 4px; vertical-align: middle;"><PeopleIcon /></n-icon>
                   {{ t('leagues.members') }} ({{ members.length }})
@@ -128,7 +128,7 @@
                 </n-list>
               </n-tab>
 
-              <n-tab name="invitation">
+              <n-tab name="invitation" data-testid="league-invitation-tab">
                 <template #tab>
                   <n-icon style="margin-right: 4px; vertical-align: middle;"><PersonAddIcon /></n-icon>
                   {{ t('leagues.invitation') }}

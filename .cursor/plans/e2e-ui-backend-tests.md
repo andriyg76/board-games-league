@@ -4,7 +4,7 @@ overview: "Planning - draft"
 todos:
   - id: requirements
     content: "Define priority UI->API flows and roles"
-    status: pending
+    status: completed
   - id: env
     content: "Provision isolated production-like environment"
     status: pending
@@ -16,16 +16,16 @@ todos:
     status: completed
   - id: data
     content: "Define data seeding and cleanup strategy"
-    status: pending
+    status: completed
   - id: tests
     content: "Implement core E2E scenarios"
-    status: pending
+    status: completed
   - id: ci
     content: "Add CI pipeline for E2E"
-    status: pending
+    status: completed
   - id: docs
     content: "Document local and CI E2E usage"
-    status: pending
+    status: completed
 ---
 
 # План: UI-backend E2E тести
@@ -74,6 +74,7 @@ todos:
 - Кожен прогін використовує унікальні назви та маркери.
 - Опціонально: окрема база на кожен прогін.
 - Відмова від використання реальних прод даних.
+- Автоматичної очистки немає, рекомендований reset тестової БД.
 
 ## Тестові артефакти
 

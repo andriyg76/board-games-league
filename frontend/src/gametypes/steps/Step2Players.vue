@@ -31,6 +31,7 @@
           type="primary"
           :disabled="!canProceed"
           :loading="saving"
+          data-testid="select-players-next-button"
           @click="$emit('next')"
         >
           {{ $t('game.next') }}
