@@ -2,6 +2,10 @@
 /frontend/dist/
 /backend/vendor/
 /backend/bgl
+/frontend/playwright-report/
+/frontend/test-results/
+/frontend/e2e/.auth/
+/frontend/.playwright/
 
 # Coverage reports
 coverage.out

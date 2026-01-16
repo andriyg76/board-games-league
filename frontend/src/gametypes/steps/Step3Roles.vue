@@ -8,6 +8,7 @@
       @update:value="$emit('update:roundName', $event)"
       :placeholder="$t('game.roundName')"
       style="margin-bottom: 16px;"
+      data-testid="round-name-input"
     />
 
     <template v-if="roles.length > 0">
@@ -75,6 +76,7 @@
           <n-button
             type="primary"
             :loading="saving"
+            data-testid="configure-round-next-button"
             @click="$emit('next')"
           >
             {{ $t('game.next') }}

@@ -11,6 +11,7 @@
         v-model:value="alias"
         :placeholder="$t('game.playerAlias')"
         :loading="checking"
+        data-testid="virtual-player-alias-input"
         autofocus
         @update:value="debouncedCheckAlias"
       />
@@ -46,6 +47,7 @@
           type="primary"
           :loading="creating"
           :disabled="!canCreate"
+          data-testid="create-virtual-player-button"
           @click="create"
         >
           {{ $t('common.create') }}

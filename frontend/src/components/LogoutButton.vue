@@ -5,13 +5,14 @@
         @click="handleLogout"
         :loading="loading"
         class="logout-button"
+        data-testid="auth-logout-button"
     >
       <img v-if="userStore.user.avatar" :src="userStore.user.avatar" height="32" width="32" :alt="`${userStore.user.name} - ${userStore.user.alias}`" style="margin-right: 8px; border-radius: 50%; object-fit: cover;" />
       {{ loading ? t('auth.loggingOut') : t('auth.logout') }}
     </n-button>
   </template>
   <n-dropdown v-else :options="loginOptions" trigger="click" @select="startLogin">
-    <n-button type="primary">
+    <n-button type="primary" data-testid="auth-login-button">
       {{ t('auth.login') }}
     </n-button>
   </n-dropdown>

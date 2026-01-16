@@ -9,6 +9,7 @@
               <n-button
                 v-if="canCreateLeague"
                 type="primary"
+                data-testid="create-league-button"
                 @click="showCreateDialog = true"
               >
                 <template #icon>
@@ -58,9 +59,9 @@
     </n-grid>
 
     <!-- Create League Dialog -->
-    <n-modal v-model:show="showCreateDialog" preset="dialog" :title="t('leagues.createLeague')" positive-text="Create" negative-text="Cancel" @positive-click="handleCreate" @negative-click="showCreateDialog = false">
+    <n-modal v-model:show="showCreateDialog" preset="dialog" :title="t('leagues.createLeague')" positive-text="Create" negative-text="Cancel" data-testid="create-league-modal" @positive-click="handleCreate" @negative-click="showCreateDialog = false">
       <n-form-item :label="t('leagues.leagueName')" :required="true">
-        <n-input v-model:value="newLeagueName" :placeholder="t('leagues.leagueName')" />
+        <n-input v-model:value="newLeagueName" :placeholder="t('leagues.leagueName')" data-testid="create-league-name-input" />
       </n-form-item>
     </n-modal>
   </div>

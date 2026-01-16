@@ -65,6 +65,7 @@
           <n-button
             type="success"
             :loading="saving"
+            data-testid="finish-game-button"
             @click="$emit('finish')"
           >
             <template #icon>

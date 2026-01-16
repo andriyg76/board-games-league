@@ -4,6 +4,7 @@
     preset="card"
     :title="t('leagues.invitationDetails')"
     style="max-width: 500px;"
+    data-testid="invitation-details-dialog"
     @update:show="$emit('update:modelValue', $event)"
   >
     <template v-if="invitation">
@@ -68,6 +69,7 @@
             readonly
             size="small"
             style="flex: 1;"
+            data-testid="invitation-link-input"
           />
           <n-button
             quaternary
