@@ -115,12 +115,12 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 	// Check admin status
 	claims, ok := r.Context().Value("user").(*user_profile.UserProfile)
 	if !ok || claims == nil {
-		utils.LogAndWriteHTTPError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"), "unauthorized")
+		utils.LogAndWriteHTTPError(r, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"), "unauthorized")
 		return
 	}
 
 	if !auth.IsSuperAdminByExternalIDs(claims.ExternalIDs) {
-		utils.LogAndWriteHTTPError(w, http.StatusForbidden, fmt.Errorf("forbidden"), "admin access required")
+		utils.LogAndWriteHTTPError(r, w, http.StatusForbidden, fmt.Errorf("forbidden"), "admin access required")
 		return
 	}
 

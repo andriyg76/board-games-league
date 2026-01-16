@@ -5,12 +5,34 @@ import (
 	"fmt"
 	"github.com/andriyg76/glog"
 	"net/http"
+	"runtime/debug"
 )
 
-func LogAndWriteHTTPError(w http.ResponseWriter, statusCode int, err error, message string, a ...interface{}) {
+func LogAndWriteHTTPError(r *http.Request, w http.ResponseWriter, statusCode int, err error, message string, a ...interface{}) {
 	message2 := fmt.Sprintf(message, a...)
-	a = append(a, err)
-	_ = glog.Error(message+": %v", a...)
+	logMessage := message2
+	if err != nil {
+		logMessage = fmt.Sprintf("%s: %v", message2, err)
+	}
+
+	requestInfo := "request=<nil>"
+	userInfo := "user=<nil>"
+	if r != nil {
+		if r.URL != nil {
+			requestInfo = fmt.Sprintf("%s %s", r.Method, r.URL.String())
+		} else {
+			requestInfo = fmt.Sprintf("%s <nil-url>", r.Method)
+		}
+
+		if user := r.Context().Value("user"); user != nil {
+			userInfo = fmt.Sprintf("user=%+v", user)
+		} else {
+			userInfo = "user=<anonymous>"
+		}
+	}
+
+	stack := string(debug.Stack())
+	_ = glog.Error("%s | status=%d | %s | %s | stack=%s", logMessage, statusCode, requestInfo, userInfo, stack)
 	http.Error(w, message2, statusCode)
 }
 

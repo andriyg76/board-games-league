@@ -50,7 +50,7 @@ func (h *Handler) submitBids(w http.ResponseWriter, r *http.Request) {
 	// Get game
 	game, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
@@ -64,7 +64,7 @@ func (h *Handler) submitBids(w http.ResponseWriter, r *http.Request) {
 
 	// Validate bids
 	if err := ValidateBids(game, roundNumber, req.Bids); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "Invalid bids")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "Invalid bids")
 		return
 	}
 
@@ -80,7 +80,7 @@ func (h *Handler) submitBids(w http.ResponseWriter, r *http.Request) {
 
 	// Save game
 	if err := h.wizardRepo.Update(r.Context(), game); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error updating game")
 		return
 	}
 
@@ -109,7 +109,7 @@ func (h *Handler) submitResults(w http.ResponseWriter, r *http.Request) {
 	// Get game
 	game, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
@@ -123,7 +123,7 @@ func (h *Handler) submitResults(w http.ResponseWriter, r *http.Request) {
 
 	// Validate results
 	if err := ValidateResults(game, roundNumber, req.Results); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "Invalid results")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "Invalid results")
 		return
 	}
 
@@ -134,7 +134,7 @@ func (h *Handler) submitResults(w http.ResponseWriter, r *http.Request) {
 
 	// Save game
 	if err := h.wizardRepo.Update(r.Context(), game); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error updating game")
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *Handler) completeRound(w http.ResponseWriter, r *http.Request) {
 	// Get game
 	game, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
@@ -171,13 +171,13 @@ func (h *Handler) completeRound(w http.ResponseWriter, r *http.Request) {
 
 	// Complete round (calculate scores)
 	if err := CompleteRound(game, roundIndex); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "Error completing round")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "Error completing round")
 		return
 	}
 
 	// Save game
 	if err := h.wizardRepo.Update(r.Context(), game); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error updating game")
 		return
 	}
 
@@ -201,7 +201,7 @@ func (h *Handler) restartRound(w http.ResponseWriter, r *http.Request) {
 	// Get game
 	game, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
@@ -227,13 +227,13 @@ func (h *Handler) restartRound(w http.ResponseWriter, r *http.Request) {
 
 	// Recalculate all subsequent rounds
 	if err := RecalculateFromRound(game, roundIndex); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error recalculating rounds")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error recalculating rounds")
 		return
 	}
 
 	// Save game
 	if err := h.wizardRepo.Update(r.Context(), game); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error updating game")
 		return
 	}
 
@@ -262,7 +262,7 @@ func (h *Handler) editRound(w http.ResponseWriter, r *http.Request) {
 	// Get game
 	game, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
@@ -277,7 +277,7 @@ func (h *Handler) editRound(w http.ResponseWriter, r *http.Request) {
 	// Update bids if provided
 	if req.Bids != nil {
 		if err := ValidateBids(game, roundNumber, *req.Bids); err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "Invalid bids")
+			utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "Invalid bids")
 			return
 		}
 		for i, bid := range *req.Bids {
@@ -288,7 +288,7 @@ func (h *Handler) editRound(w http.ResponseWriter, r *http.Request) {
 	// Update results if provided
 	if req.Results != nil {
 		if err := ValidateResults(game, roundNumber, *req.Results); err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "Invalid results")
+			utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "Invalid results")
 			return
 		}
 		for i, result := range *req.Results {
@@ -298,7 +298,7 @@ func (h *Handler) editRound(w http.ResponseWriter, r *http.Request) {
 
 	// Recalculate from this round
 	if err := RecalculateFromRound(game, roundIndex); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error recalculating rounds")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error recalculating rounds")
 		return
 	}
 
@@ -312,7 +312,7 @@ func (h *Handler) editRound(w http.ResponseWriter, r *http.Request) {
 
 	// Save game
 	if err := h.wizardRepo.Update(r.Context(), game); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error updating game")
 		return
 	}
 
@@ -336,7 +336,7 @@ func (h *Handler) nextRound(w http.ResponseWriter, r *http.Request) {
 	// Get game
 	game, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
@@ -351,7 +351,7 @@ func (h *Handler) nextRound(w http.ResponseWriter, r *http.Request) {
 
 	// Save game
 	if err := h.wizardRepo.Update(r.Context(), game); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error updating game")
 		return
 	}
 
@@ -367,7 +367,7 @@ func (h *Handler) prevRound(w http.ResponseWriter, r *http.Request) {
 	// Get game
 	game, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
@@ -382,7 +382,7 @@ func (h *Handler) prevRound(w http.ResponseWriter, r *http.Request) {
 
 	// Save game
 	if err := h.wizardRepo.Update(r.Context(), game); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error updating game")
 		return
 	}
 
@@ -398,7 +398,7 @@ func (h *Handler) getScoreboard(w http.ResponseWriter, r *http.Request) {
 	// Get game
 	game, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
@@ -421,32 +421,32 @@ func (h *Handler) finalizeGame(w http.ResponseWriter, r *http.Request) {
 	// Get wizard game
 	wizardGame, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
 	// Get game round
 	gameRound, err := h.gameRoundRepo.FindByID(r.Context(), wizardGame.GameRoundID)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game round not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game round not found")
 		return
 	}
 
 	// Finalize game
 	if err := FinalizeGame(wizardGame, gameRound); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "Error finalizing game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "Error finalizing game")
 		return
 	}
 
 	// Save wizard game
 	if err := h.wizardRepo.Update(r.Context(), wizardGame); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating wizard game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error updating wizard game")
 		return
 	}
 
 	// Save game round
 	if err := h.gameRoundRepo.Update(r.Context(), gameRound); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game round")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error updating game round")
 		return
 	}
 

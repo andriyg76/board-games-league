@@ -45,18 +45,18 @@ func (h *Handler) createLeague(w http.ResponseWriter, r *http.Request) {
 	// Create league
 	league, err := h.leagueService.CreateLeague(r.Context(), req.Name)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to create league")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to create league")
 		return
 	}
 
-	utils.WriteJSON(w, h.leagueToResponse(league), http.StatusCreated)
+	utils.WriteJSON(r, w, h.leagueToResponse(league), http.StatusCreated)
 }
 
 // GET /api/leagues - List all leagues
 func (h *Handler) listLeagues(w http.ResponseWriter, r *http.Request) {
 	leagues, err := h.leagueService.ListLeagues(r.Context())
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to list leagues")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to list leagues")
 		return
 	}
 
@@ -65,7 +65,7 @@ func (h *Handler) listLeagues(w http.ResponseWriter, r *http.Request) {
 		response = append(response, h.leagueToResponse(league))
 	}
 
-	utils.WriteJSON(w, response, http.StatusOK)
+	utils.WriteJSON(r, w, response, http.StatusOK)
 }
 
 // GET /api/leagues/:code - Get league details
@@ -78,11 +78,11 @@ func (h *Handler) getLeague(w http.ResponseWriter, r *http.Request) {
 
 	league, err := h.leagueService.GetLeague(r.Context(), leagueID)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "league not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "league not found")
 		return
 	}
 
-	utils.WriteJSON(w, h.leagueToResponse(league), http.StatusOK)
+	utils.WriteJSON(r, w, h.leagueToResponse(league), http.StatusOK)
 }
 
 // GET /api/leagues/:code/members - Get league members
@@ -95,7 +95,7 @@ func (h *Handler) getLeagueMembers(w http.ResponseWriter, r *http.Request) {
 
 	members, err := h.leagueService.GetLeagueMemberships(r.Context(), leagueID)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to get league members")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to get league members")
 		return
 	}
 
@@ -118,7 +118,7 @@ func (h *Handler) getLeagueMembers(w http.ResponseWriter, r *http.Request) {
 		response = append(response, resp)
 	}
 
-	utils.WriteJSON(w, response, http.StatusOK)
+	utils.WriteJSON(r, w, response, http.StatusOK)
 }
 
 // GET /api/leagues/:code/standings - Get league standings
@@ -131,7 +131,7 @@ func (h *Handler) getLeagueStandings(w http.ResponseWriter, r *http.Request) {
 
 	standings, err := h.leagueService.GetLeagueStandings(r.Context(), leagueID)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to get standings")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to get standings")
 		return
 	}
 
@@ -154,7 +154,7 @@ func (h *Handler) getLeagueStandings(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	utils.WriteJSON(w, response, http.StatusOK)
+	utils.WriteJSON(r, w, response, http.StatusOK)
 }
 
 // CreateInvitationRequest represents the request body for creating an invitation
@@ -207,7 +207,7 @@ func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 	if !isSuperAdmin {
 		isMember, err := h.leagueService.IsUserMember(r.Context(), leagueID, userID)
 		if err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to check membership")
+			utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to check membership")
 			return
 		}
 		if !isMember {
@@ -219,11 +219,11 @@ func (h *Handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 	// Create invitation with alias
 	invitation, err := h.leagueService.CreateInvitation(r.Context(), leagueID, userID, req.Alias)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to create invitation")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to create invitation")
 		return
 	}
 
-	utils.WriteJSON(w, h.invitationToResponse(invitation), http.StatusCreated)
+	utils.WriteJSON(r, w, h.invitationToResponse(invitation), http.StatusCreated)
 }
 
 // GET /api/leagues/:code/invitations - List my active invitations
@@ -251,7 +251,7 @@ func (h *Handler) listMyInvitations(w http.ResponseWriter, r *http.Request) {
 	// Get my invitations
 	invitations, err := h.leagueService.ListMyInvitations(r.Context(), leagueID, userID)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to list invitations")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to list invitations")
 		return
 	}
 
@@ -260,7 +260,7 @@ func (h *Handler) listMyInvitations(w http.ResponseWriter, r *http.Request) {
 		response = append(response, h.invitationToResponse(inv))
 	}
 
-	utils.WriteJSON(w, response, http.StatusOK)
+	utils.WriteJSON(r, w, response, http.StatusOK)
 }
 
 // POST /api/leagues/:code/invitations/:token/cancel - Cancel invitation by token
@@ -287,7 +287,7 @@ func (h *Handler) cancelInvitation(w http.ResponseWriter, r *http.Request) {
 
 	// Cancel the invitation
 	if err := h.leagueService.CancelInvitation(r.Context(), token, userID); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to cancel invitation")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "failed to cancel invitation")
 		return
 	}
 
@@ -318,7 +318,7 @@ func (h *Handler) listMyExpiredInvitations(w http.ResponseWriter, r *http.Reques
 
 	invitations, err := h.leagueService.ListMyExpiredInvitations(r.Context(), leagueID, userID)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to list expired invitations")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to list expired invitations")
 		return
 	}
 
@@ -327,7 +327,7 @@ func (h *Handler) listMyExpiredInvitations(w http.ResponseWriter, r *http.Reques
 		response = append(response, h.invitationToResponse(inv))
 	}
 
-	utils.WriteJSON(w, response, http.StatusOK)
+	utils.WriteJSON(r, w, response, http.StatusOK)
 }
 
 // POST /api/leagues/:code/invitations/:token/extend - Extend invitation by 7 days
@@ -354,11 +354,11 @@ func (h *Handler) extendInvitation(w http.ResponseWriter, r *http.Request) {
 
 	invitation, err := h.leagueService.ExtendInvitation(r.Context(), token, userID)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to extend invitation")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "failed to extend invitation")
 		return
 	}
 
-	utils.WriteJSON(w, h.invitationToResponse(invitation), http.StatusOK)
+	utils.WriteJSON(r, w, h.invitationToResponse(invitation), http.StatusOK)
 }
 
 // UpdatePendingMemberAliasRequest represents the request body for updating a pending member's alias
@@ -408,7 +408,7 @@ func (h *Handler) updatePendingMemberAlias(w http.ResponseWriter, r *http.Reques
 	userID := userIdAndCode.ID
 
 	if err := h.leagueService.UpdatePendingMemberAlias(r.Context(), membershipID, userID, req.Alias); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to update alias")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "failed to update alias")
 		return
 	}
 
@@ -434,7 +434,7 @@ func (h *Handler) previewInvitation(w http.ResponseWriter, r *http.Request) {
 
 	preview, err := h.leagueService.PreviewInvitation(r.Context(), token)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "invitation not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "invitation not found")
 		return
 	}
 
@@ -446,7 +446,7 @@ func (h *Handler) previewInvitation(w http.ResponseWriter, r *http.Request) {
 		Status:       preview.Status,
 	}
 
-	utils.WriteJSON(w, response, http.StatusOK)
+	utils.WriteJSON(r, w, response, http.StatusOK)
 }
 
 // POST /api/leagues/join/:token - Accept invitation
@@ -485,11 +485,11 @@ func (h *Handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "failed to accept invitation")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "failed to accept invitation")
 		return
 	}
 
-	utils.WriteJSON(w, h.leagueToResponse(league), http.StatusOK)
+	utils.WriteJSON(r, w, h.leagueToResponse(league), http.StatusOK)
 }
 
 // POST /api/leagues/:code/ban/:userCode - Ban user from league (superadmin only)
@@ -533,7 +533,7 @@ func (h *Handler) banUserFromLeague(w http.ResponseWriter, r *http.Request) {
 
 	// Ban user
 	if err := h.leagueService.BanUserFromLeague(r.Context(), leagueID, userID); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to ban user")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to ban user")
 		return
 	}
 
@@ -575,7 +575,7 @@ func (h *Handler) unbanUserFromLeague(w http.ResponseWriter, r *http.Request) {
 
 	// Unban user
 	if err := h.leagueService.UnbanUserFromLeague(r.Context(), leagueID, userID); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to unban user")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to unban user")
 		return
 	}
 
@@ -611,7 +611,7 @@ func (h *Handler) archiveLeague(w http.ResponseWriter, r *http.Request) {
 
 	// Archive league
 	if err := h.leagueService.ArchiveLeague(r.Context(), leagueID); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to archive league")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to archive league")
 		return
 	}
 
@@ -647,7 +647,7 @@ func (h *Handler) unarchiveLeague(w http.ResponseWriter, r *http.Request) {
 
 	// Unarchive league
 	if err := h.leagueService.UnarchiveLeague(r.Context(), leagueID); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to unarchive league")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to unarchive league")
 		return
 	}
 
@@ -773,7 +773,7 @@ func (h *Handler) listLeagueGameRounds(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to list game rounds")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to list game rounds")
 		return
 	}
 
@@ -786,7 +786,7 @@ func (h *Handler) listLeagueGameRounds(w http.ResponseWriter, r *http.Request) {
 		// This can happen for newly created rounds. The frontend will handle this gracefully.
 	}
 
-	utils.WriteJSON(w, rounds, http.StatusOK)
+	utils.WriteJSON(r, w, rounds, http.StatusOK)
 }
 
 // createLeagueGameRound is deprecated - use startGame from gameround.go instead
@@ -830,7 +830,7 @@ func (h *Handler) getSuggestedPlayers(w http.ResponseWriter, r *http.Request) {
 	if !isSuperAdmin {
 		isMember, err := h.leagueService.IsUserMember(r.Context(), leagueID, userID)
 		if err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to check membership")
+			utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to check membership")
 			return
 		}
 		if !isMember {
@@ -842,11 +842,11 @@ func (h *Handler) getSuggestedPlayers(w http.ResponseWriter, r *http.Request) {
 	// Get suggested players
 	response, err := h.leagueService.GetSuggestedPlayers(r.Context(), leagueID, userID, isSuperAdmin)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to get suggested players")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to get suggested players")
 		return
 	}
 
-	utils.WriteJSON(w, response, http.StatusOK)
+	utils.WriteJSON(r, w, response, http.StatusOK)
 }
 
 // POST /api/leagues/:code/memberships - Create membership for superadmin (superadmin only)
@@ -902,7 +902,7 @@ func (h *Handler) createMembershipForSuperAdmin(w http.ResponseWriter, r *http.R
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "failed to create membership")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to create membership")
 		return
 	}
 
@@ -914,7 +914,7 @@ func (h *Handler) createMembershipForSuperAdmin(w http.ResponseWriter, r *http.R
 		JoinedAt:       membership.JoinedAt.Format(time.RFC3339),
 	}
 
-	utils.WriteJSON(w, response, http.StatusCreated)
+	utils.WriteJSON(r, w, response, http.StatusCreated)
 }
 
 type createMembershipRequest struct {

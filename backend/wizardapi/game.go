@@ -106,7 +106,7 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		// Convert membership code to ID
 		membershipIdAndCode, err := h.idCodeCache.GetByCode(membershipCode)
 		if err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err,
+			utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err,
 				fmt.Sprintf("Invalid membership code at index %d: %s", i, membershipCode))
 			return
 		}
@@ -120,7 +120,7 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		// Get member info from league service
 		member, err := h.leagueService.GetMemberByID(r.Context(), membershipID)
 		if err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err,
+			utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err,
 				fmt.Sprintf("Error fetching member info for membership code %s at index %d", membershipCode, i))
 			return
 		}
@@ -149,7 +149,7 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 			MaxPlayers:  6,
 		}
 		if err := h.gameTypeRepo.Create(r.Context(), gameType); err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error creating Wizard game type")
+			utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error creating Wizard game type")
 			return
 		}
 	}
@@ -173,14 +173,14 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.gameRoundRepo.Create(r.Context(), gameRound); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error creating game round")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error creating game round")
 		return
 	}
 
 	// Generate game code
 	gameCode, err := generateGameCode()
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error generating game code")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error generating game code")
 		return
 	}
 
@@ -196,7 +196,7 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 	if err := h.wizardRepo.Create(r.Context(), wizardGame); err != nil {
 		// Rollback: delete game round
 		_ = h.gameRoundRepo.Delete(r.Context(), gameRound.ID)
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error creating wizard game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error creating wizard game")
 		return
 	}
 
@@ -206,7 +206,7 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		// Convert membership ID to code
 		membershipIdAndCode := h.idCodeCache.GetByID(player.MembershipID)
 		if membershipIdAndCode == nil {
-			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, fmt.Errorf("failed to get membership code for ID %s", player.MembershipID.Hex()),
+			utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, fmt.Errorf("failed to get membership code for ID %s", player.MembershipID.Hex()),
 				fmt.Sprintf("Error converting membership ID to code at index %d", i))
 			return
 		}
@@ -220,7 +220,7 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 	// Convert GameRoundID to code
 	gameRoundIdAndCode := h.idCodeCache.GetByID(wizardGame.GameRoundID)
 	if gameRoundIdAndCode == nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, fmt.Errorf("failed to get game round code for ID %s", wizardGame.GameRoundID.Hex()),
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, fmt.Errorf("failed to get game round code for ID %s", wizardGame.GameRoundID.Hex()),
 			"Error converting game round ID to code")
 		return
 	}
@@ -247,7 +247,7 @@ func (h *Handler) getGame(w http.ResponseWriter, r *http.Request) {
 
 	game, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
@@ -270,7 +270,7 @@ func (h *Handler) getGameByRoundID(w http.ResponseWriter, r *http.Request) {
 
 	game, err := h.wizardRepo.FindByGameRoundID(r.Context(), gameRoundIdAndCode.ID)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
@@ -286,19 +286,19 @@ func (h *Handler) deleteGame(w http.ResponseWriter, r *http.Request) {
 
 	game, err := h.wizardRepo.FindByCode(r.Context(), code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "Game not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "Game not found")
 		return
 	}
 
 	// Delete game round first
 	if err := h.gameRoundRepo.Delete(r.Context(), game.GameRoundID); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error deleting game round")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error deleting game round")
 		return
 	}
 
 	// Delete wizard game
 	if err := h.wizardRepo.DeleteByCode(r.Context(), code); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error deleting wizard game")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "Error deleting wizard game")
 		return
 	}
 
