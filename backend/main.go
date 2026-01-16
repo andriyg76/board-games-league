@@ -110,6 +110,7 @@ func main() {
 	)
 
 	gameTypeService := services.NewGameTypeService(gameTypeRepository)
+	gameEventHub := services.NewGameEventHub()
 
 	log.Info("Services initialised...")
 
@@ -188,7 +189,7 @@ func main() {
 	leagueMiddleware := bglmiddleware.NewLeagueMiddleware(leagueService, idCodeCache)
 
 	gameApiHandler := gameapi.NewHandler(userService, gameRoundRepository, gameTypeRepository, leagueService, leagueMiddleware, idCodeCache)
-	wizardApiHandler := wizardapi.NewHandler(wizardGameRepository, gameRoundRepository, gameTypeRepository, leagueService, userService, idCodeCache)
+	wizardApiHandler := wizardapi.NewHandler(wizardGameRepository, gameRoundRepository, gameTypeRepository, leagueService, userService, idCodeCache, gameEventHub)
 	authHandler := auth.NewDefaultHandler(userRepository, sessionService, requestService)
 	userProfileHandler := userapi.NewHandlerWithServices(userRepository, sessionRepository, geoIPService)
 	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService, cacheCleanupService)

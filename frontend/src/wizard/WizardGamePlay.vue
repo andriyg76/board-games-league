@@ -20,9 +20,17 @@
                 <n-icon :size="24"><WizardIcon /></n-icon>
                 <span style="font-weight: 500;">Wizard Game</span>
               </div>
-              <n-tag type="primary">
-                Round {{ game.current_round }} / {{ game.max_rounds }}
-              </n-tag>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <n-tag v-if="wizardStore.isConnected" type="success" size="small">
+                  <template #icon>
+                    <n-icon><LiveIcon /></n-icon>
+                  </template>
+                  Live ({{ wizardStore.subscriberCount }})
+                </n-tag>
+                <n-tag type="primary">
+                  Round {{ game.current_round }} / {{ game.max_rounds }}
+                </n-tag>
+              </div>
             </div>
           </template>
           <div style="font-size: 0.875rem; opacity: 0.7;">
@@ -205,9 +213,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { NGrid, NGi, NAlert, NSpin, NCard, NIcon, NTag, NDivider, NButton, NList, NListItem, NAvatar } from 'naive-ui'
-import { Sparkles as WizardIcon, Card as CardsIcon, Star as StarIcon, Gift as HandCoinIcon, Trophy as TrophyIcon, CheckmarkCircle as CheckCircleIcon, ArrowForward as ArrowForwardIcon, Flag as FlagIcon, Grid as TableIcon, Person as PersonIcon } from '@vicons/ionicons5'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { NGrid, NGi, NAlert, NSpin, NCard, NIcon, NTag, NDivider, NButton, NList, NListItem, NAvatar, NBadge } from 'naive-ui'
+import { Sparkles as WizardIcon, Card as CardsIcon, Star as StarIcon, Gift as HandCoinIcon, Trophy as TrophyIcon, CheckmarkCircle as CheckCircleIcon, ArrowForward as ArrowForwardIcon, Flag as FlagIcon, Grid as TableIcon, Person as PersonIcon, Radio as LiveIcon } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useWizardStore } from '@/store/wizard'
@@ -317,12 +325,19 @@ onMounted(async () => {
   if (code && leagueCode) {
     try {
       await wizardStore.loadGame(leagueCode, code)
+      // Subscribe to real-time updates after loading the game
+      wizardStore.subscribeToEvents()
     } catch (error) {
       handleError(error, t('errors.loadingData'))
     }
   } else if (code) {
     handleError(new Error('League code is required'), t('errors.loadingData'))
   }
+})
+
+onUnmounted(() => {
+  // Unsubscribe from SSE when leaving the page
+  wizardStore.unsubscribeFromEvents()
 })
 </script>
 

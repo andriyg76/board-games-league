@@ -3,7 +3,9 @@ import WizardApi from '@/api/WizardApi'
 import type {
   WizardGame,
   CreateGameRequest,
-  ScoreboardResponse
+  ScoreboardResponse,
+  GameEvent,
+  GameEventSubscription
 } from '@/wizard/types'
 
 interface WizardState {
@@ -12,6 +14,9 @@ interface WizardState {
   loading: boolean
   error: string | null
   leagueCode: string | null
+  eventSubscription: GameEventSubscription | null
+  isConnected: boolean
+  subscriberCount: number
 }
 
 export const useWizardStore = defineStore('wizard', {
@@ -20,7 +25,10 @@ export const useWizardStore = defineStore('wizard', {
     scoreboard: null,
     loading: false,
     error: null,
-    leagueCode: null
+    leagueCode: null,
+    eventSubscription: null,
+    isConnected: false,
+    subscriberCount: 0
   }),
 
   getters: {
@@ -366,10 +374,91 @@ export const useWizardStore = defineStore('wizard', {
      * Clear current game
      */
     clearGame(): void {
+      this.unsubscribeFromEvents()
       this.currentGame = null
       this.scoreboard = null
       this.error = null
       this.leagueCode = null
+    },
+
+    /**
+     * Subscribe to real-time game events
+     */
+    subscribeToEvents(): void {
+      if (!this.currentGame || !this.leagueCode) {
+        console.warn('Cannot subscribe: no active game or league code')
+        return
+      }
+
+      // Unsubscribe from any existing subscription
+      this.unsubscribeFromEvents()
+
+      console.log('SSE: Subscribing to game events for', this.currentGame.code)
+
+      this.eventSubscription = WizardApi.subscribeToEvents(
+        this.leagueCode,
+        this.currentGame.code,
+        (event: GameEvent) => this.handleGameEvent(event),
+        (error: Event) => {
+          console.error('SSE connection error:', error)
+          this.isConnected = false
+          // Try to reconnect after a delay
+          setTimeout(() => {
+            if (this.currentGame && this.leagueCode) {
+              this.subscribeToEvents()
+            }
+          }, 5000)
+        }
+      )
+    },
+
+    /**
+     * Unsubscribe from game events
+     */
+    unsubscribeFromEvents(): void {
+      if (this.eventSubscription) {
+        this.eventSubscription.unsubscribe()
+        this.eventSubscription = null
+        this.isConnected = false
+        this.subscriberCount = 0
+      }
+    },
+
+    /**
+     * Handle incoming game event
+     */
+    handleGameEvent(event: GameEvent): void {
+      console.log('SSE: Received event:', event.type)
+
+      switch (event.type) {
+        case 'connected':
+          this.isConnected = true
+          if (event.data && 'subscribers' in event.data) {
+            this.subscriberCount = event.data.subscribers
+          }
+          break
+
+        case 'heartbeat':
+          // Just keep-alive, no action needed
+          break
+
+        case 'bids_submitted':
+        case 'results_submitted':
+        case 'round_completed':
+        case 'round_restarted':
+        case 'round_edited':
+        case 'next_round':
+        case 'prev_round':
+        case 'game_finalized':
+          // Update game state with received data
+          if (event.data && 'code' in event.data) {
+            this.currentGame = event.data as WizardGame
+          }
+          break
+
+        default:
+          console.warn('SSE: Unknown event type:', event.type)
+      }
     }
   }
 })

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5"
 )
@@ -83,6 +84,9 @@ func (h *Handler) submitBids(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Broadcast update to all connected clients
+	h.broadcastGameUpdate(game, "bids_submitted")
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -134,6 +138,9 @@ func (h *Handler) submitResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Broadcast update to all connected clients
+	h.broadcastGameUpdate(game, "results_submitted")
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -173,6 +180,9 @@ func (h *Handler) completeRound(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game")
 		return
 	}
+
+	// Broadcast update to all connected clients
+	h.broadcastGameUpdate(game, "round_completed")
 
 	// Return full game (not just round) so frontend can update properly
 	h.respondWithGame(w, game)
@@ -226,6 +236,9 @@ func (h *Handler) restartRound(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game")
 		return
 	}
+
+	// Broadcast update to all connected clients
+	h.broadcastGameUpdate(game, "round_restarted")
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -303,6 +316,9 @@ func (h *Handler) editRound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Broadcast update to all connected clients
+	h.broadcastGameUpdate(game, "round_edited")
+
 	// Return response
 	response := editRoundResponse{
 		RoundNumber:        roundNumber,
@@ -339,6 +355,9 @@ func (h *Handler) nextRound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Broadcast update to all connected clients
+	h.broadcastGameUpdate(game, "next_round")
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -366,6 +385,9 @@ func (h *Handler) prevRound(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "Error updating game")
 		return
 	}
+
+	// Broadcast update to all connected clients
+	h.broadcastGameUpdate(game, "prev_round")
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -428,6 +450,9 @@ func (h *Handler) finalizeGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Broadcast update to all connected clients
+	h.broadcastGameUpdate(wizardGame, "game_finalized")
+
 	// Build final standings
 	type FinalStanding struct {
 		PlayerName string `json:"player_name"`
@@ -474,4 +499,54 @@ func (h *Handler) finalizeGame(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// broadcastGameUpdate sends a game update event to all connected clients
+func (h *Handler) broadcastGameUpdate(game *models.WizardGame, eventType string) {
+	// Convert membership IDs to codes for players
+	playerResponses := make([]playerResponse, len(game.Players))
+	for i, player := range game.Players {
+		membershipIdAndCode := h.idCodeCache.GetByID(player.MembershipID)
+		code := ""
+		if membershipIdAndCode != nil {
+			code = membershipIdAndCode.Code
+		}
+		playerResponses[i] = playerResponse{
+			MembershipCode: code,
+			PlayerName:     player.PlayerName,
+			TotalScore:     player.TotalScore,
+		}
+	}
+
+	// Build rounds summary
+	rounds := make([]roundSummary, len(game.Rounds))
+	for i, round := range game.Rounds {
+		rounds[i] = roundSummary{
+			RoundNumber: round.RoundNumber,
+			DealerIndex: round.DealerIndex,
+			CardsCount:  round.CardsCount,
+			Status:      string(round.Status),
+		}
+	}
+
+	// Convert GameRoundID to code
+	gameRoundCode := ""
+	gameRoundIdAndCode := h.idCodeCache.GetByID(game.GameRoundID)
+	if gameRoundIdAndCode != nil {
+		gameRoundCode = gameRoundIdAndCode.Code
+	}
+
+	// Build game response data
+	gameData := gameResponse{
+		Code:          game.Code,
+		GameRoundCode: gameRoundCode,
+		Config:        game.Config,
+		Players:       playerResponses,
+		CurrentRound:  game.CurrentRound,
+		MaxRounds:     game.MaxRounds,
+		Status:        string(game.Status),
+		Rounds:        rounds,
+	}
+
+	h.eventHub.Broadcast(game.Code, eventType, gameData)
 }
