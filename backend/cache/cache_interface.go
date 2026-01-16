@@ -22,3 +22,4 @@ type CleanableCache interface {
 	// Size returns current number of entries
 	Size() int
 }
+

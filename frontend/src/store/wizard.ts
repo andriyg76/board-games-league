@@ -82,7 +82,7 @@ export const useWizardStore = defineStore('wizard', {
      */
     areAllBidsSubmitted(state): boolean {
       const round = state.currentGame?.rounds?.[state.currentGame.current_round - 1]
-      if (!round) return false
+      if (!round || !round.player_results || !Array.isArray(round.player_results)) return false
       return round.player_results.every(pr => pr.bid >= 0)
     },
 
@@ -91,7 +91,7 @@ export const useWizardStore = defineStore('wizard', {
      */
     areAllResultsSubmitted(state): boolean {
       const round = state.currentGame?.rounds?.[state.currentGame.current_round - 1]
-      if (!round) return false
+      if (!round || !round.player_results || !Array.isArray(round.player_results)) return false
       return round.player_results.every(pr => pr.actual >= 0)
     }
   },

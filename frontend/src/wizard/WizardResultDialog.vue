@@ -124,10 +124,17 @@ const validationError = ref<string | null>(null)
 // Initialize results
 watch(() => props.modelValue, (newValue) => {
   if (newValue) {
-    // Initialize with existing results or zeros
-    results.value = props.existingResults
-      ? [...props.existingResults]
-      : props.players.map(() => 0)
+    // Initialize with existing results or zeros, ensuring array length matches players
+    const initialResults: number[] = []
+    for (let i = 0; i < props.players.length; i++) {
+      // Use existing result if available and valid, otherwise use 0
+      if (props.existingResults && i < props.existingResults.length && props.existingResults[i] >= 0) {
+        initialResults.push(props.existingResults[i])
+      } else {
+        initialResults.push(0)
+      }
+    }
+    results.value = initialResults
     validateResults()
   }
 }, { immediate: true })

@@ -131,10 +131,17 @@ const validationError = ref<string | null>(null)
 // Initialize bids
 watch(() => props.modelValue, (newValue) => {
   if (newValue) {
-    // Initialize with existing bids or zeros
-    bids.value = props.existingBids
-      ? [...props.existingBids]
-      : props.players.map(() => 0)
+    // Initialize with existing bids or zeros, ensuring array length matches players
+    const initialBids: number[] = []
+    for (let i = 0; i < props.players.length; i++) {
+      // Use existing bid if available and valid, otherwise use 0
+      if (props.existingBids && i < props.existingBids.length && props.existingBids[i] >= 0) {
+        initialBids.push(props.existingBids[i])
+      } else {
+        initialBids.push(0)
+      }
+    }
+    bids.value = initialBids
     validateBids()
   }
 }, { immediate: true })

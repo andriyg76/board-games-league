@@ -212,6 +212,7 @@ const messages = {
             finishGame: 'Finish Game',
             gameFinished: 'Game finished successfully!',
             position: 'Position',
+            gameType: 'Game Type',
         },
         wizard: {
             newGame: 'New Wizard Game',
@@ -562,6 +563,7 @@ const messages = {
             finishGame: 'Завершити гру',
             gameFinished: 'Гру успішно завершено!',
             position: 'Позиція',
+            gameType: 'Тип гри',
         },
         wizard: {
             newGame: 'Нова гра Wizard',
@@ -912,6 +914,7 @@ const messages = {
             finishGame: 'Lõpeta mäng',
             gameFinished: 'Mäng lõpetatud edukalt!',
             position: 'Positsioon',
+            gameType: 'Mängutüüp',
         },
         wizard: {
             newGame: 'Uus Wizard mäng',

@@ -108,3 +108,4 @@ func (c *idAndCodeCacheImpl) GetStats() []cache.CacheStats {
 
 	return []cache.CacheStats{idStats, codeStats}
 }
+

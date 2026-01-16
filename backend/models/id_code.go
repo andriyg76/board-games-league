@@ -35,3 +35,4 @@ func NewIdAndCodeFromCode(code string) (*IdAndCode, error) {
 		Code: code,
 	}, nil
 }
+

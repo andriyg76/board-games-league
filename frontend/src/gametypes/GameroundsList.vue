@@ -14,7 +14,7 @@
         <div v-if="activeRounds.length > 0" style="margin-bottom: 24px;">
           <h3 style="font-size: 1.25rem; font-weight: 500; margin-bottom: 8px;">{{ $t('common.inProgress') }}</h3>
           <n-list>
-            <n-list-item v-for="round in activeRounds" :key="round.code || round.id || round.name">
+            <n-list-item v-for="round in activeRounds" :key="round.code || round.name">
               <div style="flex: 1;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                   <span style="font-weight: 500;">{{ (round.name && round.name.trim()) ? round.name : $t('common.unknown') }}</span>
@@ -23,6 +23,7 @@
                   </n-tag>
                 </div>
                 <div style="font-size: 0.875rem; opacity: 0.7;">
+                  <span v-if="round.game_type">{{ $t('game.gameType') }}: {{ getGameTypeName(round.game_type) }} | </span>
                   {{ $t('gameRounds.started') }}: {{ formatDate(round.start_time) }}
                 </div>
               </div>
@@ -42,10 +43,11 @@
         <div v-if="completedRounds.length > 0" style="margin-bottom: 24px;">
           <h3 style="font-size: 1.25rem; font-weight: 500; margin-bottom: 8px;">{{ $t('common.completed') }}</h3>
           <n-list>
-            <n-list-item v-for="round in completedRounds" :key="round.code || round.id || round.name">
+            <n-list-item v-for="round in completedRounds" :key="round.code || round.name">
               <div style="flex: 1;">
                 <div style="font-weight: 500; margin-bottom: 4px;">{{ (round.name && round.name.trim()) ? round.name : $t('common.unknown') }}</div>
                 <div style="font-size: 0.875rem; opacity: 0.7;">
+                  <span v-if="round.game_type">{{ $t('game.gameType') }}: {{ getGameTypeName(round.game_type) }} | </span>
                   {{ $t('gameRounds.started') }}: {{ formatDate(round.start_time) }}
                   {{ round.end_time ? ` | ${$t('gameRounds.ended')}: ${formatDate(round.end_time)}` : '' }}
                 </div>
@@ -91,13 +93,16 @@ import { Play as PlayIcon, Eye as EyeIcon, Add as AddIcon } from '@vicons/ionico
 import { GameRoundView, GameRoundStatus } from './types';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import GameApi from '@/api/GameApi';
+import GameApi, { getLocalizedName } from '@/api/GameApi';
+import WizardApi from '@/api/WizardApi';
 import FinalizeGameDialog from './FinalizeGameDialog.vue';
 import { useLeagueStore } from '@/store/league';
+import { useGameStore } from '@/store/game';
 
 const router = useRouter();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const leagueStore = useLeagueStore();
+const gameStore = useGameStore();
 
 const gameRounds = ref<GameRoundView[]>([]);
 const loading = ref(false);
@@ -146,6 +151,30 @@ const getStatusLabel = (status?: GameRoundStatus): string => {
   }
 };
 
+const getGameTypeName = (gameTypeCode?: string): string => {
+  if (!gameTypeCode) return t('common.unknown');
+  
+  // Try to find game type by code or key
+  const gameType = gameStore.gameTypes.find(
+    gt => gt.code === gameTypeCode || (gt as any).key === gameTypeCode
+  );
+  
+  if (gameType) {
+    return getLocalizedName(gameType.names, locale.value);
+  }
+  
+  return gameTypeCode;
+};
+
+const isWizardGame = (gameTypeCode?: string): boolean => {
+  if (!gameTypeCode) return false;
+  const gameType = gameStore.gameTypes.find(
+    gt => gt.code === gameTypeCode || (gt as any).key === gameTypeCode
+  );
+  if (!gameType) return false;
+  return gameType.code === 'wizard' || (gameType as any).key === 'wizard';
+};
+
 const loadGameRounds = async () => {
   loading.value = true;
   error.value = null;
@@ -158,11 +187,15 @@ const loadGameRounds = async () => {
     }
     const rounds = await GameApi.listLeagueGameRounds(leagueCode) as any;
     // Validate that all rounds have code
-    const roundsWithoutCode = rounds.filter((r: any) => !r.code);
-    if (roundsWithoutCode.length > 0) {
-      console.warn('Some rounds are missing code:', roundsWithoutCode);
+    if (rounds && Array.isArray(rounds)) {
+      const roundsWithoutCode = rounds.filter((r: any) => !r.code);
+      if (roundsWithoutCode.length > 0) {
+        console.warn('Some rounds are missing code:', roundsWithoutCode);
+      }
+      gameRounds.value = rounds;
+    } else {
+      gameRounds.value = [];
     }
-    gameRounds.value = rounds;
   } catch (err) {
     console.error('Error fetching game rounds:', err);
     error.value = 'Failed to load game rounds';
@@ -175,12 +208,36 @@ const handleFinalized = async () => {
   await loadGameRounds();
 };
 
-const continueRound = (round: GameRoundView) => {
+const continueRound = async (round: GameRoundView) => {
   if (!round.code) {
     error.value = 'Game round code is missing';
     console.error('Round code is missing:', round);
     return;
   }
+  
+  // Load game types if not loaded
+  if (gameStore.gameTypes.length === 0) {
+    await gameStore.loadGameTypes();
+  }
+  
+  // Check if this is a wizard game - if so, navigate to wizard interface
+  if (isWizardGame(round.game_type)) {
+    // For wizard games, we need to get the wizard game code from the round
+    // Try to load wizard game by round code
+    try {
+      const leagueCode = leagueStore.currentLeagueCode;
+      if (leagueCode) {
+        const wizardGame = await WizardApi.getGameByRoundID(leagueCode, round.code);
+        router.push({ name: 'WizardGame', params: { code: wizardGame.code }});
+        return;
+      }
+    } catch (err) {
+      console.error('Error loading wizard game:', err);
+      // Fall through to regular game round edit
+    }
+  }
+  
+  // Regular game round - navigate to edit
   router.push({ name: 'EditGameRound', params: { id: round.code }});
 };
 
@@ -199,6 +256,10 @@ const createNewRound = () => {
 };
 
 onMounted(async () => {
+  // Load game types for display
+  if (gameStore.gameTypes.length === 0) {
+    await gameStore.loadGameTypes();
+  }
   await loadGameRounds();
 });
 </script>

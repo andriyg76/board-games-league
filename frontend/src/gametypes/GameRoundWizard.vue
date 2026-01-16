@@ -171,9 +171,13 @@ const leagueCode = computed(() => {
 
 const gameTypes = computed(() => gameStore.gameTypes);
 
-const selectedGameType = computed(() =>
-  gameTypes.value.find(gt => gt.code === selectedGameTypeCode.value)
-);
+const selectedGameType = computed(() => {
+  if (!selectedGameTypeCode.value) return undefined;
+  // Try to find by code first, then by key
+  return gameTypes.value.find(
+    gt => gt.code === selectedGameTypeCode.value || (gt as any).key === selectedGameTypeCode.value
+  );
+});
 
 const isWizardGame = computed(() => {
   if (!selectedGameType.value) return false;
