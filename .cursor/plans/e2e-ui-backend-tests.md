@@ -10,10 +10,10 @@ todos:
     status: pending
   - id: auth
     content: "Decide auth strategy (real OAuth vs test login)"
-    status: pending
+    status: completed
   - id: tooling
     content: "Choose E2E framework and setup runner"
-    status: pending
+    status: completed
   - id: data
     content: "Define data seeding and cleanup strategy"
     status: pending
@@ -49,20 +49,16 @@ todos:
 - Налаштовані `TRUSTED_ORIGINS` і `HOST_URL` якщо UI і API на різних доменах.
 - HTTPS для коректної роботи `Secure` cookies.
 
-## Рішення, які потрібно узгодити
+## Прийняті рішення
 
 1. **Стратегія логіну**
-   - A: Реальний Google OAuth (потрібні тестові акаунти).
-   - B: Тестовий login flow (тестовий endpoint або feature flag).
-   - C: Сідинг сесій напряму в БД і установка cookies.
+   - Обрано: Реальний Google OAuth (потрібні тестові акаунти).
 2. **Розміщення UI і API**
-   - Один домен (спрощує cookies).
-   - Різні домени (потрібні CORS і trusted origins).
-3. **Дані**
-   - Сідинг фікстур перед запуском.
-   - Повна очистка після прогону.
-4. **Фреймворк**
-   - Playwright або Cypress.
+   - Обрано: Один домен (спрощує cookies).
+3. **Фреймворк**
+   - Обрано: Playwright.
+4. **Дані**
+   - Ще потрібно визначити: сідинг фікстур, очистка після прогону.
 
 ## Обсяг першої хвилі (P0)
 
