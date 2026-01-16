@@ -24,8 +24,8 @@
       "@/*": ["src/*"]
     },
 
-    "types": ["vite/client"]
+    "types": ["vite/client", "vitest/globals", "@vue/test-utils"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/**/*.test.ts", "src/**/*.spec.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
