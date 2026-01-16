@@ -12,8 +12,11 @@ require (
 	github.com/markbates/goth v1.82.0
 	github.com/stretchr/testify v1.11.1
 	go.mongodb.org/mongo-driver v1.17.6
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 )
+
+replace github.com/andriyg76/glog => ./internal/glog
 
 require (
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect

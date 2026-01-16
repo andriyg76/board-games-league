@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	stdlog "log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,6 +26,7 @@ import (
 	log "github.com/andriyg76/glog"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // cacheAdapter adapts cache implementations to CleanableCache interface
@@ -39,7 +43,57 @@ func (a *cacheAdapter) Size() int {
 	return a.size()
 }
 
+const (
+	logMaxSizeMB   = 100
+	logMaxBackups  = 7
+	logMaxAgeDays  = 30
+	logCompress    = true
+	logPermissions = 0o755
+)
+
+func setupLogging() (*stdlog.Logger, func(), error) {
+	logDir := strings.TrimSpace(os.Getenv("LOG_DIR"))
+	if logDir == "" {
+		return nil, func() {}, nil
+	}
+
+	if err := os.MkdirAll(logDir, logPermissions); err != nil {
+		return nil, nil, err
+	}
+
+	serverWriter := &lumberjack.Logger{
+		Filename:   filepath.Join(logDir, "server.log"),
+		MaxSize:    logMaxSizeMB,
+		MaxBackups: logMaxBackups,
+		MaxAge:     logMaxAgeDays,
+		Compress:   logCompress,
+	}
+	accessWriter := &lumberjack.Logger{
+		Filename:   filepath.Join(logDir, "access.log"),
+		MaxSize:    logMaxSizeMB,
+		MaxBackups: logMaxBackups,
+		MaxAge:     logMaxAgeDays,
+		Compress:   logCompress,
+	}
+
+	log.ToWriters(serverWriter, serverWriter, log.INFO)
+	accessLogger := stdlog.New(accessWriter, "", stdlog.LstdFlags)
+
+	cleanup := func() {
+		_ = serverWriter.Close()
+		_ = accessWriter.Close()
+	}
+
+	return accessLogger, cleanup, nil
+}
+
 func main() {
+	accessLogger, cleanup, err := setupLogging()
+	if err != nil {
+		stdlog.Fatalf("Failed to configure logging: %v", err)
+	}
+	defer cleanup()
+
 	log.Info("Starting...")
 	auth.LogSuperAdmins()
 
@@ -197,7 +251,11 @@ func main() {
 	log.Info("Handlers instances connector initialised")
 
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+	if accessLogger != nil {
+		r.Use(bglmiddleware.AccessLog(accessLogger))
+	} else {
+		r.Use(middleware.Logger)
+	}
 
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/auth/google", authHandler.HandleBeginLoginFlow)
