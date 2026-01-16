@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/andriyg76/bgl/user_profile"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
@@ -22,14 +23,20 @@ func AccessLog(logger *log.Logger) func(http.Handler) http.Handler {
 
 			next.ServeHTTP(ww, r)
 
+			userCode := "anonymous"
+			if profile, ok := r.Context().Value("user").(*user_profile.UserProfile); ok && profile != nil && profile.Code != "" {
+				userCode = profile.Code
+			}
+
 			logger.Printf(
-				"%s %s %s %d %dB %s",
+				"%s %s %s %d %dB %s user=%s",
 				r.RemoteAddr,
 				r.Method,
 				r.URL.RequestURI(),
 				ww.Status(),
 				ww.BytesWritten(),
 				time.Since(start),
+				userCode,
 			)
 		})
 	}

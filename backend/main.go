@@ -18,6 +18,7 @@ import (
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/frontendfs"
 	"github.com/andriyg76/bgl/gameapi"
+	"github.com/andriyg76/bgl/internal/logging"
 	bglmiddleware "github.com/andriyg76/bgl/middleware"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/services"
@@ -26,7 +27,6 @@ import (
 	log "github.com/andriyg76/glog"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // cacheAdapter adapts cache implementations to CleanableCache interface
@@ -43,13 +43,7 @@ func (a *cacheAdapter) Size() int {
 	return a.size()
 }
 
-const (
-	logMaxSizeMB   = 100
-	logMaxBackups  = 7
-	logMaxAgeDays  = 30
-	logCompress    = true
-	logPermissions = 0o755
-)
+const logPermissions = 0o755
 
 func setupLogging() (*stdlog.Logger, func(), error) {
 	logDir := strings.TrimSpace(os.Getenv("LOG_DIR"))
@@ -61,27 +55,32 @@ func setupLogging() (*stdlog.Logger, func(), error) {
 		return nil, nil, err
 	}
 
-	serverWriter := &lumberjack.Logger{
-		Filename:   filepath.Join(logDir, "server.log"),
-		MaxSize:    logMaxSizeMB,
-		MaxBackups: logMaxBackups,
-		MaxAge:     logMaxAgeDays,
-		Compress:   logCompress,
+	serverWriter, err := logging.NewDailyRotatingWriter(filepath.Join(logDir, "server.log"))
+	if err != nil {
+		return nil, nil, err
 	}
-	accessWriter := &lumberjack.Logger{
-		Filename:   filepath.Join(logDir, "access.log"),
-		MaxSize:    logMaxSizeMB,
-		MaxBackups: logMaxBackups,
-		MaxAge:     logMaxAgeDays,
-		Compress:   logCompress,
+	accessWriter, err := logging.NewDailyRotatingWriter(filepath.Join(logDir, "access.log"))
+	if err != nil {
+		_ = serverWriter.Close()
+		return nil, nil, err
+	}
+	debugWriter, err := logging.NewDailyRotatingWriter(filepath.Join(logDir, "debug.log"))
+	if err != nil {
+		_ = serverWriter.Close()
+		_ = accessWriter.Close()
+		return nil, nil, err
 	}
 
-	log.ToWriters(serverWriter, serverWriter, log.INFO)
+	log.SetWriters(serverWriter, serverWriter, log.INFO)
+	_ = log.SetOutputForLevel(log.DEBUG, debugWriter)
+	_ = log.SetOutputForLevel(log.TRACE, debugWriter)
+
 	accessLogger := stdlog.New(accessWriter, "", stdlog.LstdFlags)
 
 	cleanup := func() {
 		_ = serverWriter.Close()
 		_ = accessWriter.Close()
+		_ = debugWriter.Close()
 	}
 
 	return accessLogger, cleanup, nil
