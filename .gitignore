@@ -2,3 +2,11 @@
 /frontend/dist/
 /backend/vendor/
 /backend/bgl
+
+# Coverage reports
+coverage.out
+coverage.html
+*.out
+*.html
+coverage.out
+coverage.html
