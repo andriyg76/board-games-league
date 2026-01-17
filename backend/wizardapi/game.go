@@ -15,19 +15,19 @@ import (
 )
 
 type createGameRequest struct {
-	GameName               string   `json:"game_name"`
-	BidRestriction         string   `json:"bid_restriction"`
-	GameVariant            string   `json:"game_variant"`
-	FirstDealerIndex       int      `json:"first_dealer_index"`
-	PlayerMembershipCodes  []string `json:"player_membership_codes"`
+	GameName              string   `json:"game_name"`
+	BidRestriction        string   `json:"bid_restriction"`
+	GameVariant           string   `json:"game_variant"`
+	FirstDealerIndex      int      `json:"first_dealer_index"`
+	PlayerMembershipCodes []string `json:"player_membership_codes"`
 }
 
 type createGameResponse struct {
-	Code         string          `json:"code"`
-	GameRoundCode string         `json:"game_round_code"`
-	CurrentRound  int            `json:"current_round"`
-	MaxRounds     int            `json:"max_rounds"`
-	Status        string         `json:"status"`
+	Code          string           `json:"code"`
+	GameRoundCode string           `json:"game_round_code"`
+	CurrentRound  int              `json:"current_round"`
+	MaxRounds     int              `json:"max_rounds"`
+	Status        string           `json:"status"`
 	Players       []playerResponse `json:"players"`
 }
 
@@ -38,21 +38,21 @@ type playerResponse struct {
 }
 
 type gameResponse struct {
-	Code         string                `json:"code"`
-	GameRoundCode string               `json:"game_round_code"`
-	Config       models.WizardGameConfig `json:"config"`
-	Players      []playerResponse      `json:"players"`
-	CurrentRound int                   `json:"current_round"`
-	MaxRounds    int                   `json:"max_rounds"`
-	Status       string                `json:"status"`
-	Rounds       []roundSummary        `json:"rounds,omitempty"`
+	Code          string                  `json:"code"`
+	GameRoundCode string                  `json:"game_round_code"`
+	Config        models.WizardGameConfig `json:"config"`
+	Players       []playerResponse        `json:"players"`
+	CurrentRound  int                     `json:"current_round"`
+	MaxRounds     int                     `json:"max_rounds"`
+	Status        string                  `json:"status"`
+	Rounds        []roundSummary          `json:"rounds,omitempty"`
 }
 
 type roundSummary struct {
-	RoundNumber int              `json:"round_number"`
-	DealerIndex int              `json:"dealer_index"`
-	CardsCount  int              `json:"cards_count"`
-	Status      string           `json:"status"`
+	RoundNumber int    `json:"round_number"`
+	DealerIndex int    `json:"dealer_index"`
+	CardsCount  int    `json:"cards_count"`
+	Status      string `json:"status"`
 }
 
 // generateGameCode generates a random game code
@@ -106,8 +106,14 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		// Convert membership code to ID
 		membershipIdAndCode, err := h.idCodeCache.GetByCode(membershipCode)
 		if err != nil {
-			utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err,
-				fmt.Sprintf("Invalid membership code at index %d: %s", i, membershipCode))
+			utils.LogAndWriteHTTPError(
+				r,
+				w,
+				http.StatusBadRequest,
+				err,
+				"%s",
+				fmt.Sprintf("Invalid membership code at index %d: %s", i, membershipCode),
+			)
 			return
 		}
 		if membershipIdAndCode == nil {
@@ -120,8 +126,14 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		// Get member info from league service
 		member, err := h.leagueService.GetMemberByID(r.Context(), membershipID)
 		if err != nil {
-			utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err,
-				fmt.Sprintf("Error fetching member info for membership code %s at index %d", membershipCode, i))
+			utils.LogAndWriteHTTPError(
+				r,
+				w,
+				http.StatusBadRequest,
+				err,
+				"%s",
+				fmt.Sprintf("Error fetching member info for membership code %s at index %d", membershipCode, i),
+			)
 			return
 		}
 		if member == nil {
@@ -206,8 +218,14 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		// Convert membership ID to code
 		membershipIdAndCode := h.idCodeCache.GetByID(player.MembershipID)
 		if membershipIdAndCode == nil {
-			utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, fmt.Errorf("failed to get membership code for ID %s", player.MembershipID.Hex()),
-				fmt.Sprintf("Error converting membership ID to code at index %d", i))
+			utils.LogAndWriteHTTPError(
+				r,
+				w,
+				http.StatusInternalServerError,
+				fmt.Errorf("failed to get membership code for ID %s", player.MembershipID.Hex()),
+				"%s",
+				fmt.Sprintf("Error converting membership ID to code at index %d", i),
+			)
 			return
 		}
 		playerResponses[i] = playerResponse{

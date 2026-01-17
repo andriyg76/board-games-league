@@ -42,10 +42,10 @@ func (h *Handler) getPlayer(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching user")
 		return
 	}
-	writePlayer(w, user, utils.IdToCode(id))
+	writePlayer(r, w, user, utils.IdToCode(id))
 }
 
-func writePlayer(w http.ResponseWriter, user *models.User, code string) {
+func writePlayer(r *http.Request, w http.ResponseWriter, user *models.User, code string) {
 	if user == nil {
 		http.Error(w, "Player not found", http.StatusNotFound)
 		return
@@ -85,5 +85,5 @@ func (h *Handler) iAm(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching user")
 		return
 	}
-	writePlayer(w, user, profile.Code)
+	writePlayer(r, w, user, profile.Code)
 }
