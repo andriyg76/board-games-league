@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -15,6 +16,8 @@ func AccessLog(logger *log.Logger) func(http.Handler) http.Handler {
 			return next
 		}
 	}
+
+	requestService := services.NewRequestService()
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,9 +31,15 @@ func AccessLog(logger *log.Logger) func(http.Handler) http.Handler {
 				userCode = profile.Code
 			}
 
+			requestInfo := requestService.ParseRequest(r)
+			endpoint := requestInfo.BaseURL()
+			if endpoint == "" {
+				endpoint = r.Host
+			}
+
 			logger.Printf(
 				"%s %s %s %d %dB %s user=%s",
-				r.RemoteAddr,
+				endpoint,
 				r.Method,
 				r.URL.RequestURI(),
 				ww.Status(),
