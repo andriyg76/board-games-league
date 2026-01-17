@@ -55,7 +55,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 
 	gameType, err := h.gameTypeRepository.FindByKey(r.Context(), req.Type)
 	if gameType == nil || err != nil {
-		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "error fetching game type: "+req.Type)
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "error fetching game type: %s", req.Type)
 		return
 	}
 
@@ -471,8 +471,8 @@ type finalizeGameRequest struct {
 }
 
 type updateGameRoundRequest struct {
-	Name    string                  `json:"name"`
-	Players []updatePlayerSetup     `json:"players"`
+	Name    string              `json:"name"`
+	Players []updatePlayerSetup `json:"players"`
 }
 
 type updatePlayerSetup struct {
