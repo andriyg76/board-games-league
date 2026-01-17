@@ -3,7 +3,7 @@ module github.com/andriyg76/bgl
 go 1.24.0
 
 require (
-	github.com/andriyg76/glog v0.1.8
+	github.com/andriyg76/glog v0.1.9
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0

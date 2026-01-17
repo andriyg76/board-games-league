@@ -37,17 +37,17 @@ func (h *Handler) CheckAliasUniquenessHandler(w http.ResponseWriter, r *http.Req
 func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	claims, ok := r.Context().Value("user").(*user_profile.UserProfile)
 	if !ok || claims == nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, fmt.Errorf("claims are null or bad %v", r.Context().Value("user")), "server error")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, fmt.Errorf("claims are null or bad %v", r.Context().Value("user")), "server error")
 		return
 	}
 
 	user, err := h.userRepository.FindByExternalId(r.Context(), claims.ExternalIDs)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user profile")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching user profile")
 		return
 	}
 	if user == nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, fmt.Errorf("user profile not found"), "user profile not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, fmt.Errorf("user profile not found"), "user profile not found")
 		return
 	}
 
@@ -58,7 +58,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	user.UpdatedAt = time.Now()
 
 	if err := h.userRepository.Update(r.Context(), user); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error updating user profile")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error updating user profile")
 		return
 	}
 
@@ -67,18 +67,18 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	if claims, err := user_profile.GetUserProfile(r); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusUnauthorized, err,
+		utils.LogAndWriteHTTPError(r, w, http.StatusUnauthorized, err,
 			"unauthorised")
 		return
 	} else {
 		user, err := h.userRepository.FindByExternalId(r.Context(), claims.ExternalIDs)
 		if err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user profile")
+			utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching user profile")
 			return
 		}
 
 		if user == nil {
-			utils.LogAndWriteHTTPError(w, http.StatusUnauthorized, nil, "user profile not found")
+			utils.LogAndWriteHTTPError(r, w, http.StatusUnauthorized, nil, "user profile not found")
 			return
 		}
 
@@ -163,17 +163,17 @@ type SessionInfo struct {
 func (h *Handler) GetUserSessionsHandler(w http.ResponseWriter, r *http.Request) {
 	claims, ok := r.Context().Value("user").(*user_profile.UserProfile)
 	if !ok || claims == nil {
-		utils.LogAndWriteHTTPError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"), "unauthorized")
+		utils.LogAndWriteHTTPError(r, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"), "unauthorized")
 		return
 	}
 
 	user, err := h.userRepository.FindByExternalId(r.Context(), claims.ExternalIDs)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching user")
 		return
 	}
 	if user == nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, fmt.Errorf("user not found"), "user not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, fmt.Errorf("user not found"), "user not found")
 		return
 	}
 
@@ -192,7 +192,7 @@ func (h *Handler) GetUserSessionsHandler(w http.ResponseWriter, r *http.Request)
 	// Get all sessions for user
 	sessions, err := h.sessionRepository.FindByUserID(r.Context(), user.ID)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching sessions")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching sessions")
 		return
 	}
 

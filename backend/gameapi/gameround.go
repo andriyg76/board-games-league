@@ -55,7 +55,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 
 	gameType, err := h.gameTypeRepository.FindByKey(r.Context(), req.Type)
 	if gameType == nil || err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error fetching game type: "+req.Type)
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "error fetching game type: %s", req.Type)
 		return
 	}
 
@@ -89,7 +89,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 		// Verify all teams have players
 		for teamName, hasPlayers := range teamAssignments {
 			if !hasPlayers {
-				utils.LogAndWriteHTTPError(w, http.StatusBadRequest,
+				utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest,
 					fmt.Errorf("team %s has no players assigned", teamName),
 					"invalid team assignments")
 				return
@@ -112,7 +112,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, round, http.StatusCreated)
+	utils.WriteJSON(r, w, round, http.StatusCreated)
 }
 
 func (h *Handler) getUserInfo(context context.Context, ID primitive.ObjectID) (*models.User, error) {
@@ -180,7 +180,7 @@ func (h *Handler) listGameRounds(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	utils.WriteJSON(w, rounds, http.StatusOK)
+	utils.WriteJSON(r, w, rounds, http.StatusOK)
 }
 
 func (h *Handler) getGameRound(w http.ResponseWriter, r *http.Request) {
@@ -292,7 +292,7 @@ func (h *Handler) updateGameRound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, round, http.StatusOK)
+	utils.WriteJSON(r, w, round, http.StatusOK)
 }
 
 func (h *Handler) updatePlayerScore(w http.ResponseWriter, r *http.Request) {
@@ -471,8 +471,8 @@ type finalizeGameRequest struct {
 }
 
 type updateGameRoundRequest struct {
-	Name    string                  `json:"name"`
-	Players []updatePlayerSetup     `json:"players"`
+	Name    string              `json:"name"`
+	Players []updatePlayerSetup `json:"players"`
 }
 
 type updatePlayerSetup struct {
@@ -573,7 +573,7 @@ func (h *Handler) updateRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, round, http.StatusOK)
+	utils.WriteJSON(r, w, round, http.StatusOK)
 }
 
 // updateScores оновлює очки гравців (крок 4)
@@ -634,7 +634,7 @@ func (h *Handler) updateScores(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, round, http.StatusOK)
+	utils.WriteJSON(r, w, round, http.StatusOK)
 }
 
 // updateRoundStatus змінює статус раунду

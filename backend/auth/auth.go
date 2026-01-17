@@ -81,7 +81,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 			if alias, err := utils.GetUniqueAlias(func(alias string) (bool, error) {
 				return h.userRepository.AliasUnique(r.Context(), alias)
 			}); err != nil {
-				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
+				utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err,
 					"error checking alias uniqueness")
 				return
 			} else {
@@ -108,7 +108,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 			if alias, err := utils.GetUniqueAlias(func(alias string) (bool, error) {
 				return h.userRepository.AliasUnique(r.Context(), alias)
 			}); err != nil {
-				utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
+				utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err,
 					"error fetching user profile")
 				return
 			} else {
@@ -137,7 +137,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	if updateProfile {
 		user.UpdatedAt = time.Now()
 		if err := h.userRepository.Update(r.Context(), user); err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err,
+			utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err,
 				"error updating user profile")
 			return
 		}
@@ -279,12 +279,12 @@ func (h *Handler) HandleBeginLoginFlow(w http.ResponseWriter, r *http.Request) {
 	if state := query.Get("state"); state != "" {
 		session, err := store.Get(r, "auth-session")
 		if err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error handling session context")
+			utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error handling session context")
 			return
 		}
 		session.Values["state"] = state
 		if err := session.Save(r, w); err != nil {
-			utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "serialising session error")
+			utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "serialising session error")
 			return
 		}
 	}

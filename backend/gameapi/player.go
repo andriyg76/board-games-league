@@ -11,7 +11,7 @@ import (
 func (h *Handler) listPlayers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userService.FindAll(r.Context())
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching users")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching users")
 		return
 	}
 
@@ -26,26 +26,26 @@ func (h *Handler) listPlayers(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(players); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error encoding response")
 	}
 }
 
 func (h *Handler) getPlayer(w http.ResponseWriter, r *http.Request) {
 	id, err := utils.GetIDFromChiURL(r, "code")
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "invalid player code")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "invalid player code")
 		return
 	}
 
 	user, err := h.userService.FindByID(r.Context(), id)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching user")
 		return
 	}
-	writePlayer(w, user, utils.IdToCode(id))
+	writePlayer(r, w, user, utils.IdToCode(id))
 }
 
-func writePlayer(w http.ResponseWriter, user *models.User, code string) {
+func writePlayer(r *http.Request, w http.ResponseWriter, user *models.User, code string) {
 	if user == nil {
 		http.Error(w, "Player not found", http.StatusNotFound)
 		return
@@ -59,7 +59,7 @@ func writePlayer(w http.ResponseWriter, user *models.User, code string) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(p); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error encoding response")
 	}
 }
 
@@ -72,7 +72,7 @@ type player struct {
 func (h *Handler) iAm(w http.ResponseWriter, r *http.Request) {
 	profile, err := user_profile.GetUserProfile(r)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching user")
 		return
 	}
 	if profile == nil {
@@ -82,8 +82,8 @@ func (h *Handler) iAm(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.FindByCode(r.Context(), profile.Code)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error fetching user")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching user")
 		return
 	}
-	writePlayer(w, user, profile.Code)
+	writePlayer(r, w, user, profile.Code)
 }

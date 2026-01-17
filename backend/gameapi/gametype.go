@@ -54,7 +54,7 @@ func requireSuperAdmin(w http.ResponseWriter, r *http.Request) bool {
 func (h *Handler) listGameTypes(w http.ResponseWriter, r *http.Request) {
 	gameTypes, err := h.gameTypeRepository.FindAll(r.Context())
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error reading games types")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error reading games types")
 		return
 	}
 
@@ -76,7 +76,7 @@ func (h *Handler) createGameType(w http.ResponseWriter, r *http.Request) {
 
 	var gt gameTypeAPI
 	if err := json.NewDecoder(r.Body).Decode(&gt); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error parsing incoming request")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "error parsing incoming request")
 		return
 	}
 
@@ -91,12 +91,12 @@ func (h *Handler) createGameType(w http.ResponseWriter, r *http.Request) {
 	apiToDb(gt, &gameTypeDb)
 
 	if err := validateGameType(&gameTypeDb); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "validation error")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "validation error")
 		return
 	}
 
 	if err := h.gameTypeRepository.Create(r.Context(), &gameTypeDb); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error storing gametype %v", gameTypeDb)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error storing gametype %v", gameTypeDb)
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *Handler) createGameType(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response %v", response)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error encoding response %v", response)
 	}
 }
 
@@ -122,7 +122,7 @@ func (h *Handler) getGameType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if gameType == nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, err, "error navigating gametype id %s", id)
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, err, "error navigating gametype id %s", id)
 		return
 	}
 
@@ -130,7 +130,7 @@ func (h *Handler) getGameType(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(res); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response %v", res)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error encoding response %v", res)
 	}
 }
 
@@ -141,23 +141,23 @@ func (h *Handler) updateGameType(w http.ResponseWriter, r *http.Request) {
 
 	id, err := utils.GetIDFromChiURL(r, "code")
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error parsing incoming request, invalid code/id")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "error parsing incoming request, invalid code/id")
 		return
 	}
 
 	var gt gameTypeAPI
 	if err := json.NewDecoder(r.Body).Decode(&gt); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error parsing incoming request payload")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "error parsing incoming request payload")
 		return
 	}
 
 	gameTypeDb, err := h.gameTypeRepository.FindByID(r.Context(), id)
 	if err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "error reading gametype")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "error reading gametype")
 		return
 	}
 	if gameTypeDb == nil {
-		utils.LogAndWriteHTTPError(w, http.StatusNotFound, nil, "gametype not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, nil, "gametype not found")
 		return
 	}
 
@@ -165,12 +165,12 @@ func (h *Handler) updateGameType(w http.ResponseWriter, r *http.Request) {
 	gameTypeDb.UpdatedAt = time.Now()
 
 	if err := validateGameType(gameTypeDb); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "validation error")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "validation error")
 		return
 	}
 
 	if err := h.gameTypeRepository.Update(r.Context(), gameTypeDb); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusBadRequest, err, "update error")
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "update error")
 		return
 	}
 
@@ -178,7 +178,7 @@ func (h *Handler) updateGameType(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(res); err != nil {
-		utils.LogAndWriteHTTPError(w, http.StatusInternalServerError, err, "error encoding response %v", res)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error encoding response %v", res)
 	}
 }
 
