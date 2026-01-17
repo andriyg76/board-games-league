@@ -204,6 +204,7 @@ The system uses a two-token approach:
 **Optional**
 - `TRUSTED_ORIGINS`: Comma-separated list of trusted origins for CORS validation
 - `HOST_URL`: Base URL of the application (auto-detected if not set)
+- `LOG_DIR`: Directory for `server.log`, `access.log`, `debug.log` (logs to console if unset)
 
 ### Database
 
