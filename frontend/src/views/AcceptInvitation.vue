@@ -41,13 +41,13 @@
             </div>
 
             <n-space justify="center" :wrap="true">
-              <n-button type="primary" tag="a" href="/oauth/login/google">
+              <n-button type="primary" @click="startLogin('google')">
                 <template #icon>
                   <n-icon><LogoGoogleIcon /></n-icon>
                 </template>
                 {{ t('auth.loginWithGoogle') }}
               </n-button>
-              <n-button type="primary" tag="a" href="/oauth/login/discord" style="background: #5865F2;">
+              <n-button type="primary" @click="startLogin('discord')" style="background: #5865F2;">
                 <template #icon>
                   <n-icon><LogoDiscordIcon /></n-icon>
                 </template>
@@ -189,6 +189,7 @@ import { useI18n } from 'vue-i18n';
 import { useLeagueStore } from '@/store/league';
 import { useUserStore } from '@/store/user';
 import LeagueApi from '@/api/LeagueApi';
+import Auth from '@/api/Auth';
 import type { League, InvitationPreview } from '@/api/LeagueApi';
 
 const { t } = useI18n();
@@ -284,6 +285,21 @@ const goToLeagueByCode = (code: string) => {
 
 const goToHome = () => {
   router.push({ name: 'Home' });
+};
+
+const startLogin = (provider: string) => {
+  try {
+    // Store the invitation URL in session storage so we can redirect back after login
+    // (This is already done in onMounted, but we do it here too in case user clicks login directly)
+    sessionStorage.setItem('invitation_return_url', route.fullPath);
+    
+    const url = Auth.startLoginEntrypoint(provider);
+    if (url) {
+      window.location.href = url;
+    }
+  } catch (err) {
+    console.error('Error starting login:', err);
+  }
 };
 
 onMounted(async () => {
