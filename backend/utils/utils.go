@@ -4,12 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"github.com/andriyg76/glog"
-	"github.com/go-chi/chi/v5/middleware"
 	"net/http"
 	"reflect"
 	"runtime/debug"
 	"strings"
+
+	"github.com/andriyg76/glog"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func LogAndWriteHTTPError(r *http.Request, w http.ResponseWriter, statusCode int, err error, message string, a ...interface{}) {
@@ -47,6 +48,7 @@ func LogAndWriteHTTPError(r *http.Request, w http.ResponseWriter, statusCode int
 
 func filterStackTrace(stack string) string {
 	const bglPackage = "github.com/andriyg76/bgl"
+	const stdLibPaths = "/usr/local/go/src/"
 	lines := strings.Split(stack, "\n")
 	var filtered []string
 	var ourIndices []int
@@ -81,17 +83,20 @@ func filterStackTrace(stack string) string {
 		groups = append(groups, currentGroup)
 	}
 
-	// Для кожної групи додати контекст (один рядок до і після)
+	// Для кожної групи додати контекст (один рядок до і після), але виключаємо стандартну бібліотеку Go
 	var addedIndices = make(map[int]bool)
 	for _, group := range groups {
 		firstIdx := group[0]
 		lastIdx := group[len(group)-1]
 
-		// Додати один рядок перед групою (якщо є і не з нашої бібліотеки)
-		if firstIdx > 0 && !strings.Contains(lines[firstIdx-1], bglPackage) {
-			if !addedIndices[firstIdx-1] {
-				filtered = append(filtered, lines[firstIdx-1])
-				addedIndices[firstIdx-1] = true
+		// Додати один рядок перед групою (якщо є, не з нашої бібліотеки і не зі стандартної бібліотеки Go)
+		if firstIdx > 0 {
+			prevLine := lines[firstIdx-1]
+			if !strings.Contains(prevLine, bglPackage) && !strings.Contains(prevLine, stdLibPaths) {
+				if !addedIndices[firstIdx-1] {
+					filtered = append(filtered, prevLine)
+					addedIndices[firstIdx-1] = true
+				}
 			}
 		}
 
@@ -103,11 +108,14 @@ func filterStackTrace(stack string) string {
 			}
 		}
 
-		// Додати один рядок після групи (якщо є і не з нашої бібліотеки)
-		if lastIdx < len(lines)-1 && !strings.Contains(lines[lastIdx+1], bglPackage) {
-			if !addedIndices[lastIdx+1] {
-				filtered = append(filtered, lines[lastIdx+1])
-				addedIndices[lastIdx+1] = true
+		// Додати один рядок після групи (якщо є, не з нашої бібліотеки і не зі стандартної бібліотеки Go)
+		if lastIdx < len(lines)-1 {
+			nextLine := lines[lastIdx+1]
+			if !strings.Contains(nextLine, bglPackage) && !strings.Contains(nextLine, stdLibPaths) {
+				if !addedIndices[lastIdx+1] {
+					filtered = append(filtered, nextLine)
+					addedIndices[lastIdx+1] = true
+				}
 			}
 		}
 	}
