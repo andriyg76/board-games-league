@@ -126,7 +126,7 @@ export default {
         return await response.json();
     },
     async getRequestDiagnostics(): Promise<DiagnosticsRequestResponse> {
-        const response = await apiFetch('/api/admin/diagnostics/request');
+        const response = await apiFetch('/api/admin/diagnostics?sections=request');
 
         if (!response.ok) {
             throw new Error('Failed to get request diagnostics');
@@ -135,7 +135,7 @@ export default {
         return await response.json();
     },
     async getSystemDiagnostics(): Promise<DiagnosticsSystemResponse> {
-        const response = await apiFetch('/api/admin/diagnostics/system');
+        const response = await apiFetch('/api/admin/diagnostics?sections=system');
 
         if (!response.ok) {
             throw new Error('Failed to get system diagnostics');
@@ -144,7 +144,7 @@ export default {
         return await response.json();
     },
     async getBuildDiagnostics(): Promise<DiagnosticsBuildResponse> {
-        const response = await apiFetch('/api/admin/diagnostics/build');
+        const response = await apiFetch('/api/admin/diagnostics?sections=build');
 
         if (!response.ok) {
             throw new Error('Failed to get build diagnostics');

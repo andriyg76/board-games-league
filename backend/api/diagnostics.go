@@ -108,27 +108,12 @@ type CacheStatsInfo struct {
 	UsagePercent float64 `json:"usage_percent"` // (current_size / max_size) * 100
 }
 
-type DiagnosticsRequestResponse struct {
-	ServerInfo  ServerInfo  `json:"server_info"`
-	RequestInfo RequestInfo `json:"request_info"`
-}
-
-type DiagnosticsSystemResponse struct {
-	RuntimeInfo     RuntimeInfo      `json:"runtime_info"`
-	EnvironmentVars []EnvVarInfo     `json:"environment_vars"`
-	CacheStats      []CacheStatsInfo `json:"cache_stats,omitempty"`
-}
-
-type DiagnosticsBuildResponse struct {
-	BuildInfo BuildInfo `json:"build_info"`
-}
-
 type DiagnosticsResponse struct {
-	ServerInfo      ServerInfo       `json:"server_info"`
-	BuildInfo       BuildInfo        `json:"build_info"`
-	RequestInfo     RequestInfo      `json:"request_info"`
-	RuntimeInfo     RuntimeInfo      `json:"runtime_info"`
-	EnvironmentVars []EnvVarInfo     `json:"environment_vars"`
+	ServerInfo      *ServerInfo      `json:"server_info,omitempty"`
+	BuildInfo       *BuildInfo       `json:"build_info,omitempty"`
+	RequestInfo     *RequestInfo     `json:"request_info,omitempty"`
+	RuntimeInfo     *RuntimeInfo     `json:"runtime_info,omitempty"`
+	EnvironmentVars []EnvVarInfo     `json:"environment_vars,omitempty"`
 	CacheStats      []CacheStatsInfo `json:"cache_stats,omitempty"`
 }
 
@@ -137,55 +122,32 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	reqInfo := h.requestService.ParseRequest(r)
+	sections := parseDiagnosticsSections(r.URL.Query()["sections"])
+	includeAll := len(sections) == 0
+	includeRequest := includeAll || sections["request"]
+	includeSystem := includeAll || sections["system"]
+	includeBuild := includeAll || sections["build"]
 
-	response := DiagnosticsResponse{
-		ServerInfo:      h.buildServerInfo(reqInfo),
-		BuildInfo:       h.buildBuildInfo(),
-		RequestInfo:     h.buildRequestInfo(r, reqInfo),
-		RuntimeInfo:     getRuntimeInfo(),
-		EnvironmentVars: getEnvironmentVars(),
-	}
-	response.CacheStats = h.buildCacheStats()
+	response := DiagnosticsResponse{}
 
-	h.writeJSONResponse(w, r, response)
-}
-
-func (h *DiagnosticsHandler) GetDiagnosticsRequestHandler(w http.ResponseWriter, r *http.Request) {
-	if !h.ensureSuperAdmin(w, r) {
-		return
+	if includeRequest {
+		reqInfo := h.requestService.ParseRequest(r)
+		serverInfo := h.buildServerInfo(reqInfo)
+		requestInfo := h.buildRequestInfo(r, reqInfo)
+		response.ServerInfo = &serverInfo
+		response.RequestInfo = &requestInfo
 	}
 
-	reqInfo := h.requestService.ParseRequest(r)
-	response := DiagnosticsRequestResponse{
-		ServerInfo:  h.buildServerInfo(reqInfo),
-		RequestInfo: h.buildRequestInfo(r, reqInfo),
+	if includeBuild {
+		buildInfo := h.buildBuildInfo()
+		response.BuildInfo = &buildInfo
 	}
 
-	h.writeJSONResponse(w, r, response)
-}
-
-func (h *DiagnosticsHandler) GetDiagnosticsSystemHandler(w http.ResponseWriter, r *http.Request) {
-	if !h.ensureSuperAdmin(w, r) {
-		return
-	}
-
-	response := DiagnosticsSystemResponse{
-		RuntimeInfo:     getRuntimeInfo(),
-		EnvironmentVars: getEnvironmentVars(),
-	}
-	response.CacheStats = h.buildCacheStats()
-
-	h.writeJSONResponse(w, r, response)
-}
-
-func (h *DiagnosticsHandler) GetDiagnosticsBuildHandler(w http.ResponseWriter, r *http.Request) {
-	if !h.ensureSuperAdmin(w, r) {
-		return
-	}
-
-	response := DiagnosticsBuildResponse{
-		BuildInfo: h.buildBuildInfo(),
+	if includeSystem {
+		runtimeInfo := getRuntimeInfo()
+		response.RuntimeInfo = &runtimeInfo
+		response.EnvironmentVars = getEnvironmentVars()
+		response.CacheStats = h.buildCacheStats()
 	}
 
 	h.writeJSONResponse(w, r, response)
@@ -299,6 +261,19 @@ func (h *DiagnosticsHandler) writeJSONResponse(w http.ResponseWriter, r *http.Re
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to encode diagnostics response")
 	}
+}
+
+func parseDiagnosticsSections(values []string) map[string]bool {
+	sections := make(map[string]bool)
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			section := strings.TrimSpace(strings.ToLower(part))
+			if section != "" {
+				sections[section] = true
+			}
+		}
+	}
+	return sections
 }
 
 // isSensitiveEnvVar checks if an environment variable name matches sensitive patterns

@@ -275,9 +275,6 @@ func main() {
 
 			r.Put("/admin/user/create", userProfileHandler.AdminCreateUserHandler)
 			r.Get("/admin/diagnostics", diagnosticsHandler.GetDiagnosticsHandler)
-			r.Get("/admin/diagnostics/request", diagnosticsHandler.GetDiagnosticsRequestHandler)
-			r.Get("/admin/diagnostics/system", diagnosticsHandler.GetDiagnosticsSystemHandler)
-			r.Get("/admin/diagnostics/build", diagnosticsHandler.GetDiagnosticsBuildHandler)
 
 			gameApiHandler.RegisterRoutes(r, wizardApiHandler)
 		})

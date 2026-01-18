@@ -164,6 +164,10 @@ func TestGetDiagnosticsHandler_Success(t *testing.T) {
 	err := json.NewDecoder(w.Body).Decode(&response)
 	assert.NoError(t, err)
 
+	assert.NotNil(t, response.RequestInfo)
+	assert.NotNil(t, response.RuntimeInfo)
+	assert.NotNil(t, response.BuildInfo)
+	assert.NotNil(t, response.ServerInfo)
 	assert.NotEmpty(t, response.RequestInfo.IPAddress)
 	assert.NotEmpty(t, response.RuntimeInfo.GoVersion)
 	assert.NotEmpty(t, response.BuildInfo.Version)
@@ -208,13 +212,14 @@ func TestGetDiagnosticsHandler_GeoIPError(t *testing.T) {
 	assert.NoError(t, err)
 
 	// GeoInfo should be nil when there's an error
+	assert.NotNil(t, response.RequestInfo)
 	assert.Nil(t, response.RequestInfo.GeoInfo)
 
 	mockGeoIPService.AssertExpectations(t)
 	mockCacheCleanupService.AssertExpectations(t)
 }
 
-func TestGetDiagnosticsRequestHandler_Success(t *testing.T) {
+func TestGetDiagnosticsHandler_RequestSections(t *testing.T) {
 	restore := auth.SetSuperAdminsForTesting([]string{"admin@test.com"})
 	defer restore()
 
@@ -225,7 +230,7 @@ func TestGetDiagnosticsRequestHandler_Success(t *testing.T) {
 	handler := NewDiagnosticsHandler(requestService, mockGeoIPService, mockCacheCleanupService)
 
 	userProfile := createTestUserProfile([]string{"admin@test.com"})
-	req := httptest.NewRequest("GET", "/api/admin/diagnostics/request", nil)
+	req := httptest.NewRequest("GET", "/api/admin/diagnostics?sections=request", nil)
 	req.Header.Set("X-Forwarded-For", "192.0.2.1")
 	req.RemoteAddr = "192.0.2.1:12345"
 	ctx := context.WithValue(req.Context(), "user", userProfile)
@@ -237,23 +242,26 @@ func TestGetDiagnosticsRequestHandler_Success(t *testing.T) {
 		City:    "New York",
 	}, nil)
 
-	handler.GetDiagnosticsRequestHandler(w, req)
+	handler.GetDiagnosticsHandler(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response DiagnosticsRequestResponse
+	var response DiagnosticsResponse
 	err := json.NewDecoder(w.Body).Decode(&response)
 	assert.NoError(t, err)
 
-	assert.NotEmpty(t, response.RequestInfo.IPAddress)
-	assert.NotEmpty(t, response.ServerInfo.HostURL)
+	assert.NotNil(t, response.RequestInfo)
+	assert.NotNil(t, response.ServerInfo)
 	assert.NotNil(t, response.RequestInfo.ResolutionInfo)
+	assert.Nil(t, response.RuntimeInfo)
+	assert.Nil(t, response.BuildInfo)
+	assert.Empty(t, response.EnvironmentVars)
 
 	mockGeoIPService.AssertExpectations(t)
 	mockCacheCleanupService.AssertExpectations(t)
 }
 
-func TestGetDiagnosticsSystemHandler_Success(t *testing.T) {
+func TestGetDiagnosticsHandler_SystemSections(t *testing.T) {
 	restore := auth.SetSuperAdminsForTesting([]string{"admin@test.com"})
 	defer restore()
 
@@ -264,7 +272,7 @@ func TestGetDiagnosticsSystemHandler_Success(t *testing.T) {
 	handler := NewDiagnosticsHandler(requestService, mockGeoIPService, mockCacheCleanupService)
 
 	userProfile := createTestUserProfile([]string{"admin@test.com"})
-	req := httptest.NewRequest("GET", "/api/admin/diagnostics/system", nil)
+	req := httptest.NewRequest("GET", "/api/admin/diagnostics?sections=system", nil)
 	ctx := context.WithValue(req.Context(), "user", userProfile)
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
@@ -284,17 +292,20 @@ func TestGetDiagnosticsSystemHandler_Success(t *testing.T) {
 	}
 	mockCacheCleanupService.On("GetAllStats").Return(cacheStats)
 
-	handler.GetDiagnosticsSystemHandler(w, req)
+	handler.GetDiagnosticsHandler(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response DiagnosticsSystemResponse
+	var response DiagnosticsResponse
 	err := json.NewDecoder(w.Body).Decode(&response)
 	assert.NoError(t, err)
 
+	assert.NotNil(t, response.RuntimeInfo)
 	assert.NotEmpty(t, response.RuntimeInfo.GoVersion)
 	assert.NotEmpty(t, response.EnvironmentVars)
 	assert.Len(t, response.CacheStats, 1)
+	assert.Nil(t, response.RequestInfo)
+	assert.Nil(t, response.BuildInfo)
 
 	var found bool
 	for _, env := range response.EnvironmentVars {
@@ -309,7 +320,7 @@ func TestGetDiagnosticsSystemHandler_Success(t *testing.T) {
 	mockCacheCleanupService.AssertExpectations(t)
 }
 
-func TestGetDiagnosticsBuildHandler_Success(t *testing.T) {
+func TestGetDiagnosticsHandler_BuildSections(t *testing.T) {
 	restore := auth.SetSuperAdminsForTesting([]string{"admin@test.com"})
 	defer restore()
 
@@ -320,23 +331,27 @@ func TestGetDiagnosticsBuildHandler_Success(t *testing.T) {
 	handler := NewDiagnosticsHandler(requestService, mockGeoIPService, mockCacheCleanupService)
 
 	userProfile := createTestUserProfile([]string{"admin@test.com"})
-	req := httptest.NewRequest("GET", "/api/admin/diagnostics/build", nil)
+	req := httptest.NewRequest("GET", "/api/admin/diagnostics?sections=build", nil)
 	ctx := context.WithValue(req.Context(), "user", userProfile)
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
-	handler.GetDiagnosticsBuildHandler(w, req)
+	handler.GetDiagnosticsHandler(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response DiagnosticsBuildResponse
+	var response DiagnosticsResponse
 	err := json.NewDecoder(w.Body).Decode(&response)
 	assert.NoError(t, err)
 
+	assert.NotNil(t, response.BuildInfo)
 	assert.Equal(t, BuildVersion, response.BuildInfo.Version)
 	assert.Equal(t, BuildCommit, response.BuildInfo.Commit)
 	assert.Equal(t, BuildBranch, response.BuildInfo.Branch)
 	assert.Equal(t, BuildDate, response.BuildInfo.Date)
+	assert.Nil(t, response.RequestInfo)
+	assert.Nil(t, response.RuntimeInfo)
+	assert.Empty(t, response.EnvironmentVars)
 }
 
 func TestIsSensitiveEnvVar(t *testing.T) {
