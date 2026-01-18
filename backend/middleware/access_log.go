@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/andriyg76/bgl/services"
-	"github.com/andriyg76/bgl/user_profile"
+	"github.com/andriyg76/bgl/utils"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
@@ -26,9 +26,9 @@ func AccessLog(logger *log.Logger) func(http.Handler) http.Handler {
 
 			next.ServeHTTP(ww, r)
 
-			userCode := "anonymous"
-			if profile, ok := r.Context().Value("user").(*user_profile.UserProfile); ok && profile != nil && profile.Code != "" {
-				userCode = profile.Code
+			userCode := utils.UserCodeFromContext(r.Context())
+			if userCode == "" {
+				userCode = "anonymous"
 			}
 
 			requestInfo := requestService.ParseRequest(r)
@@ -37,8 +37,18 @@ func AccessLog(logger *log.Logger) func(http.Handler) http.Handler {
 				endpoint = r.Host
 			}
 
+			requestID := middleware.GetReqID(r.Context())
+			if requestID == "" {
+				requestID = "<none>"
+			}
+
+			remoteIP := requestInfo.ClientIP()
+			if remoteIP == "" {
+				remoteIP = "<unknown>"
+			}
+
 			logger.Printf(
-				"%s %s %s %d %dB %s user=%s",
+				"%s %s %s %d %dB %s user=%s request_id=%s remote_ip=%s",
 				endpoint,
 				r.Method,
 				r.URL.RequestURI(),
@@ -46,6 +56,8 @@ func AccessLog(logger *log.Logger) func(http.Handler) http.Handler {
 				ww.BytesWritten(),
 				time.Since(start),
 				userCode,
+				requestID,
+				remoteIP,
 			)
 		})
 	}

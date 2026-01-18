@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/andriyg76/glog"
+	"github.com/go-chi/chi/v5/middleware"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -30,7 +31,7 @@ func LogAndWriteHTTPError(r *http.Request, w http.ResponseWriter, statusCode int
 			requestIDInfo = fmt.Sprintf("request_id=%s", requestID)
 		}
 
-		if userCode := userCodeFromContext(r.Context()); userCode != "" {
+		if userCode := UserCodeFromContext(r.Context()); userCode != "" {
 			userInfo = fmt.Sprintf("user_code=%s", userCode)
 		}
 	}
@@ -118,25 +119,23 @@ func requestIDFromRequest(r *http.Request) string {
 	if r == nil {
 		return ""
 	}
-	// First check headers (incoming request might have X-Request-Id)
+	// First try to get from chi middleware context (most reliable)
+	if r.Context() != nil {
+		if requestID := middleware.GetReqID(r.Context()); requestID != "" {
+			return requestID
+		}
+	}
+	// Fallback to headers (incoming request might have X-Request-Id)
 	if requestID := r.Header.Get("X-Request-Id"); requestID != "" {
 		return requestID
 	}
 	if requestID := r.Header.Get("X-Request-ID"); requestID != "" {
 		return requestID
 	}
-	// Then check context (chi middleware.RequestID stores it there)
-	if r.Context() != nil {
-		if requestID := r.Context().Value("requestID"); requestID != nil {
-			if id, ok := requestID.(string); ok && id != "" {
-				return id
-			}
-		}
-	}
 	return ""
 }
 
-func userCodeFromContext(ctx context.Context) string {
+func UserCodeFromContext(ctx context.Context) string {
 	if ctx == nil {
 		return ""
 	}
