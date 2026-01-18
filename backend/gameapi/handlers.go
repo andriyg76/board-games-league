@@ -88,9 +88,7 @@ func (h *Handler) RegisterRoutes(r chi.Router, wizardHandler WizardHandler) {
 
 // RegisterPublicRoutes registers public (no auth) endpoints.
 func (h *Handler) RegisterPublicRoutes(r chi.Router) {
-	r.Route("/leagues", func(r chi.Router) {
-		r.Get("/join/{token}/preview", h.previewInvitation) // Preview invitation (public)
-	})
+	r.Get("/leagues/join/{token}/preview", h.previewInvitation) // Preview invitation (public)
 }
 
 func NewHandler(r services.UserService, r2 repositories.GameRoundRepository, r3 repositories.GameTypeRepository, leagueService services.LeagueService, leagueMiddleware *middleware.LeagueMiddleware, idCodeCache services.IdAndCodeCache) *Handler {
