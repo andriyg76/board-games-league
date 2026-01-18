@@ -53,7 +53,19 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 		players = append(players, player)
 	}
 
-	gameType, err := h.gameTypeRepository.FindByKey(r.Context(), req.Type)
+	// Try to find game type by code first (IdAndCode), then fallback to key
+	var gameType *models.GameType
+	var err error
+
+	idAndCode, codeErr := h.idCodeCache.GetByCode(req.Type)
+	if codeErr == nil && idAndCode != nil {
+		// Found by code, use FindByID
+		gameType, err = h.gameTypeRepository.FindByID(r.Context(), idAndCode.ID)
+	} else {
+		// Not found by code, try FindByKey (for backward compatibility)
+		gameType, err = h.gameTypeRepository.FindByKey(r.Context(), req.Type)
+	}
+
 	if err != nil {
 		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "database error fetching game type: %s", req.Type)
 		return
