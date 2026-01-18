@@ -125,6 +125,87 @@ func TestStartGame(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 		assert.Contains(t, rr.Body.String(), "invalid team assignments")
 	})
+
+	t.Run("Start game with game type code (IdAndCode)", func(t *testing.T) {
+		gameTypeID := primitive.NewObjectID()
+		
+		// Pre-populate the cache with the game type ID
+		// GetByID will automatically create and store the IdAndCode
+		idAndCode := idCodeCache.GetByID(gameTypeID)
+		gameTypeCode := idAndCode.Code
+
+		gameType := &models.GameType{
+			ID:  gameTypeID,
+			Key: "test_game_by_code",
+			Names: map[string]string{
+				"en": "Test Game By Code",
+			},
+			Roles: []models.Role{
+				{Key: "team_a", Names: map[string]string{"en": "Team A"}, RoleType: models.RoleTypeMultiple},
+				{Key: "team_b", Names: map[string]string{"en": "Team B"}, RoleType: models.RoleTypeMultiple},
+			},
+		}
+
+		req := startGameRequest{
+			Name:      "Test Game Round By Code",
+			Type:      gameTypeCode,
+			StartTime: time.Now(),
+			Players: []playerSetup{
+				{MembershipCode: membership1Code, Position: 1, TeamName: "team_a"},
+				{MembershipCode: membership2Code, Position: 2, TeamName: "team_b"},
+			},
+		}
+
+		// Should use FindByID when code is found in cache
+		mockGameTypeRepo.On("FindByID", mock.Anything, gameTypeID).Return(gameType, nil).Once()
+		mockGameRoundRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil).Once()
+
+		body, _ := json.Marshal(req)
+		httpReq := httptest.NewRequest("POST", "/games", bytes.NewBuffer(body))
+		rr := httptest.NewRecorder()
+
+		router.ServeHTTP(rr, httpReq)
+
+		assert.Equal(t, http.StatusCreated, rr.Code)
+		mockGameTypeRepo.AssertExpectations(t)
+		mockGameRoundRepo.AssertExpectations(t)
+	})
+
+	t.Run("Start game with game type code fallback to key", func(t *testing.T) {
+		gameTypeID := primitive.NewObjectID()
+
+		gameType := &models.GameType{
+			ID:  gameTypeID,
+			Key: "fallback_key",
+			Names: map[string]string{
+				"en": "Fallback Game",
+			},
+			Roles: []models.Role{},
+		}
+
+		req := startGameRequest{
+			Name:      "Test Game Round Fallback",
+			Type:      "fallback_key", // Not in cache, should fallback to FindByKey
+			StartTime: time.Now(),
+			Players: []playerSetup{
+				{MembershipCode: membership1Code, Position: 1},
+			},
+		}
+
+		// Should fallback to FindByKey when code not found in cache
+		mockGameTypeRepo.On("FindByKey", mock.Anything, "fallback_key").Return(gameType, nil).Once()
+		mockGameRoundRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.GameRound")).Return(nil).Once()
+
+		body, _ := json.Marshal(req)
+		httpReq := httptest.NewRequest("POST", "/games", bytes.NewBuffer(body))
+		rr := httptest.NewRecorder()
+
+		router.ServeHTTP(rr, httpReq)
+
+		assert.Equal(t, http.StatusCreated, rr.Code)
+		mockGameTypeRepo.AssertExpectations(t)
+		mockGameRoundRepo.AssertExpectations(t)
+	})
 }
 
 func TestUpdatePlayerScore(t *testing.T) {
