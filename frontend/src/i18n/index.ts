@@ -72,6 +72,12 @@ const messages = {
         },
         diagnostics: {
             title: 'System Diagnostics',
+            tabs: {
+                request: 'Request',
+                system: 'System',
+                build: 'Build/Version',
+                logs: 'Logs'
+            },
             backendBuildInfo: 'Backend Build Information',
             frontendBuildInfo: 'Frontend Build Information',
             version: 'Version',
@@ -133,7 +139,10 @@ const messages = {
             cacheUsage: 'Usage',
             cacheExpired: 'Expired',
             cacheTTL: 'TTL',
-            refresh: 'Refresh'
+            refresh: 'Refresh',
+            logsTitle: 'Server Logs',
+            logLines: 'Lines',
+            logsEmpty: 'No log entries available.'
         },
         createUser: {
             title: 'Create User',
@@ -423,6 +432,12 @@ const messages = {
         },
         diagnostics: {
             title: 'Діагностика системи',
+            tabs: {
+                request: 'Запит',
+                system: 'Система',
+                build: 'Збірка/Версія',
+                logs: 'Логи'
+            },
             backendBuildInfo: 'Інформація про збірку бекенду',
             frontendBuildInfo: 'Інформація про збірку фронтенду',
             version: 'Версія',
@@ -484,7 +499,10 @@ const messages = {
             cacheUsage: 'Використання',
             cacheExpired: 'Застарілі',
             cacheTTL: 'Час життя',
-            refresh: 'Оновити'
+            refresh: 'Оновити',
+            logsTitle: 'Логи сервера',
+            logLines: 'Рядки',
+            logsEmpty: 'Записів логів немає.'
         },
         createUser: {
             title: 'Створити користувача',
@@ -774,6 +792,12 @@ const messages = {
         },
         diagnostics: {
             title: 'Süsteemi diagnostika',
+            tabs: {
+                request: 'Päring',
+                system: 'Süsteem',
+                build: 'Ehitus/Versioon',
+                logs: 'Logid'
+            },
             backendBuildInfo: 'Tagarakenduse ehituse teave',
             frontendBuildInfo: 'Kasutajaliidese ehituse teave',
             version: 'Versioon',
@@ -835,7 +859,10 @@ const messages = {
             cacheUsage: 'Kasutus',
             cacheExpired: 'Aegunud',
             cacheTTL: 'Eluiga',
-            refresh: 'Värskenda'
+            refresh: 'Värskenda',
+            logsTitle: 'Serveri logid',
+            logLines: 'Read',
+            logsEmpty: 'Logikirjeid pole.'
         },
         createUser: {
             title: 'Loo kasutaja',

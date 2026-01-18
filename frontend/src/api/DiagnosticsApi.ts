@@ -18,6 +18,21 @@ export interface BuildInfo {
     date: string;
 }
 
+export interface ServerInfo {
+    host_url: string;
+    trusted_origins: string[];
+}
+
+export interface RequestInfo {
+    ip_address: string;
+    base_url: string;
+    user_agent: string;
+    origin: string;
+    is_trusted: boolean;
+    geo_info?: GeoIPInfo;
+    resolution_info?: Record<string, string>;
+}
+
 export interface MemoryInfo {
     alloc_bytes: number;
     total_alloc_bytes: number;
@@ -56,24 +71,40 @@ export interface CacheStatsInfo {
     usage_percent: number;
 }
 
-export interface DiagnosticsResponse {
-    server_info: {
-        host_url: string;
-        trusted_origins: string[];
-    };
-    build_info: BuildInfo;
-    request_info: {
-        ip_address: string;
-        base_url: string;
-        user_agent: string;
-        origin: string;
-        is_trusted: boolean;
-        geo_info?: GeoIPInfo;
-        resolution_info?: Record<string, string>;
-    };
+export interface LogsInfo {
+    lines: string[];
+    requested: number;
+    returned: number;
+    error?: string;
+}
+
+export interface DiagnosticsRequestResponse {
+    server_info: ServerInfo;
+    request_info: RequestInfo;
+}
+
+export interface DiagnosticsSystemResponse {
     runtime_info: RuntimeInfo;
     environment_vars: EnvVarInfo[];
     cache_stats?: CacheStatsInfo[];
+}
+
+export interface DiagnosticsBuildResponse {
+    build_info: BuildInfo;
+}
+
+export interface DiagnosticsLogsResponse {
+    logs: LogsInfo;
+}
+
+export interface DiagnosticsResponse {
+    server_info?: ServerInfo;
+    build_info?: BuildInfo;
+    request_info?: RequestInfo;
+    runtime_info?: RuntimeInfo;
+    environment_vars?: EnvVarInfo[];
+    cache_stats?: CacheStatsInfo[];
+    logs?: LogsInfo;
 }
 
 export async function getFrontendBuildInfo(): Promise<BuildInfo> {
@@ -105,5 +136,41 @@ export default {
         }
 
         return await response.json();
-    }
+    },
+    async getRequestDiagnostics(): Promise<DiagnosticsRequestResponse> {
+        const response = await apiFetch('/api/admin/diagnostics?sections=request');
+
+        if (!response.ok) {
+            throw new Error('Failed to get request diagnostics');
+        }
+
+        return await response.json();
+    },
+    async getSystemDiagnostics(): Promise<DiagnosticsSystemResponse> {
+        const response = await apiFetch('/api/admin/diagnostics?sections=system');
+
+        if (!response.ok) {
+            throw new Error('Failed to get system diagnostics');
+        }
+
+        return await response.json();
+    },
+    async getBuildDiagnostics(): Promise<DiagnosticsBuildResponse> {
+        const response = await apiFetch('/api/admin/diagnostics?sections=build');
+
+        if (!response.ok) {
+            throw new Error('Failed to get build diagnostics');
+        }
+
+        return await response.json();
+    },
+    async getLogsDiagnostics(lines: number): Promise<DiagnosticsLogsResponse> {
+        const response = await apiFetch(`/api/admin/diagnostics?sections=logs&log_lines=${lines}`);
+
+        if (!response.ok) {
+            throw new Error('Failed to get logs diagnostics');
+        }
+
+        return await response.json();
+    },
 };

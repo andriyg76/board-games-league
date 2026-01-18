@@ -1,11 +1,11 @@
 <template>
   <div>
-    <n-card v-if="diagnostics">
+    <n-card>
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div style="font-size: 1.25rem; font-weight: 500;">{{ t('diagnostics.title') }}</div>
           <n-button 
-            :loading="loading" 
+            :loading="activeLoading" 
             @click="refreshDiagnostics"
             type="primary"
             size="small"
@@ -18,206 +18,285 @@
         </div>
       </template>
 
-      <n-grid :cols="24" :x-gap="16" style="margin-bottom: 16px;">
-        <n-gi :span="24" :responsive="{ m: 12 }">
-          <n-card style="margin-bottom: 16px;">
-            <template #header>
-              <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.backendBuildInfo') }}</div>
-            </template>
-            <p><strong>{{ t('diagnostics.version') }}:</strong> {{ diagnostics.build_info.version }}</p>
-            <p><strong>{{ t('diagnostics.commit') }}:</strong> {{ diagnostics.build_info.commit }}</p>
-            <p><strong>{{ t('diagnostics.branch') }}:</strong> {{ diagnostics.build_info.branch }}</p>
-            <p><strong>{{ t('diagnostics.buildDate') }}:</strong> {{ diagnostics.build_info.date }}</p>
-          </n-card>
-        </n-gi>
+      <n-tabs v-model:value="activeTab" type="line">
+        <n-tab-pane name="request" :tab="t('diagnostics.tabs.request')">
+          <div v-if="requestDiagnostics">
+            <n-grid :cols="24" :x-gap="16" style="margin-bottom: 16px;">
+              <n-gi :span="24" :responsive="{ m: 12 }">
+                <n-card style="margin-bottom: 16px;">
+                  <template #header>
+                    <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.serverInfo') }}</div>
+                  </template>
+                  <p><strong>{{ t('diagnostics.hostUrl') }}:</strong> {{ requestDiagnostics.server_info.host_url }}</p>
+                  <div>
+                    <strong>{{ t('diagnostics.trustedOrigins') }}:</strong>
+                    <ul v-if="requestDiagnostics.server_info.trusted_origins?.length > 0" style="margin: 8px 0; padding-left: 20px;">
+                      <li v-for="origin in requestDiagnostics.server_info.trusted_origins" :key="origin">
+                        {{ origin }}
+                      </li>
+                    </ul>
+                    <p v-else style="opacity: 0.7; margin: 8px 0;">{{ t('diagnostics.noneConfigured') }}</p>
+                  </div>
+                </n-card>
+              </n-gi>
 
-        <n-gi :span="24" :responsive="{ m: 12 }">
-          <n-card style="margin-bottom: 16px;">
-            <template #header>
-              <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.frontendBuildInfo') }}</div>
-            </template>
-            <p><strong>{{ t('diagnostics.version') }}:</strong> {{ frontendBuildInfo.version }}</p>
-            <p><strong>{{ t('diagnostics.commit') }}:</strong> {{ frontendBuildInfo.commit }}</p>
-            <p><strong>{{ t('diagnostics.branch') }}:</strong> {{ frontendBuildInfo.branch }}</p>
-            <p><strong>{{ t('diagnostics.buildDate') }}:</strong> {{ frontendBuildInfo.date }}</p>
-          </n-card>
-        </n-gi>
-      </n-grid>
+              <n-gi :span="24" :responsive="{ m: 12 }">
+                <n-card style="margin-bottom: 16px;">
+                  <template #header>
+                    <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.requestInfo') }}</div>
+                  </template>
+                  <p><strong>{{ t('diagnostics.ipAddress') }}:</strong> {{ requestDiagnostics.request_info.ip_address }}</p>
+                  <p><strong>{{ t('diagnostics.baseUrl') }}:</strong> {{ requestDiagnostics.request_info.base_url }}</p>
+                  <p><strong>{{ t('diagnostics.origin') }}:</strong> {{ requestDiagnostics.request_info.origin || t('diagnostics.na') }}</p>
+                  <p>
+                    <strong>{{ t('diagnostics.isTrusted') }}:</strong>
+                    <n-tag :type="requestDiagnostics.request_info.is_trusted ? 'success' : 'error'" size="small" style="margin-left: 8px;">
+                      {{ requestDiagnostics.request_info.is_trusted ? t('diagnostics.yes') : t('diagnostics.no') }}
+                    </n-tag>
+                  </p>
+                  <p><strong>{{ t('diagnostics.userAgent') }}:</strong> {{ requestDiagnostics.request_info.user_agent }}</p>
+                </n-card>
+              </n-gi>
+            </n-grid>
 
-      <n-grid :cols="24" :x-gap="16" style="margin-bottom: 16px;">
-        <n-gi :span="24" :responsive="{ m: 12 }">
-          <n-card style="margin-bottom: 16px;">
-            <template #header>
-              <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.serverInfo') }}</div>
-            </template>
-            <p><strong>{{ t('diagnostics.hostUrl') }}:</strong> {{ diagnostics.server_info.host_url }}</p>
-            <div>
-              <strong>{{ t('diagnostics.trustedOrigins') }}:</strong>
-              <ul v-if="diagnostics.server_info.trusted_origins?.length > 0" style="margin: 8px 0; padding-left: 20px;">
-                <li v-for="origin in diagnostics.server_info.trusted_origins" :key="origin">
-                  {{ origin }}
-                </li>
-              </ul>
-              <p v-else style="opacity: 0.7; margin: 8px 0;">{{ t('diagnostics.noneConfigured') }}</p>
-            </div>
-          </n-card>
-        </n-gi>
+            <n-card v-if="requestDiagnostics.request_info.geo_info" style="margin-bottom: 16px;">
+              <template #header>
+                <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.geoInfo') }}</div>
+              </template>
+              <n-grid :cols="24" :x-gap="16">
+                <n-gi :span="24" :responsive="{ m: 8 }">
+                  <p><strong>{{ t('diagnostics.country') }}:</strong> {{ requestDiagnostics.request_info.geo_info.country || t('diagnostics.na') }}</p>
+                  <p><strong>{{ t('diagnostics.countryCode') }}:</strong> {{ requestDiagnostics.request_info.geo_info.country_code || t('diagnostics.na') }}</p>
+                </n-gi>
+                <n-gi :span="24" :responsive="{ m: 8 }">
+                  <p><strong>{{ t('diagnostics.region') }}:</strong> {{ requestDiagnostics.request_info.geo_info.region_name || requestDiagnostics.request_info.geo_info.region || t('diagnostics.na') }}</p>
+                  <p><strong>{{ t('diagnostics.city') }}:</strong> {{ requestDiagnostics.request_info.geo_info.city || t('diagnostics.na') }}</p>
+                </n-gi>
+                <n-gi :span="24" :responsive="{ m: 8 }">
+                  <p><strong>{{ t('diagnostics.timezone') }}:</strong> {{ requestDiagnostics.request_info.geo_info.timezone || t('diagnostics.na') }}</p>
+                  <p><strong>{{ t('diagnostics.isp') }}:</strong> {{ requestDiagnostics.request_info.geo_info.isp || t('diagnostics.na') }}</p>
+                </n-gi>
+              </n-grid>
+            </n-card>
 
-        <n-gi :span="24" :responsive="{ m: 12 }">
-          <n-card style="margin-bottom: 16px;">
-            <template #header>
-              <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.requestInfo') }}</div>
-            </template>
-            <p><strong>{{ t('diagnostics.ipAddress') }}:</strong> {{ diagnostics.request_info.ip_address }}</p>
-            <p><strong>{{ t('diagnostics.baseUrl') }}:</strong> {{ diagnostics.request_info.base_url }}</p>
-            <p><strong>{{ t('diagnostics.origin') }}:</strong> {{ diagnostics.request_info.origin || t('diagnostics.na') }}</p>
-            <p>
-              <strong>{{ t('diagnostics.isTrusted') }}:</strong>
-              <n-tag :type="diagnostics.request_info.is_trusted ? 'success' : 'error'" size="small" style="margin-left: 8px;">
-                {{ diagnostics.request_info.is_trusted ? t('diagnostics.yes') : t('diagnostics.no') }}
-              </n-tag>
-            </p>
-            <p><strong>{{ t('diagnostics.userAgent') }}:</strong> {{ diagnostics.request_info.user_agent }}</p>
-          </n-card>
-        </n-gi>
-      </n-grid>
-
-      <n-card v-if="diagnostics.request_info.geo_info" style="margin-bottom: 16px;">
-        <template #header>
-          <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.geoInfo') }}</div>
-        </template>
-        <n-grid :cols="24" :x-gap="16">
-          <n-gi :span="24" :responsive="{ m: 8 }">
-            <p><strong>{{ t('diagnostics.country') }}:</strong> {{ diagnostics.request_info.geo_info.country || t('diagnostics.na') }}</p>
-            <p><strong>{{ t('diagnostics.countryCode') }}:</strong> {{ diagnostics.request_info.geo_info.country_code || t('diagnostics.na') }}</p>
-          </n-gi>
-          <n-gi :span="24" :responsive="{ m: 8 }">
-            <p><strong>{{ t('diagnostics.region') }}:</strong> {{ diagnostics.request_info.geo_info.region_name || diagnostics.request_info.geo_info.region || t('diagnostics.na') }}</p>
-            <p><strong>{{ t('diagnostics.city') }}:</strong> {{ diagnostics.request_info.geo_info.city || t('diagnostics.na') }}</p>
-          </n-gi>
-          <n-gi :span="24" :responsive="{ m: 8 }">
-            <p><strong>{{ t('diagnostics.timezone') }}:</strong> {{ diagnostics.request_info.geo_info.timezone || t('diagnostics.na') }}</p>
-            <p><strong>{{ t('diagnostics.isp') }}:</strong> {{ diagnostics.request_info.geo_info.isp || t('diagnostics.na') }}</p>
-          </n-gi>
-        </n-grid>
-      </n-card>
-
-      <n-card v-if="diagnostics.request_info.resolution_info && Object.keys(diagnostics.request_info.resolution_info).length > 0" style="margin-bottom: 16px;">
-        <template #header>
-          <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.resolutionInfo') }}</div>
-        </template>
-        <n-data-table
-          :columns="resolutionColumns"
-          :data="resolutionData"
-          size="small"
-        />
-      </n-card>
-
-      <!-- Go Runtime Information -->
-      <n-card v-if="diagnostics.runtime_info" style="margin-bottom: 16px;">
-        <template #header>
-          <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.runtimeInfo') }}</div>
-        </template>
-        <n-grid :cols="24" :x-gap="16">
-          <n-gi :span="24" :responsive="{ m: 8 }">
-            <p><strong>{{ t('diagnostics.goVersion') }}:</strong> {{ diagnostics.runtime_info.go_version }}</p>
-            <p><strong>{{ t('diagnostics.platform') }}:</strong> {{ diagnostics.runtime_info.goos }}/{{ diagnostics.runtime_info.goarch }}</p>
-            <p><strong>{{ t('diagnostics.numCpu') }}:</strong> {{ diagnostics.runtime_info.num_cpu }}</p>
-          </n-gi>
-          <n-gi :span="24" :responsive="{ m: 8 }">
-            <p><strong>{{ t('diagnostics.numGoroutine') }}:</strong> {{ diagnostics.runtime_info.num_goroutine }}</p>
-            <p><strong>{{ t('diagnostics.uptime') }}:</strong> {{ diagnostics.runtime_info.uptime }}</p>
-            <p><strong>{{ t('diagnostics.startTime') }}:</strong> {{ formatDateTime(diagnostics.runtime_info.start_time) }}</p>
-          </n-gi>
-          <n-gi :span="24" :responsive="{ m: 8 }">
-            <p><strong>{{ t('diagnostics.gcCycles') }}:</strong> {{ diagnostics.runtime_info.memory.num_gc }}</p>
-          </n-gi>
-        </n-grid>
-      </n-card>
-
-      <!-- Memory Statistics -->
-      <n-card v-if="diagnostics.runtime_info?.memory" style="margin-bottom: 16px;">
-        <template #header>
-          <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.memoryStats') }}</div>
-        </template>
-        <n-data-table
-          :columns="memoryColumns"
-          :data="memoryData"
-          size="small"
-        />
-      </n-card>
-
-      <!-- Environment Variables -->
-      <n-card v-if="diagnostics.environment_vars && diagnostics.environment_vars.length > 0" style="margin-bottom: 16px;">
-        <template #header>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.environmentVars') }}</span>
-            <n-tag size="small">{{ diagnostics.environment_vars.length }}</n-tag>
+            <n-card v-if="resolutionData.length > 0" style="margin-bottom: 16px;">
+              <template #header>
+                <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.resolutionInfo') }}</div>
+              </template>
+              <n-data-table
+                :columns="resolutionColumns"
+                :data="resolutionData"
+                size="small"
+              />
+            </n-card>
           </div>
-        </template>
-        <n-input
-          v-model:value="envFilter"
-          :placeholder="t('diagnostics.filterEnvVars')"
-          clearable
-          size="small"
-          style="margin-bottom: 16px;"
-        >
-          <template #prefix>
-            <n-icon><SearchIcon /></n-icon>
-          </template>
-        </n-input>
-        <n-data-table
-          :columns="envColumns"
-          :data="filteredEnvVars"
-          size="small"
-          :scroll-x="800"
-          style="max-height: 400px;"
-        />
-      </n-card>
+          <n-skeleton v-else height="200px" />
+        </n-tab-pane>
 
-      <!-- Cache Statistics -->
-      <n-card v-if="diagnostics.cache_stats && diagnostics.cache_stats.length > 0" style="margin-bottom: 16px;">
-        <template #header>
-          <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.cacheStats') }}</div>
-        </template>
-        <n-data-table
-          :columns="cacheStatsColumns"
-          :data="diagnostics.cache_stats"
-          :pagination="false"
-          size="small"
-        />
-      </n-card>
+        <n-tab-pane name="system" :tab="t('diagnostics.tabs.system')">
+          <div v-if="systemDiagnostics">
+            <n-card v-if="systemDiagnostics.runtime_info" style="margin-bottom: 16px;">
+              <template #header>
+                <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.runtimeInfo') }}</div>
+              </template>
+              <n-grid :cols="24" :x-gap="16">
+                <n-gi :span="24" :responsive="{ m: 8 }">
+                  <p><strong>{{ t('diagnostics.goVersion') }}:</strong> {{ systemDiagnostics.runtime_info.go_version }}</p>
+                  <p><strong>{{ t('diagnostics.platform') }}:</strong> {{ systemDiagnostics.runtime_info.goos }}/{{ systemDiagnostics.runtime_info.goarch }}</p>
+                  <p><strong>{{ t('diagnostics.numCpu') }}:</strong> {{ systemDiagnostics.runtime_info.num_cpu }}</p>
+                </n-gi>
+                <n-gi :span="24" :responsive="{ m: 8 }">
+                  <p><strong>{{ t('diagnostics.numGoroutine') }}:</strong> {{ systemDiagnostics.runtime_info.num_goroutine }}</p>
+                  <p><strong>{{ t('diagnostics.uptime') }}:</strong> {{ systemDiagnostics.runtime_info.uptime }}</p>
+                  <p><strong>{{ t('diagnostics.startTime') }}:</strong> {{ formatDateTime(systemDiagnostics.runtime_info.start_time) }}</p>
+                </n-gi>
+                <n-gi :span="24" :responsive="{ m: 8 }">
+                  <p><strong>{{ t('diagnostics.gcCycles') }}:</strong> {{ systemDiagnostics.runtime_info.memory.num_gc }}</p>
+                </n-gi>
+              </n-grid>
+            </n-card>
+
+            <n-card v-if="systemDiagnostics.runtime_info?.memory" style="margin-bottom: 16px;">
+              <template #header>
+                <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.memoryStats') }}</div>
+              </template>
+              <n-data-table
+                :columns="memoryColumns"
+                :data="memoryData"
+                size="small"
+              />
+            </n-card>
+
+            <n-card v-if="systemDiagnostics.environment_vars && systemDiagnostics.environment_vars.length > 0" style="margin-bottom: 16px;">
+              <template #header>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.environmentVars') }}</span>
+                  <n-tag size="small">{{ systemDiagnostics.environment_vars.length }}</n-tag>
+                </div>
+              </template>
+              <n-input
+                v-model:value="envFilter"
+                :placeholder="t('diagnostics.filterEnvVars')"
+                clearable
+                size="small"
+                style="margin-bottom: 16px;"
+              >
+                <template #prefix>
+                  <n-icon><SearchIcon /></n-icon>
+                </template>
+              </n-input>
+              <n-data-table
+                :columns="envColumns"
+                :data="filteredEnvVars"
+                size="small"
+                :scroll-x="800"
+                style="max-height: 400px;"
+              />
+            </n-card>
+
+            <n-card v-if="systemDiagnostics.cache_stats && systemDiagnostics.cache_stats.length > 0" style="margin-bottom: 16px;">
+              <template #header>
+                <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.cacheStats') }}</div>
+              </template>
+              <n-data-table
+                :columns="cacheStatsColumns"
+                :data="systemDiagnostics.cache_stats"
+                :pagination="false"
+                size="small"
+              />
+            </n-card>
+          </div>
+          <n-skeleton v-else height="200px" />
+        </n-tab-pane>
+
+        <n-tab-pane name="build" :tab="t('diagnostics.tabs.build')">
+          <div v-if="buildDiagnostics">
+            <n-grid :cols="24" :x-gap="16" style="margin-bottom: 16px;">
+              <n-gi :span="24" :responsive="{ m: 12 }">
+                <n-card style="margin-bottom: 16px;">
+                  <template #header>
+                    <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.backendBuildInfo') }}</div>
+                  </template>
+                  <p><strong>{{ t('diagnostics.version') }}:</strong> {{ buildDiagnostics.build_info.version }}</p>
+                  <p><strong>{{ t('diagnostics.commit') }}:</strong> {{ buildDiagnostics.build_info.commit }}</p>
+                  <p><strong>{{ t('diagnostics.branch') }}:</strong> {{ buildDiagnostics.build_info.branch }}</p>
+                  <p><strong>{{ t('diagnostics.buildDate') }}:</strong> {{ buildDiagnostics.build_info.date }}</p>
+                </n-card>
+              </n-gi>
+
+              <n-gi :span="24" :responsive="{ m: 12 }">
+                <n-card style="margin-bottom: 16px;">
+                  <template #header>
+                    <div style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.frontendBuildInfo') }}</div>
+                  </template>
+                  <p><strong>{{ t('diagnostics.version') }}:</strong> {{ frontendBuildInfo.version }}</p>
+                  <p><strong>{{ t('diagnostics.commit') }}:</strong> {{ frontendBuildInfo.commit }}</p>
+                  <p><strong>{{ t('diagnostics.branch') }}:</strong> {{ frontendBuildInfo.branch }}</p>
+                  <p><strong>{{ t('diagnostics.buildDate') }}:</strong> {{ frontendBuildInfo.date }}</p>
+                </n-card>
+              </n-gi>
+            </n-grid>
+          </div>
+          <n-skeleton v-else height="200px" />
+        </n-tab-pane>
+
+        <n-tab-pane name="logs" :tab="t('diagnostics.tabs.logs')">
+          <div v-if="logsDiagnostics">
+            <n-space align="center" style="margin-bottom: 12px;">
+              <span style="font-size: 0.9rem;">{{ t('diagnostics.logLines') }}</span>
+              <n-input-number
+                v-model:value="logLines"
+                :min="minLogLines"
+                :max="maxLogLines"
+                :step="50"
+                size="small"
+                style="width: 120px;"
+              />
+              <n-button
+                size="small"
+                type="primary"
+                :loading="activeLoading"
+                @click="refreshDiagnostics"
+              >
+                {{ t('diagnostics.refresh') }}
+              </n-button>
+            </n-space>
+
+            <n-alert v-if="logsDiagnostics.logs.error" type="warning" style="margin-bottom: 12px;">
+              {{ logsDiagnostics.logs.error }}
+            </n-alert>
+
+            <n-card>
+              <template #header>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.logsTitle') }}</span>
+                  <n-tag size="small">{{ logsDiagnostics.logs.returned }}</n-tag>
+                </div>
+              </template>
+              <div
+                v-if="logsDiagnostics.logs.lines.length > 0"
+                style="max-height: 400px; overflow: auto; background: #f6f6f6; border-radius: 6px; padding: 12px; font-family: monospace; white-space: pre-wrap;"
+              >
+                {{ logsText }}
+              </div>
+              <p v-else style="opacity: 0.7; margin: 0;">{{ t('diagnostics.logsEmpty') }}</p>
+            </n-card>
+          </div>
+          <n-skeleton v-else height="200px" />
+        </n-tab-pane>
+      </n-tabs>
     </n-card>
-    <n-skeleton v-else height="200px" />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, h } from 'vue';
-import { NGrid, NGi, NCard, NDataTable, NInput, NIcon, NTag, NSkeleton, NButton, DataTableColumns } from 'naive-ui';
+import { ref, computed, onMounted, watch, h } from 'vue';
+import { NGrid, NGi, NCard, NDataTable, NInput, NInputNumber, NIcon, NTag, NSkeleton, NButton, NTabs, NTabPane, NSpace, NAlert, DataTableColumns } from 'naive-ui';
 import { Search as SearchIcon, EyeOff as EyeOffIcon, Refresh as RefreshIcon } from '@vicons/ionicons5';
-import DiagnosticsApi, { DiagnosticsResponse, getFrontendBuildInfo, BuildInfo, EnvVarInfo, CacheStatsInfo } from "@/api/DiagnosticsApi";
+import DiagnosticsApi, { DiagnosticsRequestResponse, DiagnosticsSystemResponse, DiagnosticsBuildResponse, DiagnosticsLogsResponse, getFrontendBuildInfo, BuildInfo, EnvVarInfo, CacheStatsInfo } from "@/api/DiagnosticsApi";
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 
-const diagnostics = ref<DiagnosticsResponse | null>(null);
+type DiagnosticsTab = 'request' | 'system' | 'build' | 'logs';
+
+const activeTab = ref<DiagnosticsTab>('request');
+const requestDiagnostics = ref<DiagnosticsRequestResponse | null>(null);
+const systemDiagnostics = ref<DiagnosticsSystemResponse | null>(null);
+const buildDiagnostics = ref<DiagnosticsBuildResponse | null>(null);
+const logsDiagnostics = ref<DiagnosticsLogsResponse | null>(null);
 const frontendBuildInfo = ref<BuildInfo>({
   version: "unknown",
   commit: "unknown",
   branch: "unknown",
   date: "unknown",
 });
+const defaultLogLines = 200;
+const minLogLines = 50;
+const maxLogLines = 5000;
+const logLines = ref<number | null>(defaultLogLines);
 const envFilter = ref<string>("");
-const loading = ref<boolean>(false);
+const loadingTabs = ref<Record<DiagnosticsTab, boolean>>({
+  request: false,
+  system: false,
+  build: false,
+  logs: false,
+});
+
+const activeLoading = computed(() => loadingTabs.value[activeTab.value]);
+const logLinesValue = computed(() => {
+  const value = logLines.value ?? defaultLogLines;
+  return Math.min(Math.max(value, minLogLines), maxLogLines);
+});
+const logsText = computed(() => logsDiagnostics.value?.logs.lines.join('\n') ?? "");
 
 // Filter environment variables based on search
 const filteredEnvVars = computed<EnvVarInfo[]>(() => {
-  if (!diagnostics.value?.environment_vars) return [];
-  if (!envFilter.value) return diagnostics.value.environment_vars;
+  if (!systemDiagnostics.value?.environment_vars) return [];
+  if (!envFilter.value) return systemDiagnostics.value.environment_vars;
   
   const filter = envFilter.value.toLowerCase();
-  return diagnostics.value.environment_vars.filter(
+  return systemDiagnostics.value.environment_vars.filter(
     (env) => env.name.toLowerCase().includes(filter) || env.value.toLowerCase().includes(filter)
   );
 });
@@ -237,8 +316,8 @@ const resolutionColumns: DataTableColumns = [
 ];
 
 const resolutionData = computed(() => {
-  if (!diagnostics.value?.request_info.resolution_info) return [];
-  return Object.entries(diagnostics.value.request_info.resolution_info).map(([key, value]) => ({
+  if (!requestDiagnostics.value?.request_info.resolution_info) return [];
+  return Object.entries(requestDiagnostics.value.request_info.resolution_info).map(([key, value]) => ({
     name: key,
     value: String(value),
     key: key,
@@ -257,8 +336,8 @@ const memoryColumns: DataTableColumns = [
 ];
 
 const memoryData = computed(() => {
-  if (!diagnostics.value?.runtime_info?.memory) return [];
-  const mem = diagnostics.value.runtime_info.memory;
+  if (!systemDiagnostics.value?.runtime_info?.memory) return [];
+  const mem = systemDiagnostics.value.runtime_info.memory;
   return [
     { metric: t('diagnostics.heapAlloc'), value: formatBytes(mem.heap_alloc_bytes), key: 'heapAlloc' },
     { metric: t('diagnostics.heapInuse'), value: formatBytes(mem.heap_inuse_bytes), key: 'heapInuse' },
@@ -339,23 +418,113 @@ function formatDateTime(isoString: string): string {
   }
 }
 
-async function loadDiagnostics() {
+async function loadRequestDiagnostics(force = false) {
+  if (loadingTabs.value.request || (requestDiagnostics.value && !force)) {
+    return;
+  }
+
   try {
-    loading.value = true;
-    diagnostics.value = await DiagnosticsApi.getDiagnostics();
-    frontendBuildInfo.value = await getFrontendBuildInfo();
+    loadingTabs.value.request = true;
+    requestDiagnostics.value = await DiagnosticsApi.getRequestDiagnostics();
   } catch (e) {
-    console.error("Error loading diagnostics:", e);
+    console.error("Error loading request diagnostics:", e);
   } finally {
-    loading.value = false;
+    loadingTabs.value.request = false;
+  }
+}
+
+async function loadSystemDiagnostics(force = false) {
+  if (loadingTabs.value.system || (systemDiagnostics.value && !force)) {
+    return;
+  }
+
+  try {
+    loadingTabs.value.system = true;
+    systemDiagnostics.value = await DiagnosticsApi.getSystemDiagnostics();
+  } catch (e) {
+    console.error("Error loading system diagnostics:", e);
+  } finally {
+    loadingTabs.value.system = false;
+  }
+}
+
+async function loadBuildDiagnostics(force = false) {
+  if (loadingTabs.value.build || (buildDiagnostics.value && !force)) {
+    return;
+  }
+
+  loadingTabs.value.build = true;
+  const [buildResult, frontendResult] = await Promise.allSettled([
+    DiagnosticsApi.getBuildDiagnostics(),
+    getFrontendBuildInfo(),
+  ]);
+
+  if (buildResult.status === 'fulfilled') {
+    buildDiagnostics.value = buildResult.value;
+  } else {
+    console.error("Error loading build diagnostics:", buildResult.reason);
+    buildDiagnostics.value = {
+      build_info: {
+        version: "unknown",
+        commit: "unknown",
+        branch: "unknown",
+        date: "unknown",
+      },
+    };
+  }
+
+  if (frontendResult.status === 'fulfilled') {
+    frontendBuildInfo.value = frontendResult.value;
+  } else {
+    console.error("Failed to load frontend build info:", frontendResult.reason);
+  }
+
+  loadingTabs.value.build = false;
+}
+
+async function loadLogsDiagnostics(force = false) {
+  if (loadingTabs.value.logs || (logsDiagnostics.value && !force)) {
+    return;
+  }
+
+  try {
+    loadingTabs.value.logs = true;
+    logsDiagnostics.value = await DiagnosticsApi.getLogsDiagnostics(logLinesValue.value);
+  } catch (e) {
+    console.error("Error loading logs diagnostics:", e);
+  } finally {
+    loadingTabs.value.logs = false;
+  }
+}
+
+async function loadTab(tab: DiagnosticsTab, force = false) {
+  switch (tab) {
+    case 'request':
+      await loadRequestDiagnostics(force);
+      break;
+    case 'system':
+      await loadSystemDiagnostics(force);
+      break;
+    case 'build':
+      await loadBuildDiagnostics(force);
+      break;
+    case 'logs':
+      await loadLogsDiagnostics(force);
+      break;
+    default:
+      break;
   }
 }
 
 async function refreshDiagnostics() {
-  await loadDiagnostics();
+  await loadTab(activeTab.value, true);
 }
 
-onMounted(async () => {
-  await loadDiagnostics();
+watch(activeTab, (tab) => {
+  void loadTab(tab);
+});
+
+onMounted(() => {
+  void loadTab(activeTab.value);
 });
 </script>
