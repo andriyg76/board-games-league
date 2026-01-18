@@ -38,7 +38,6 @@ func (h *Handler) RegisterRoutes(r chi.Router, wizardHandler WizardHandler) {
 	r.Route("/leagues", func(r chi.Router) {
 		r.Post("/", h.createLeague)                         // Create league (superadmin)
 		r.Get("/", h.listLeagues)                           // List leagues
-		r.Get("/join/{token}/preview", h.previewInvitation) // Preview invitation (public)
 		r.Post("/join/{token}", h.acceptInvitation)         // Accept invitation
 
 		// Routes that require league membership - apply middleware
@@ -84,6 +83,13 @@ func (h *Handler) RegisterRoutes(r chi.Router, wizardHandler WizardHandler) {
 				})
 			}
 		})
+	})
+}
+
+// RegisterPublicRoutes registers public (no auth) endpoints.
+func (h *Handler) RegisterPublicRoutes(r chi.Router) {
+	r.Route("/leagues", func(r chi.Router) {
+		r.Get("/join/{token}/preview", h.previewInvitation) // Preview invitation (public)
 	})
 }
 

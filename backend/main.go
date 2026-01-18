@@ -263,6 +263,8 @@ func main() {
 		r.Post("/auth/logout", authHandler.LogoutHandler)
 		r.Post("/auth/refresh", authHandler.RefreshTokenHandler)
 
+		gameApiHandler.RegisterPublicRoutes(r)
+
 		// Protected routes
 		r.Group(func(r chi.Router) {
 			r.Use(authHandler.Middleware)
