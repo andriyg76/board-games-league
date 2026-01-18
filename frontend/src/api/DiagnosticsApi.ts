@@ -71,6 +71,13 @@ export interface CacheStatsInfo {
     usage_percent: number;
 }
 
+export interface LogsInfo {
+    lines: string[];
+    requested: number;
+    returned: number;
+    error?: string;
+}
+
 export interface DiagnosticsRequestResponse {
     server_info: ServerInfo;
     request_info: RequestInfo;
@@ -86,13 +93,18 @@ export interface DiagnosticsBuildResponse {
     build_info: BuildInfo;
 }
 
+export interface DiagnosticsLogsResponse {
+    logs: LogsInfo;
+}
+
 export interface DiagnosticsResponse {
-    server_info: ServerInfo;
-    build_info: BuildInfo;
-    request_info: RequestInfo;
-    runtime_info: RuntimeInfo;
-    environment_vars: EnvVarInfo[];
+    server_info?: ServerInfo;
+    build_info?: BuildInfo;
+    request_info?: RequestInfo;
+    runtime_info?: RuntimeInfo;
+    environment_vars?: EnvVarInfo[];
     cache_stats?: CacheStatsInfo[];
+    logs?: LogsInfo;
 }
 
 export async function getFrontendBuildInfo(): Promise<BuildInfo> {
@@ -148,6 +160,15 @@ export default {
 
         if (!response.ok) {
             throw new Error('Failed to get build diagnostics');
+        }
+
+        return await response.json();
+    },
+    async getLogsDiagnostics(lines: number): Promise<DiagnosticsLogsResponse> {
+        const response = await apiFetch(`/api/admin/diagnostics?sections=logs&log_lines=${lines}`);
+
+        if (!response.ok) {
+            throw new Error('Failed to get logs diagnostics');
         }
 
         return await response.json();

@@ -1,12 +1,17 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +33,11 @@ var (
 
 // StartTime tracks when the application started (for uptime calculation)
 var StartTime = time.Now()
+
+const (
+	defaultLogLines = 200
+	maxLogLines     = 5000
+)
 
 // sensitiveEnvPatterns contains patterns for environment variable names that should be masked
 var sensitiveEnvPatterns = []string{
@@ -108,6 +118,13 @@ type CacheStatsInfo struct {
 	UsagePercent float64 `json:"usage_percent"` // (current_size / max_size) * 100
 }
 
+type LogsInfo struct {
+	Lines     []string `json:"lines"`
+	Requested int      `json:"requested"`
+	Returned  int      `json:"returned"`
+	Error     string   `json:"error,omitempty"`
+}
+
 type DiagnosticsResponse struct {
 	ServerInfo      *ServerInfo      `json:"server_info,omitempty"`
 	BuildInfo       *BuildInfo       `json:"build_info,omitempty"`
@@ -115,6 +132,7 @@ type DiagnosticsResponse struct {
 	RuntimeInfo     *RuntimeInfo     `json:"runtime_info,omitempty"`
 	EnvironmentVars []EnvVarInfo     `json:"environment_vars,omitempty"`
 	CacheStats      []CacheStatsInfo `json:"cache_stats,omitempty"`
+	Logs            *LogsInfo        `json:"logs,omitempty"`
 }
 
 func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +145,7 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 	includeRequest := includeAll || sections["request"]
 	includeSystem := includeAll || sections["system"]
 	includeBuild := includeAll || sections["build"]
+	includeLogs := includeAll || sections["logs"]
 
 	response := DiagnosticsResponse{}
 
@@ -148,6 +167,11 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 		response.RuntimeInfo = &runtimeInfo
 		response.EnvironmentVars = getEnvironmentVars()
 		response.CacheStats = h.buildCacheStats()
+	}
+
+	if includeLogs {
+		logsInfo := h.buildLogsInfo(r)
+		response.Logs = &logsInfo
 	}
 
 	h.writeJSONResponse(w, r, response)
@@ -263,6 +287,34 @@ func (h *DiagnosticsHandler) writeJSONResponse(w http.ResponseWriter, r *http.Re
 	}
 }
 
+func (h *DiagnosticsHandler) buildLogsInfo(r *http.Request) LogsInfo {
+	requested := parseLogLines(r.URL.Query().Get("log_lines"))
+	logPath, err := getServerLogPath()
+	if err != nil {
+		return LogsInfo{
+			Requested: requested,
+			Returned:  0,
+			Error:     err.Error(),
+		}
+	}
+
+	lines, err := readLastLines(logPath, requested)
+	if err != nil {
+		glog.Warn("Failed to read server logs: %v", err)
+		return LogsInfo{
+			Requested: requested,
+			Returned:  0,
+			Error:     "Failed to read server logs",
+		}
+	}
+
+	return LogsInfo{
+		Lines:     lines,
+		Requested: requested,
+		Returned:  len(lines),
+	}
+}
+
 func parseDiagnosticsSections(values []string) map[string]bool {
 	sections := make(map[string]bool)
 	for _, value := range values {
@@ -274,6 +326,89 @@ func parseDiagnosticsSections(values []string) map[string]bool {
 		}
 	}
 	return sections
+}
+
+func parseLogLines(value string) int {
+	if value == "" {
+		return defaultLogLines
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed <= 0 {
+		return defaultLogLines
+	}
+	if parsed > maxLogLines {
+		return maxLogLines
+	}
+	return parsed
+}
+
+func getServerLogPath() (string, error) {
+	logDir := strings.TrimSpace(os.Getenv("LOG_DIR"))
+	if logDir == "" {
+		return "", errors.New("LOG_DIR is not configured")
+	}
+	return filepath.Join(logDir, "server.log"), nil
+}
+
+func readLastLines(path string, maxLines int) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("server.log not found")
+		}
+		return nil, err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if stat.Size() == 0 {
+		return []string{}, nil
+	}
+
+	const chunkSize int64 = 8192
+	var (
+		offset     = stat.Size()
+		linesFound int
+		chunks     [][]byte
+	)
+
+	for offset > 0 && linesFound <= maxLines {
+		readSize := chunkSize
+		if offset < readSize {
+			readSize = offset
+		}
+		offset -= readSize
+
+		if _, err := file.Seek(offset, io.SeekStart); err != nil {
+			return nil, err
+		}
+
+		chunk := make([]byte, readSize)
+		if _, err := io.ReadFull(file, chunk); err != nil {
+			return nil, err
+		}
+
+		chunks = append(chunks, chunk)
+		linesFound += bytes.Count(chunk, []byte{'\n'})
+	}
+
+	var data []byte
+	for i := len(chunks) - 1; i >= 0; i-- {
+		data = append(data, chunks[i]...)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
+	}
+
+	return lines, nil
 }
 
 // isSensitiveEnvVar checks if an environment variable name matches sensitive patterns

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -168,6 +169,8 @@ func TestGetDiagnosticsHandler_Success(t *testing.T) {
 	assert.NotNil(t, response.RuntimeInfo)
 	assert.NotNil(t, response.BuildInfo)
 	assert.NotNil(t, response.ServerInfo)
+	assert.NotNil(t, response.Logs)
+	assert.Equal(t, defaultLogLines, response.Logs.Requested)
 	assert.NotEmpty(t, response.RequestInfo.IPAddress)
 	assert.NotEmpty(t, response.RuntimeInfo.GoVersion)
 	assert.NotEmpty(t, response.BuildInfo.Version)
@@ -256,6 +259,7 @@ func TestGetDiagnosticsHandler_RequestSections(t *testing.T) {
 	assert.Nil(t, response.RuntimeInfo)
 	assert.Nil(t, response.BuildInfo)
 	assert.Empty(t, response.EnvironmentVars)
+	assert.Nil(t, response.Logs)
 
 	mockGeoIPService.AssertExpectations(t)
 	mockCacheCleanupService.AssertExpectations(t)
@@ -306,6 +310,7 @@ func TestGetDiagnosticsHandler_SystemSections(t *testing.T) {
 	assert.Len(t, response.CacheStats, 1)
 	assert.Nil(t, response.RequestInfo)
 	assert.Nil(t, response.BuildInfo)
+	assert.Nil(t, response.Logs)
 
 	var found bool
 	for _, env := range response.EnvironmentVars {
@@ -352,6 +357,48 @@ func TestGetDiagnosticsHandler_BuildSections(t *testing.T) {
 	assert.Nil(t, response.RequestInfo)
 	assert.Nil(t, response.RuntimeInfo)
 	assert.Empty(t, response.EnvironmentVars)
+	assert.Nil(t, response.Logs)
+}
+
+func TestGetDiagnosticsHandler_LogsSection(t *testing.T) {
+	restore := auth.SetSuperAdminsForTesting([]string{"admin@test.com"})
+	defer restore()
+
+	requestService := services.NewRequestService()
+	mockGeoIPService := new(MockGeoIPService)
+	mockCacheCleanupService := new(MockCacheCleanupService)
+
+	handler := NewDiagnosticsHandler(requestService, mockGeoIPService, mockCacheCleanupService)
+
+	logDir := t.TempDir()
+	t.Setenv("LOG_DIR", logDir)
+
+	logPath := filepath.Join(logDir, "server.log")
+	err := os.WriteFile(logPath, []byte("line1\nline2\nline3\nline4\n"), 0o644)
+	assert.NoError(t, err)
+
+	userProfile := createTestUserProfile([]string{"admin@test.com"})
+	req := httptest.NewRequest("GET", "/api/admin/diagnostics?sections=logs&log_lines=2", nil)
+	ctx := context.WithValue(req.Context(), "user", userProfile)
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+
+	handler.GetDiagnosticsHandler(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response DiagnosticsResponse
+	err = json.NewDecoder(w.Body).Decode(&response)
+	assert.NoError(t, err)
+
+	assert.NotNil(t, response.Logs)
+	assert.Equal(t, 2, response.Logs.Requested)
+	assert.Equal(t, 2, response.Logs.Returned)
+	assert.Equal(t, []string{"line3", "line4"}, response.Logs.Lines)
+	assert.Nil(t, response.RequestInfo)
+	assert.Nil(t, response.RuntimeInfo)
+	assert.Nil(t, response.BuildInfo)
+	assert.Nil(t, response.ServerInfo)
 }
 
 func TestIsSensitiveEnvVar(t *testing.T) {

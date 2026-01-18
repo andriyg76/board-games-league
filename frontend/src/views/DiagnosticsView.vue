@@ -199,6 +199,51 @@
           </div>
           <n-skeleton v-else height="200px" />
         </n-tab-pane>
+
+        <n-tab-pane name="logs" :tab="t('diagnostics.tabs.logs')">
+          <div v-if="logsDiagnostics">
+            <n-space align="center" style="margin-bottom: 12px;">
+              <span style="font-size: 0.9rem;">{{ t('diagnostics.logLines') }}</span>
+              <n-input-number
+                v-model:value="logLines"
+                :min="minLogLines"
+                :max="maxLogLines"
+                :step="50"
+                size="small"
+                style="width: 120px;"
+              />
+              <n-button
+                size="small"
+                type="primary"
+                :loading="activeLoading"
+                @click="refreshDiagnostics"
+              >
+                {{ t('diagnostics.refresh') }}
+              </n-button>
+            </n-space>
+
+            <n-alert v-if="logsDiagnostics.logs.error" type="warning" style="margin-bottom: 12px;">
+              {{ logsDiagnostics.logs.error }}
+            </n-alert>
+
+            <n-card>
+              <template #header>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 1rem; font-weight: 500;">{{ t('diagnostics.logsTitle') }}</span>
+                  <n-tag size="small">{{ logsDiagnostics.logs.returned }}</n-tag>
+                </div>
+              </template>
+              <div
+                v-if="logsDiagnostics.logs.lines.length > 0"
+                style="max-height: 400px; overflow: auto; background: #f6f6f6; border-radius: 6px; padding: 12px; font-family: monospace; white-space: pre-wrap;"
+              >
+                {{ logsText }}
+              </div>
+              <p v-else style="opacity: 0.7; margin: 0;">{{ t('diagnostics.logsEmpty') }}</p>
+            </n-card>
+          </div>
+          <n-skeleton v-else height="200px" />
+        </n-tab-pane>
       </n-tabs>
     </n-card>
   </div>
@@ -206,33 +251,44 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, watch, h } from 'vue';
-import { NGrid, NGi, NCard, NDataTable, NInput, NIcon, NTag, NSkeleton, NButton, NTabs, NTabPane, DataTableColumns } from 'naive-ui';
+import { NGrid, NGi, NCard, NDataTable, NInput, NInputNumber, NIcon, NTag, NSkeleton, NButton, NTabs, NTabPane, NSpace, NAlert, DataTableColumns } from 'naive-ui';
 import { Search as SearchIcon, EyeOff as EyeOffIcon, Refresh as RefreshIcon } from '@vicons/ionicons5';
-import DiagnosticsApi, { DiagnosticsRequestResponse, DiagnosticsSystemResponse, DiagnosticsBuildResponse, getFrontendBuildInfo, BuildInfo, EnvVarInfo, CacheStatsInfo } from "@/api/DiagnosticsApi";
+import DiagnosticsApi, { DiagnosticsRequestResponse, DiagnosticsSystemResponse, DiagnosticsBuildResponse, DiagnosticsLogsResponse, getFrontendBuildInfo, BuildInfo, EnvVarInfo, CacheStatsInfo } from "@/api/DiagnosticsApi";
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 
-type DiagnosticsTab = 'request' | 'system' | 'build';
+type DiagnosticsTab = 'request' | 'system' | 'build' | 'logs';
 
 const activeTab = ref<DiagnosticsTab>('request');
 const requestDiagnostics = ref<DiagnosticsRequestResponse | null>(null);
 const systemDiagnostics = ref<DiagnosticsSystemResponse | null>(null);
 const buildDiagnostics = ref<DiagnosticsBuildResponse | null>(null);
+const logsDiagnostics = ref<DiagnosticsLogsResponse | null>(null);
 const frontendBuildInfo = ref<BuildInfo>({
   version: "unknown",
   commit: "unknown",
   branch: "unknown",
   date: "unknown",
 });
+const defaultLogLines = 200;
+const minLogLines = 50;
+const maxLogLines = 5000;
+const logLines = ref<number | null>(defaultLogLines);
 const envFilter = ref<string>("");
 const loadingTabs = ref<Record<DiagnosticsTab, boolean>>({
   request: false,
   system: false,
   build: false,
+  logs: false,
 });
 
 const activeLoading = computed(() => loadingTabs.value[activeTab.value]);
+const logLinesValue = computed(() => {
+  const value = logLines.value ?? defaultLogLines;
+  return Math.min(Math.max(value, minLogLines), maxLogLines);
+});
+const logsText = computed(() => logsDiagnostics.value?.logs.lines.join('\n') ?? "");
 
 // Filter environment variables based on search
 const filteredEnvVars = computed<EnvVarInfo[]>(() => {
@@ -426,6 +482,21 @@ async function loadBuildDiagnostics(force = false) {
   loadingTabs.value.build = false;
 }
 
+async function loadLogsDiagnostics(force = false) {
+  if (loadingTabs.value.logs || (logsDiagnostics.value && !force)) {
+    return;
+  }
+
+  try {
+    loadingTabs.value.logs = true;
+    logsDiagnostics.value = await DiagnosticsApi.getLogsDiagnostics(logLinesValue.value);
+  } catch (e) {
+    console.error("Error loading logs diagnostics:", e);
+  } finally {
+    loadingTabs.value.logs = false;
+  }
+}
+
 async function loadTab(tab: DiagnosticsTab, force = false) {
   switch (tab) {
     case 'request':
@@ -436,6 +507,9 @@ async function loadTab(tab: DiagnosticsTab, force = false) {
       break;
     case 'build':
       await loadBuildDiagnostics(force);
+      break;
+    case 'logs':
+      await loadLogsDiagnostics(force);
       break;
     default:
       break;
