@@ -214,6 +214,131 @@ func TestGetDiagnosticsHandler_GeoIPError(t *testing.T) {
 	mockCacheCleanupService.AssertExpectations(t)
 }
 
+func TestGetDiagnosticsRequestHandler_Success(t *testing.T) {
+	restore := auth.SetSuperAdminsForTesting([]string{"admin@test.com"})
+	defer restore()
+
+	requestService := services.NewRequestService()
+	mockGeoIPService := new(MockGeoIPService)
+	mockCacheCleanupService := new(MockCacheCleanupService)
+
+	handler := NewDiagnosticsHandler(requestService, mockGeoIPService, mockCacheCleanupService)
+
+	userProfile := createTestUserProfile([]string{"admin@test.com"})
+	req := httptest.NewRequest("GET", "/api/admin/diagnostics/request", nil)
+	req.Header.Set("X-Forwarded-For", "192.0.2.1")
+	req.RemoteAddr = "192.0.2.1:12345"
+	ctx := context.WithValue(req.Context(), "user", userProfile)
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+
+	mockGeoIPService.On("GetGeoIPInfo", mock.AnythingOfType("string")).Return(&models.GeoIPInfo{
+		Country: "US",
+		City:    "New York",
+	}, nil)
+
+	handler.GetDiagnosticsRequestHandler(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response DiagnosticsRequestResponse
+	err := json.NewDecoder(w.Body).Decode(&response)
+	assert.NoError(t, err)
+
+	assert.NotEmpty(t, response.RequestInfo.IPAddress)
+	assert.NotEmpty(t, response.ServerInfo.HostURL)
+	assert.NotNil(t, response.RequestInfo.ResolutionInfo)
+
+	mockGeoIPService.AssertExpectations(t)
+	mockCacheCleanupService.AssertExpectations(t)
+}
+
+func TestGetDiagnosticsSystemHandler_Success(t *testing.T) {
+	restore := auth.SetSuperAdminsForTesting([]string{"admin@test.com"})
+	defer restore()
+
+	requestService := services.NewRequestService()
+	mockGeoIPService := new(MockGeoIPService)
+	mockCacheCleanupService := new(MockCacheCleanupService)
+
+	handler := NewDiagnosticsHandler(requestService, mockGeoIPService, mockCacheCleanupService)
+
+	userProfile := createTestUserProfile([]string{"admin@test.com"})
+	req := httptest.NewRequest("GET", "/api/admin/diagnostics/system", nil)
+	ctx := context.WithValue(req.Context(), "user", userProfile)
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+
+	os.Setenv("TEST_SYSTEM_VAR", "test_value")
+	defer os.Unsetenv("TEST_SYSTEM_VAR")
+
+	cacheStats := []cache.CacheStats{
+		{
+			Name:         "SystemCache",
+			CurrentSize:  5,
+			MaxSize:      50,
+			ExpiredCount: 1,
+			TTL:          "30m",
+			TTLSeconds:   1800,
+		},
+	}
+	mockCacheCleanupService.On("GetAllStats").Return(cacheStats)
+
+	handler.GetDiagnosticsSystemHandler(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response DiagnosticsSystemResponse
+	err := json.NewDecoder(w.Body).Decode(&response)
+	assert.NoError(t, err)
+
+	assert.NotEmpty(t, response.RuntimeInfo.GoVersion)
+	assert.NotEmpty(t, response.EnvironmentVars)
+	assert.Len(t, response.CacheStats, 1)
+
+	var found bool
+	for _, env := range response.EnvironmentVars {
+		if env.Name == "TEST_SYSTEM_VAR" {
+			found = true
+			assert.Equal(t, "test_value", env.Value)
+		}
+	}
+	assert.True(t, found)
+
+	mockGeoIPService.AssertExpectations(t)
+	mockCacheCleanupService.AssertExpectations(t)
+}
+
+func TestGetDiagnosticsBuildHandler_Success(t *testing.T) {
+	restore := auth.SetSuperAdminsForTesting([]string{"admin@test.com"})
+	defer restore()
+
+	requestService := services.NewRequestService()
+	mockGeoIPService := new(MockGeoIPService)
+	mockCacheCleanupService := new(MockCacheCleanupService)
+
+	handler := NewDiagnosticsHandler(requestService, mockGeoIPService, mockCacheCleanupService)
+
+	userProfile := createTestUserProfile([]string{"admin@test.com"})
+	req := httptest.NewRequest("GET", "/api/admin/diagnostics/build", nil)
+	ctx := context.WithValue(req.Context(), "user", userProfile)
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+
+	handler.GetDiagnosticsBuildHandler(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response DiagnosticsBuildResponse
+	err := json.NewDecoder(w.Body).Decode(&response)
+	assert.NoError(t, err)
+
+	assert.Equal(t, BuildVersion, response.BuildInfo.Version)
+	assert.Equal(t, BuildCommit, response.BuildInfo.Commit)
+	assert.Equal(t, BuildBranch, response.BuildInfo.Branch)
+	assert.Equal(t, BuildDate, response.BuildInfo.Date)
+}
+
 func TestIsSensitiveEnvVar(t *testing.T) {
 	tests := []struct {
 		name     string

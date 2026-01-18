@@ -72,6 +72,11 @@ const messages = {
         },
         diagnostics: {
             title: 'System Diagnostics',
+            tabs: {
+                request: 'Request',
+                system: 'System',
+                build: 'Build/Version'
+            },
             backendBuildInfo: 'Backend Build Information',
             frontendBuildInfo: 'Frontend Build Information',
             version: 'Version',
@@ -423,6 +428,11 @@ const messages = {
         },
         diagnostics: {
             title: 'Діагностика системи',
+            tabs: {
+                request: 'Запит',
+                system: 'Система',
+                build: 'Збірка/Версія'
+            },
             backendBuildInfo: 'Інформація про збірку бекенду',
             frontendBuildInfo: 'Інформація про збірку фронтенду',
             version: 'Версія',
@@ -774,6 +784,11 @@ const messages = {
         },
         diagnostics: {
             title: 'Süsteemi diagnostika',
+            tabs: {
+                request: 'Päring',
+                system: 'Süsteem',
+                build: 'Ehitus/Versioon'
+            },
             backendBuildInfo: 'Tagarakenduse ehituse teave',
             frontendBuildInfo: 'Kasutajaliidese ehituse teave',
             version: 'Versioon',

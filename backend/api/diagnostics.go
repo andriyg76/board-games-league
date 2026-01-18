@@ -37,29 +37,51 @@ var sensitiveEnvPatterns = []string{
 }
 
 type DiagnosticsHandler struct {
-	requestService     services.RequestService
-	geoIPService       services.GeoIPService
+	requestService      services.RequestService
+	geoIPService        services.GeoIPService
 	cacheCleanupService services.CacheCleanupService
 }
 
 func NewDiagnosticsHandler(requestService services.RequestService, geoIPService services.GeoIPService, cacheCleanupService services.CacheCleanupService) *DiagnosticsHandler {
 	return &DiagnosticsHandler{
-		requestService:     requestService,
-		geoIPService:       geoIPService,
+		requestService:      requestService,
+		geoIPService:        geoIPService,
 		cacheCleanupService: cacheCleanupService,
 	}
 }
 
+type ServerInfo struct {
+	HostURL        string   `json:"host_url"`
+	TrustedOrigins []string `json:"trusted_origins"`
+}
+
+type BuildInfo struct {
+	Version string `json:"version"`
+	Commit  string `json:"commit"`
+	Branch  string `json:"branch"`
+	Date    string `json:"date"`
+}
+
+type RequestInfo struct {
+	IPAddress      string            `json:"ip_address"`
+	BaseURL        string            `json:"base_url"`
+	UserAgent      string            `json:"user_agent"`
+	Origin         string            `json:"origin"`
+	IsTrusted      bool              `json:"is_trusted"`
+	GeoInfo        *models.GeoIPInfo `json:"geo_info,omitempty"`
+	ResolutionInfo map[string]string `json:"resolution_info"`
+}
+
 type RuntimeInfo struct {
-	GoVersion    string `json:"go_version"`
-	GOOS         string `json:"goos"`
-	GOARCH       string `json:"goarch"`
-	NumCPU       int    `json:"num_cpu"`
-	NumGoroutine int    `json:"num_goroutine"`
-	Uptime       string `json:"uptime"`
-	UptimeSeconds int64 `json:"uptime_seconds"`
-	StartTime    string `json:"start_time"`
-	Memory       struct {
+	GoVersion     string `json:"go_version"`
+	GOOS          string `json:"goos"`
+	GOARCH        string `json:"goarch"`
+	NumCPU        int    `json:"num_cpu"`
+	NumGoroutine  int    `json:"num_goroutine"`
+	Uptime        string `json:"uptime"`
+	UptimeSeconds int64  `json:"uptime_seconds"`
+	StartTime     string `json:"start_time"`
+	Memory        struct {
 		Alloc      uint64 `json:"alloc_bytes"`
 		TotalAlloc uint64 `json:"total_alloc_bytes"`
 		Sys        uint64 `json:"sys_bytes"`
@@ -71,9 +93,9 @@ type RuntimeInfo struct {
 }
 
 type EnvVarInfo struct {
-	Name    string `json:"name"`
-	Value   string `json:"value"`
-	Masked  bool   `json:"masked"`
+	Name   string `json:"name"`
+	Value  string `json:"value"`
+	Masked bool   `json:"masked"`
 }
 
 type CacheStatsInfo struct {
@@ -86,71 +108,140 @@ type CacheStatsInfo struct {
 	UsagePercent float64 `json:"usage_percent"` // (current_size / max_size) * 100
 }
 
+type DiagnosticsRequestResponse struct {
+	ServerInfo  ServerInfo  `json:"server_info"`
+	RequestInfo RequestInfo `json:"request_info"`
+}
+
+type DiagnosticsSystemResponse struct {
+	RuntimeInfo     RuntimeInfo      `json:"runtime_info"`
+	EnvironmentVars []EnvVarInfo     `json:"environment_vars"`
+	CacheStats      []CacheStatsInfo `json:"cache_stats,omitempty"`
+}
+
+type DiagnosticsBuildResponse struct {
+	BuildInfo BuildInfo `json:"build_info"`
+}
+
 type DiagnosticsResponse struct {
-	ServerInfo struct {
-		HostURL        string   `json:"host_url"`
-		TrustedOrigins []string `json:"trusted_origins"`
-	} `json:"server_info"`
-	BuildInfo struct {
-		Version string `json:"version"`
-		Commit  string `json:"commit"`
-		Branch  string `json:"branch"`
-		Date    string `json:"date"`
-	} `json:"build_info"`
-	RequestInfo struct {
-		IPAddress      string            `json:"ip_address"`
-		BaseURL        string            `json:"base_url"`
-		UserAgent      string            `json:"user_agent"`
-		Origin         string            `json:"origin"`
-		IsTrusted      bool              `json:"is_trusted"`
-		GeoInfo        *models.GeoIPInfo `json:"geo_info,omitempty"`
-		ResolutionInfo map[string]string `json:"resolution_info"`
-	} `json:"request_info"`
+	ServerInfo      ServerInfo       `json:"server_info"`
+	BuildInfo       BuildInfo        `json:"build_info"`
+	RequestInfo     RequestInfo      `json:"request_info"`
 	RuntimeInfo     RuntimeInfo      `json:"runtime_info"`
 	EnvironmentVars []EnvVarInfo     `json:"environment_vars"`
 	CacheStats      []CacheStatsInfo `json:"cache_stats,omitempty"`
 }
 
 func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *http.Request) {
-	// Check admin status
+	if !h.ensureSuperAdmin(w, r) {
+		return
+	}
+
+	reqInfo := h.requestService.ParseRequest(r)
+
+	response := DiagnosticsResponse{
+		ServerInfo:      h.buildServerInfo(reqInfo),
+		BuildInfo:       h.buildBuildInfo(),
+		RequestInfo:     h.buildRequestInfo(r, reqInfo),
+		RuntimeInfo:     getRuntimeInfo(),
+		EnvironmentVars: getEnvironmentVars(),
+	}
+	response.CacheStats = h.buildCacheStats()
+
+	h.writeJSONResponse(w, r, response)
+}
+
+func (h *DiagnosticsHandler) GetDiagnosticsRequestHandler(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSuperAdmin(w, r) {
+		return
+	}
+
+	reqInfo := h.requestService.ParseRequest(r)
+	response := DiagnosticsRequestResponse{
+		ServerInfo:  h.buildServerInfo(reqInfo),
+		RequestInfo: h.buildRequestInfo(r, reqInfo),
+	}
+
+	h.writeJSONResponse(w, r, response)
+}
+
+func (h *DiagnosticsHandler) GetDiagnosticsSystemHandler(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSuperAdmin(w, r) {
+		return
+	}
+
+	response := DiagnosticsSystemResponse{
+		RuntimeInfo:     getRuntimeInfo(),
+		EnvironmentVars: getEnvironmentVars(),
+	}
+	response.CacheStats = h.buildCacheStats()
+
+	h.writeJSONResponse(w, r, response)
+}
+
+func (h *DiagnosticsHandler) GetDiagnosticsBuildHandler(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSuperAdmin(w, r) {
+		return
+	}
+
+	response := DiagnosticsBuildResponse{
+		BuildInfo: h.buildBuildInfo(),
+	}
+
+	h.writeJSONResponse(w, r, response)
+}
+
+func (h *DiagnosticsHandler) ensureSuperAdmin(w http.ResponseWriter, r *http.Request) bool {
 	claims, ok := r.Context().Value("user").(*user_profile.UserProfile)
 	if !ok || claims == nil {
 		utils.LogAndWriteHTTPError(r, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"), "unauthorized")
-		return
+		return false
 	}
 
 	if !auth.IsSuperAdminByExternalIDs(claims.ExternalIDs) {
 		utils.LogAndWriteHTTPError(r, w, http.StatusForbidden, fmt.Errorf("forbidden"), "admin access required")
-		return
+		return false
 	}
 
-	// Parse request info (trusted origins loaded from TRUSTED_ORIGINS env in config)
-	reqInfo := h.requestService.ParseRequest(r)
+	return true
+}
+
+func (h *DiagnosticsHandler) buildServerInfo(reqInfo services.RequestInfo) ServerInfo {
 	config := h.requestService.GetConfig()
-
-	response := DiagnosticsResponse{}
-	response.ServerInfo.HostURL = config.HostURL
-	if response.ServerInfo.HostURL == "" {
-		response.ServerInfo.HostURL = reqInfo.BaseURL()
+	hostURL := config.HostURL
+	if hostURL == "" {
+		hostURL = reqInfo.BaseURL()
 	}
-	response.ServerInfo.TrustedOrigins = config.TrustedOrigins
-	response.BuildInfo.Version = BuildVersion
-	response.BuildInfo.Commit = BuildCommit
-	response.BuildInfo.Branch = BuildBranch
-	response.BuildInfo.Date = BuildDate
-	response.RequestInfo.IPAddress = reqInfo.ClientIP()
-	response.RequestInfo.BaseURL = reqInfo.BaseURL()
-	response.RequestInfo.UserAgent = reqInfo.UserAgent()
-	response.RequestInfo.Origin = reqInfo.Origin()
-	response.RequestInfo.IsTrusted = reqInfo.IsTrustedOrigin()
 
-	// Collect resolution info - headers and request properties used for detection
+	return ServerInfo{
+		HostURL:        hostURL,
+		TrustedOrigins: config.TrustedOrigins,
+	}
+}
+
+func (h *DiagnosticsHandler) buildBuildInfo() BuildInfo {
+	return BuildInfo{
+		Version: BuildVersion,
+		Commit:  BuildCommit,
+		Branch:  BuildBranch,
+		Date:    BuildDate,
+	}
+}
+
+func (h *DiagnosticsHandler) buildRequestInfo(r *http.Request, reqInfo services.RequestInfo) RequestInfo {
+	requestInfo := RequestInfo{
+		IPAddress: reqInfo.ClientIP(),
+		BaseURL:   reqInfo.BaseURL(),
+		UserAgent: reqInfo.UserAgent(),
+		Origin:    reqInfo.Origin(),
+		IsTrusted: reqInfo.IsTrustedOrigin(),
+	}
+
 	resolutionInfo := make(map[string]string)
 	resolutionInfo["RemoteAddr"] = r.RemoteAddr
 	resolutionInfo["Host"] = r.Host
 	resolutionInfo["Protocol"] = reqInfo.Protocol()
-	
-	// Add relevant headers if present
+
 	headerNames := []string{
 		"CF-Connecting-IP", "CF-Visitor", "CF-Ray", "CF-IPCountry",
 		"X-Forwarded-For", "X-Forwarded-Proto", "X-Forwarded-Host",
@@ -162,50 +253,51 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 			resolutionInfo[name] = value
 		}
 	}
-	response.RequestInfo.ResolutionInfo = resolutionInfo
+	requestInfo.ResolutionInfo = resolutionInfo
 
-	// Get geo info (non-blocking)
 	if reqInfo.ClientIP() != "" {
 		if geoInfo, err := h.geoIPService.GetGeoIPInfo(reqInfo.ClientIP()); err == nil {
-			response.RequestInfo.GeoInfo = geoInfo
+			requestInfo.GeoInfo = geoInfo
 		} else {
 			glog.Warn("Failed to get geo info: %v", err)
 		}
 	}
 
-	// Populate Go runtime info
-	response.RuntimeInfo = getRuntimeInfo()
+	return requestInfo
+}
 
-	// Populate environment variables (with sensitive values masked)
-	response.EnvironmentVars = getEnvironmentVars()
-
-	// Get cache statistics
-	if h.cacheCleanupService != nil {
-		cacheStats := h.cacheCleanupService.GetAllStats()
-		response.CacheStats = make([]CacheStatsInfo, 0, len(cacheStats))
-
-		for _, stats := range cacheStats {
-			usagePercent := 0.0
-			if stats.MaxSize > 0 {
-				usagePercent = float64(stats.CurrentSize) / float64(stats.MaxSize) * 100
-			}
-
-			response.CacheStats = append(response.CacheStats, CacheStatsInfo{
-				Name:         stats.Name,
-				CurrentSize:  stats.CurrentSize,
-				MaxSize:      stats.MaxSize,
-				ExpiredCount: stats.ExpiredCount,
-				TTL:          stats.TTL,
-				TTLSeconds:   stats.TTLSeconds,
-				UsagePercent: usagePercent,
-			})
-		}
+func (h *DiagnosticsHandler) buildCacheStats() []CacheStatsInfo {
+	if h.cacheCleanupService == nil {
+		return nil
 	}
 
+	cacheStats := h.cacheCleanupService.GetAllStats()
+	responseStats := make([]CacheStatsInfo, 0, len(cacheStats))
+
+	for _, stats := range cacheStats {
+		usagePercent := 0.0
+		if stats.MaxSize > 0 {
+			usagePercent = float64(stats.CurrentSize) / float64(stats.MaxSize) * 100
+		}
+
+		responseStats = append(responseStats, CacheStatsInfo{
+			Name:         stats.Name,
+			CurrentSize:  stats.CurrentSize,
+			MaxSize:      stats.MaxSize,
+			ExpiredCount: stats.ExpiredCount,
+			TTL:          stats.TTL,
+			TTLSeconds:   stats.TTLSeconds,
+			UsagePercent: usagePercent,
+		})
+	}
+
+	return responseStats
+}
+
+func (h *DiagnosticsHandler) writeJSONResponse(w http.ResponseWriter, r *http.Request, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		_ = glog.Error("Failed to encode diagnostics response: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "failed to encode diagnostics response")
 	}
 }
 
