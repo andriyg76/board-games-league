@@ -118,7 +118,7 @@ func (h *Handler) getGameType(w http.ResponseWriter, r *http.Request) {
 
 	gameType, err := h.gameTypeRepository.FindByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching game type")
 		return
 	}
 	if gameType == nil {
@@ -196,7 +196,7 @@ func (h *Handler) deleteGameType(w http.ResponseWriter, r *http.Request) {
 	// Перевірка чи це вбудований тип
 	gameType, err := h.gameTypeRepository.FindByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching game type")
 		return
 	}
 	if gameType != nil && gameType.BuiltIn {
@@ -205,7 +205,7 @@ func (h *Handler) deleteGameType(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.gameTypeRepository.Delete(r.Context(), id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error deleting game type")
 		return
 	}
 

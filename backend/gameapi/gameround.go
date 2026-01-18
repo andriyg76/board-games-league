@@ -54,8 +54,12 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	gameType, err := h.gameTypeRepository.FindByKey(r.Context(), req.Type)
-	if gameType == nil || err != nil {
-		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, err, "error fetching game type: %s", req.Type)
+	if err != nil {
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "database error fetching game type: %s", req.Type)
+		return
+	}
+	if gameType == nil {
+		utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest, nil, "game type not found: %s", req.Type)
 		return
 	}
 
@@ -108,7 +112,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.gameRoundRepository.Create(r.Context(), round); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error creating game round")
 		return
 	}
 
@@ -148,7 +152,7 @@ func (h *Handler) listGameRounds(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching game rounds")
 		return
 	}
 
@@ -192,7 +196,7 @@ func (h *Handler) getGameRound(w http.ResponseWriter, r *http.Request) {
 
 	round, err := h.gameRoundRepository.FindByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching game round")
 		return
 	}
 	if round == nil {
@@ -249,7 +253,7 @@ func (h *Handler) updateGameRound(w http.ResponseWriter, r *http.Request) {
 
 	round, err := h.gameRoundRepository.FindByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching game round")
 		return
 	}
 	if round == nil {
@@ -288,7 +292,7 @@ func (h *Handler) updateGameRound(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.gameRoundRepository.Update(r.Context(), round); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error updating game round")
 		return
 	}
 
@@ -324,7 +328,7 @@ func (h *Handler) updatePlayerScore(w http.ResponseWriter, r *http.Request) {
 
 	round, err := h.gameRoundRepository.FindByID(r.Context(), gameRoundIdAndCode.ID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching game round")
 		return
 	}
 	if round == nil {
@@ -355,7 +359,7 @@ func (h *Handler) updatePlayerScore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.gameRoundRepository.Update(r.Context(), round); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error updating player score")
 		return
 	}
 
@@ -377,7 +381,7 @@ func (h *Handler) finalizeGame(w http.ResponseWriter, r *http.Request) {
 
 	round, err := h.gameRoundRepository.FindByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching game round")
 		return
 	}
 	if round == nil {
@@ -433,7 +437,7 @@ func (h *Handler) finalizeGame(w http.ResponseWriter, r *http.Request) {
 	round.Status = models.StatusCompleted
 
 	if err := h.gameRoundRepository.Update(r.Context(), round); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error finalizing game round")
 		return
 	}
 
@@ -538,7 +542,7 @@ func (h *Handler) updateRoles(w http.ResponseWriter, r *http.Request) {
 
 	round, err := h.gameRoundRepository.FindByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching game round")
 		return
 	}
 	if round == nil {
@@ -569,7 +573,7 @@ func (h *Handler) updateRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.gameRoundRepository.Update(r.Context(), round); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error updating game round")
 		return
 	}
 
@@ -592,7 +596,7 @@ func (h *Handler) updateScores(w http.ResponseWriter, r *http.Request) {
 
 	round, err := h.gameRoundRepository.FindByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching game round")
 		return
 	}
 	if round == nil {
@@ -630,7 +634,7 @@ func (h *Handler) updateScores(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.gameRoundRepository.Update(r.Context(), round); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error updating game round")
 		return
 	}
 
@@ -657,7 +661,7 @@ func (h *Handler) updateRoundStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.gameRoundRepository.UpdateStatus(r.Context(), id, req.Status, req.Version); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error updating game round status")
 		return
 	}
 

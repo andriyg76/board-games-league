@@ -150,7 +150,12 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 
 	// Get or create Wizard game type
 	gameType, err := h.gameTypeRepo.FindByKey(r.Context(), "wizard")
-	if err != nil || gameType == nil {
+	if err != nil {
+		// Database error - log but continue to create
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error fetching wizard game type")
+		return
+	}
+	if gameType == nil {
 		// Create Wizard game type if doesn't exist
 		gameType = &models.GameType{
 			Key:         "wizard",

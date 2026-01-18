@@ -250,6 +250,7 @@ func main() {
 	log.Info("Handlers instances connector initialised")
 
 	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
 	if accessLogger != nil {
 		r.Use(bglmiddleware.AccessLog(accessLogger))
 	} else {

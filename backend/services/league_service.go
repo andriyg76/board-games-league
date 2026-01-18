@@ -842,7 +842,10 @@ func (s *leagueServiceInstance) GetSuggestedPlayers(ctx context.Context, leagueI
 		// Add recent co-players from cache
 		for _, coPlayer := range currentMembership.RecentCoPlayers {
 			coPlayerMembership, err := s.membershipRepo.FindByID(ctx, coPlayer.MembershipID)
-			if err != nil || coPlayerMembership == nil {
+			if err != nil {
+				continue
+			}
+			if coPlayerMembership == nil {
 				continue
 			}
 			// Skip banned members

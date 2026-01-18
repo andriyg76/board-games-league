@@ -24,7 +24,7 @@ func (h *Handler) CheckAliasUniquenessHandler(w http.ResponseWriter, r *http.Req
 
 	unique, err := h.userRepository.AliasUnique(r.Context(), alias)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, err, "error checking alias uniqueness")
 		return
 	}
 
