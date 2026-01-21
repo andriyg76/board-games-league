@@ -56,8 +56,7 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/ui/game-rounds/new',
     name: 'NewGameRound',
-    component: () => import('@/gametypes/GameRoundWizard.vue'),
-    alias: '/ui/startgame'
+    component: () => import('@/gametypes/GameRoundWizard.vue')
   },
   {
     path: '/ui/game-rounds/:id',
@@ -111,8 +110,7 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'game/start',
         name: 'MobileGameStart',
-        component: () => import('@/mobile/views/MobileGameStart.vue'),
-        alias: '/m/startgame'
+        component: () => import('@/mobile/views/MobileGameStart.vue')
       },
       {
         path: 'game/:code',

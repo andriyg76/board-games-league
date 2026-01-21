@@ -27,7 +27,6 @@ Use a dedicated mobile route prefix to keep the surface separate:
 /m/league/select       -> MobileLeagueSelect
 /m/league              -> MobileLeagueHome
 /m/game/start          -> MobileGameStart (placeholder)
-/m/startgame           -> alias for /m/game/start
 /m/game/:code          -> MobileGameFlow
 ```
 
@@ -78,11 +77,6 @@ Options:
 Recommendation (MVP):
 Keep `/m` prefix and add targeted redirects later if needed.
 We can add mobile-only aliases for deep links (invites) without breaking `/ui`.
-
-### Route Suffix Parity
-We can keep the same suffix with different behavior by using aliases:
-- `/ui/startgame` -> alias for `/ui/game-rounds/new` (desktop)
-- `/m/startgame`  -> alias for `/m/game/start` (mobile)
 
 ## Open Questions
 - Do we want auto-redirect from `/` to `/m` on mobile user agents?
