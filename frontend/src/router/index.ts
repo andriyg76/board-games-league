@@ -76,6 +76,50 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/wizard/WizardGamePlay.vue'),
     props: true
   },
+  {
+    path: '/m',
+    component: () => import('@/mobile/layouts/MobileRoot.vue'),
+    meta: { layout: 'mobile' },
+    children: [
+      {
+        path: '',
+        name: 'MobileEntry',
+        component: () => import('@/mobile/views/MobileEntry.vue')
+      },
+      {
+        path: 'login',
+        name: 'MobileLogin',
+        component: () => import('@/mobile/views/MobileLogin.vue')
+      },
+      {
+        path: 'accept-invite/:token',
+        name: 'MobileAcceptInvite',
+        component: () => import('@/mobile/views/MobileAcceptInvite.vue'),
+        props: true
+      },
+      {
+        path: 'league/select',
+        name: 'MobileLeagueSelect',
+        component: () => import('@/mobile/views/MobileLeagueSelect.vue')
+      },
+      {
+        path: 'league',
+        name: 'MobileLeagueHome',
+        component: () => import('@/mobile/views/MobileLeagueHome.vue')
+      },
+      {
+        path: 'game/start',
+        name: 'MobileGameStart',
+        component: () => import('@/mobile/views/MobileGameStart.vue')
+      },
+      {
+        path: 'game/:code',
+        name: 'MobileGameFlow',
+        component: () => import('@/mobile/views/MobileGameFlow.vue'),
+        props: true
+      },
+    ]
+  },
 ]
 
 const router = createRouter({
