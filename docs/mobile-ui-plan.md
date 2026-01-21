@@ -43,6 +43,26 @@ Mobile entry should resolve to the correct screen:
    - If exactly 1 -> auto-select -> `/m/league`
 5) If no leagues -> show empty state message
 
+## Session UI Mode Detection
+We store the UI preference in sessionStorage:
+- `ui_mode = mobile | desktop`
+
+Auto-detection uses a device heuristic (screen width, UA, touch).
+
+Rules:
+1) If user enters a mode-specific path (`/m` or `/ui`), that is treated as
+   the current mode.
+2) If the current mode does not fit the device, we show a confirm:
+   "It looks like the {mode} version fits your device better. Switch?"
+   - Yes -> switch and store preferred mode
+   - No  -> keep current mode and store it
+3) If the current mode fits the device, store it and continue without prompt.
+4) If no mode is stored and user opens a neutral path (e.g. `/`), we prompt
+   only when the device prefers mobile; otherwise we default to desktop.
+
+Auth callback (`/ui/auth-callback`) is excluded from auto-redirect to avoid
+breaking the login flow.
+
 ## Accept Invitation Flow
 - The accept page is public and should show preview details.
 - User can tap "Accept" even without login.
