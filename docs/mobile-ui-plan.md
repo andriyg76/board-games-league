@@ -103,3 +103,27 @@ We can add mobile-only aliases for deep links (invites) without breaking `/ui`.
 - Should invite links be updated to `/m/accept-invite/:token` or keep `/ui` for now?
 - Should we add a dedicated "Exit game" confirmation component?
 
+## Electron Wrapper Considerations
+Decisions (confirmed):
+- Electron should always use the mobile UI.
+- OAuth login should open in the system browser.
+- API base URL should be configurable (env).
+
+Routing recommendation:
+- Prefer hash routing for Electron (`#/m/...`) to avoid deep-link issues
+  when running without a local server.
+- Keep history routing for web.
+
+Implications:
+1) **Force mobile mode in Electron**
+   - Set `ui_mode = mobile` at startup (before router guard),
+     and skip the confirm prompt.
+2) **API base URL**
+   - Introduce `VITE_API_BASE_URL` and use it in apiClient.
+3) **OAuth callback**
+   - Use a custom scheme (e.g., `app://auth-callback`) or a deep-link handler
+     to bring users back into the Electron app after system browser login.
+4) **Invitation links**
+   - Use a configurable public web base URL for shareable invites
+     instead of `window.location.origin`.
+
