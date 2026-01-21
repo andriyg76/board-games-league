@@ -1,5 +1,13 @@
-import { createRouter, createWebHistory, RouteLocationNormalized, RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHashHistory, createWebHistory, RouteLocationNormalized, RouteRecordRaw } from 'vue-router'
 import { i18n } from '@/i18n'
+
+const isElectronRuntime = () => {
+  if (import.meta.env.VITE_ELECTRON === 'true') return true
+  if (typeof navigator === 'undefined') return false
+  return /Electron/i.test(navigator.userAgent)
+}
+
+const ELECTRON_RUNTIME = isElectronRuntime()
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -124,7 +132,9 @@ const routes: Array<RouteRecordRaw> = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: ELECTRON_RUNTIME
+    ? createWebHashHistory(import.meta.env.BASE_URL)
+    : createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
@@ -169,7 +179,7 @@ const isMobileDevice = () => {
   return widthMatch || uaMatch || touchMatch
 }
 
-const getPreferredMode = (): UiMode => (isMobileDevice() ? 'mobile' : 'desktop')
+const getPreferredMode = (): UiMode => (ELECTRON_RUNTIME ? 'mobile' : isMobileDevice() ? 'mobile' : 'desktop')
 
 const getConfirmMessage = (targetMode: UiMode) => {
   const modeLabel = i18n.global.t(`ui.mode.${targetMode}`)
@@ -215,6 +225,14 @@ router.beforeEach((to) => {
   if (shouldSkipAutoMode(to.path)) return true
 
   const currentMode = getCurrentMode(to.path)
+  if (ELECTRON_RUNTIME) {
+    setStoredMode('mobile')
+    if (currentMode !== 'mobile') {
+      return getRedirectTarget('mobile', to)
+    }
+    return true
+  }
+
   const storedMode = getStoredMode()
   const preferredMode = getPreferredMode()
 
