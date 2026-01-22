@@ -26,3 +26,23 @@ or a loopback redirect.
 ### Open question
 - Do we keep a single OAuth client and add multiple redirect URIs,
   or register a dedicated Electron OAuth client?
+
+## CORS allowlist considerations
+- Adding CORS allowlist means returning:
+  `Access-Control-Allow-Origin` (exact origin),
+  `Access-Control-Allow-Credentials: true`,
+  and `Vary: Origin`.
+- This only works for **valid HTTP/HTTPS origins**.
+  - Examples: `https://bgl.andriydc.eu`, `http://localhost:5173`.
+- For `file://` or `Origin: null`, CORS with credentials does not work.
+- Custom schemes (e.g., `app://bgl`) require a standard/secure scheme and must be
+  explicitly allowed by the backend.
+- Current backend has **no CORS middleware**; `TRUSTED_ORIGINS` is not used
+  for CORS headers.
+
+## Main-process proxy (Electron)
+- Proxy lives in Electron **main process** (Node.js) and handles HTTP requests.
+- Renderer communicates via IPC; no browser CORS limitations apply.
+- Requires cookie management (Node fetch has no cookie jar by default).
+- Pros: works with `file://` and custom schemes, avoids CORS.
+- Cons: more plumbing and state handling in main process.
