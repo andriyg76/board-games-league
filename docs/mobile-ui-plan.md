@@ -119,6 +119,7 @@ Implications:
    - Set `ui_mode = mobile` at startup (before router guard),
      and skip the confirm prompt.
    - Use `VITE_ELECTRON=true` to force Electron-specific behavior.
+   - Optional override: add `?ui=mobile` to the route when launching.
 2) **API base URL**
    - Introduce `VITE_API_BASE_URL` and use it in apiClient.
 3) **OAuth callback**

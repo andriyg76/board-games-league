@@ -186,6 +186,24 @@ const getConfirmMessage = (targetMode: UiMode) => {
   return i18n.global.t('ui.switchPrompt', { mode: modeLabel })
 }
 
+const getUiOverride = (to: RouteLocationNormalized): UiMode | null => {
+  const value = to.query.ui
+  const override = Array.isArray(value) ? value[0] : value
+  if (override === 'mobile' || override === 'desktop') {
+    return override
+  }
+  return null
+}
+
+const stripUiQuery = (query: RouteLocationNormalized['query']) => {
+  if (!('ui' in query)) {
+    return query
+  }
+  const nextQuery = { ...query }
+  delete nextQuery.ui
+  return nextQuery
+}
+
 const routeMappings: Record<UiMode, Record<string, (to: RouteLocationNormalized) => any>> = {
   mobile: {
     AcceptInvitation: (to) => ({ name: 'MobileAcceptInvite', params: to.params, query: to.query }),
@@ -225,6 +243,22 @@ router.beforeEach((to) => {
   if (shouldSkipAutoMode(to.path)) return true
 
   const currentMode = getCurrentMode(to.path)
+  const overrideMode = getUiOverride(to)
+  const cleanedQuery = stripUiQuery(to.query)
+  const hasUiQuery = 'ui' in to.query
+
+  if (overrideMode && (!ELECTRON_RUNTIME || overrideMode === 'mobile')) {
+    setStoredMode(overrideMode)
+    if (currentMode !== overrideMode) {
+      const target = getRedirectTarget(overrideMode, to)
+      return { ...target, query: cleanedQuery }
+    }
+    if (hasUiQuery) {
+      return { path: to.path, query: cleanedQuery, hash: to.hash }
+    }
+    return true
+  }
+
   if (ELECTRON_RUNTIME) {
     setStoredMode('mobile')
     if (currentMode !== 'mobile') {
