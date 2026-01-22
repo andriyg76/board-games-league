@@ -1,0 +1,28 @@
+# Electron UI Support TODO
+
+## Auth callback and deep-link handling
+
+### Context
+Electron does not automatically intercept `https://bgl.andriydc.eu/ui/auth-callback`
+links unless OS-level app-link/universal-link support is configured. For MVP,
+the practical approach is to use a custom scheme (e.g. `bgl://auth-callback`)
+or a loopback redirect.
+
+### TODO
+1) **Custom scheme callback**
+   - Add `bgl://auth-callback` to OAuth redirect URIs.
+   - Ensure Electron registers the custom scheme.
+2) **Login request flag**
+   - Add a login query flag (e.g. `client=electron`).
+3) **Backend callback selection**
+   - When `client=electron`, use the Electron callback URL.
+   - Otherwise use the standard web callback (`/ui/auth-callback`).
+   - Note: current backend uses a single callback URL cached by `sync.Once`,
+     so this needs refactoring to allow per-request callback selection.
+4) **Frontend flow**
+   - After receiving the Electron deep link, route to the auth callback screen
+     and continue the existing session handling.
+
+### Open question
+- Do we keep a single OAuth client and add multiple redirect URIs,
+  or register a dedicated Electron OAuth client?
