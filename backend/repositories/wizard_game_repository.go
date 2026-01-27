@@ -2,11 +2,11 @@ package repositories
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/hexerr"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -33,7 +33,7 @@ func NewWizardGameRepository(mongodb *db.MongoDB) (WizardGameRepository, error) 
 	}
 
 	if err := repo.ensureIndexes(); err != nil {
-		return nil, fmt.Errorf("failed to create indexes: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to create indexes")
 	}
 
 	return repo, nil
@@ -66,7 +66,7 @@ func (r *wizardGameRepositoryInstance) Create(ctx context.Context, game *models.
 
 	result, err := r.collection.InsertOne(ctx, game)
 	if err != nil {
-		return fmt.Errorf("failed to create wizard game: %w", err)
+		return hexerr.Wrapf(err, "failed to create wizard game")
 	}
 
 	game.ID = result.InsertedID.(primitive.ObjectID)
@@ -78,9 +78,9 @@ func (r *wizardGameRepositoryInstance) FindByID(ctx context.Context, id primitiv
 	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&game)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("wizard game not found")
+			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to find wizard game: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find wizard game")
 	}
 	return &game, nil
 }
@@ -90,9 +90,9 @@ func (r *wizardGameRepositoryInstance) FindByCode(ctx context.Context, code stri
 	err := r.collection.FindOne(ctx, bson.M{"code": code}).Decode(&game)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("wizard game not found")
+			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to find wizard game: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find wizard game")
 	}
 	return &game, nil
 }
@@ -102,9 +102,9 @@ func (r *wizardGameRepositoryInstance) FindByGameRoundID(ctx context.Context, ga
 	err := r.collection.FindOne(ctx, bson.M{"game_round_id": gameRoundID}).Decode(&game)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("wizard game not found")
+			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to find wizard game: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find wizard game")
 	}
 	return &game, nil
 }
@@ -118,11 +118,11 @@ func (r *wizardGameRepositoryInstance) Update(ctx context.Context, game *models.
 		game,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to update wizard game: %w", err)
+		return hexerr.Wrapf(err, "failed to update wizard game")
 	}
 
 	if result.MatchedCount == 0 {
-		return fmt.Errorf("wizard game not found")
+		return hexerr.New("wizard game not found")
 	}
 
 	return nil
@@ -131,11 +131,11 @@ func (r *wizardGameRepositoryInstance) Update(ctx context.Context, game *models.
 func (r *wizardGameRepositoryInstance) Delete(ctx context.Context, id primitive.ObjectID) error {
 	result, err := r.collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
-		return fmt.Errorf("failed to delete wizard game: %w", err)
+		return hexerr.Wrapf(err, "failed to delete wizard game")
 	}
 
 	if result.DeletedCount == 0 {
-		return fmt.Errorf("wizard game not found")
+		return hexerr.New("wizard game not found")
 	}
 
 	return nil
@@ -144,11 +144,11 @@ func (r *wizardGameRepositoryInstance) Delete(ctx context.Context, id primitive.
 func (r *wizardGameRepositoryInstance) DeleteByCode(ctx context.Context, code string) error {
 	result, err := r.collection.DeleteOne(ctx, bson.M{"code": code})
 	if err != nil {
-		return fmt.Errorf("failed to delete wizard game: %w", err)
+		return hexerr.Wrapf(err, "failed to delete wizard game")
 	}
 
 	if result.DeletedCount == 0 {
-		return fmt.Errorf("wizard game not found")
+		return hexerr.New("wizard game not found")
 	}
 
 	return nil

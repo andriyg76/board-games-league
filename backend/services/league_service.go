@@ -11,6 +11,7 @@ import (
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/utils"
+	"github.com/andriyg76/hexerr"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -141,7 +142,7 @@ func NewLeagueService(
 
 func (s *leagueServiceInstance) CreateLeague(ctx context.Context, name string) (*models.League, error) {
 	if name == "" {
-		return nil, errors.New("league name is required")
+		return nil, hexerr.New("league name is required")
 	}
 
 	league := &models.League{
@@ -150,7 +151,7 @@ func (s *leagueServiceInstance) CreateLeague(ctx context.Context, name string) (
 	}
 
 	if err := s.leagueRepo.Create(ctx, league); err != nil {
-		return nil, fmt.Errorf("failed to create league: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to create league")
 	}
 
 	return league, nil
@@ -159,10 +160,10 @@ func (s *leagueServiceInstance) CreateLeague(ctx context.Context, name string) (
 func (s *leagueServiceInstance) GetLeague(ctx context.Context, leagueID primitive.ObjectID) (*models.League, error) {
 	league, err := s.leagueRepo.FindByID(ctx, leagueID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get league: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to get league")
 	}
 	if league == nil {
-		return nil, errors.New("league not found")
+		return nil, hexerr.New("league not found")
 	}
 	return league, nil
 }
@@ -170,7 +171,7 @@ func (s *leagueServiceInstance) GetLeague(ctx context.Context, leagueID primitiv
 func (s *leagueServiceInstance) ListLeagues(ctx context.Context) ([]*models.League, error) {
 	leagues, err := s.leagueRepo.FindAll(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list leagues: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to list leagues")
 	}
 	return leagues, nil
 }
@@ -178,7 +179,7 @@ func (s *leagueServiceInstance) ListLeagues(ctx context.Context) ([]*models.Leag
 func (s *leagueServiceInstance) ListActiveLeagues(ctx context.Context) ([]*models.League, error) {
 	leagues, err := s.leagueRepo.FindByStatus(ctx, models.LeagueActive)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list active leagues: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to list active leagues")
 	}
 	return leagues, nil
 }
@@ -190,12 +191,12 @@ func (s *leagueServiceInstance) ArchiveLeague(ctx context.Context, leagueID prim
 	}
 
 	if league.Status == models.LeagueArchived {
-		return errors.New("league is already archived")
+		return hexerr.New("league is already archived")
 	}
 
 	league.Status = models.LeagueArchived
 	if err := s.leagueRepo.Update(ctx, league); err != nil {
-		return fmt.Errorf("failed to archive league: %w", err)
+		return hexerr.Wrapf(err, "failed to archive league")
 	}
 
 	return nil
@@ -208,12 +209,12 @@ func (s *leagueServiceInstance) UnarchiveLeague(ctx context.Context, leagueID pr
 	}
 
 	if league.Status == models.LeagueActive {
-		return errors.New("league is already active")
+		return hexerr.New("league is already active")
 	}
 
 	league.Status = models.LeagueActive
 	if err := s.leagueRepo.Update(ctx, league); err != nil {
-		return fmt.Errorf("failed to unarchive league: %w", err)
+		return hexerr.Wrapf(err, "failed to unarchive league")
 	}
 
 	return nil
@@ -222,7 +223,7 @@ func (s *leagueServiceInstance) UnarchiveLeague(ctx context.Context, leagueID pr
 func (s *leagueServiceInstance) GetLeagueMembers(ctx context.Context, leagueID primitive.ObjectID) ([]*models.User, error) {
 	memberships, err := s.membershipRepo.FindByLeague(ctx, leagueID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get league members: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to get league members")
 	}
 
 	users := make([]*models.User, 0, len(memberships))
@@ -233,7 +234,7 @@ func (s *leagueServiceInstance) GetLeagueMembers(ctx context.Context, leagueID p
 
 		user, err := s.userRepo.FindByID(ctx, membership.UserID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get user %s: %w", membership.UserID.Hex(), err)
+			return nil, hexerr.Wrapf(err, "failed to get user %s", membership.UserID.Hex())
 		}
 		if user != nil {
 			users = append(users, user)
@@ -246,7 +247,7 @@ func (s *leagueServiceInstance) GetLeagueMembers(ctx context.Context, leagueID p
 func (s *leagueServiceInstance) GetLeagueMemberships(ctx context.Context, leagueID primitive.ObjectID) ([]*LeagueMemberInfo, error) {
 	memberships, err := s.membershipRepo.FindByLeague(ctx, leagueID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get league memberships: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to get league memberships")
 	}
 
 	members := make([]*LeagueMemberInfo, 0, len(memberships))
@@ -263,7 +264,7 @@ func (s *leagueServiceInstance) GetLeagueMemberships(ctx context.Context, league
 		if !membership.UserID.IsZero() {
 			user, err := s.userRepo.FindByID(ctx, membership.UserID)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get user %s: %w", membership.UserID.Hex(), err)
+				return nil, hexerr.Wrapf(err, "failed to get user %s", membership.UserID.Hex())
 			}
 			if user != nil {
 				member.UserName = user.Name
@@ -307,10 +308,10 @@ func (s *leagueServiceInstance) GetLeagueMemberships(ctx context.Context, league
 func (s *leagueServiceInstance) GetMemberByID(ctx context.Context, membershipID primitive.ObjectID) (*models.LeagueMembership, error) {
 	membership, err := s.membershipRepo.FindByID(ctx, membershipID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find membership: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find membership")
 	}
 	if membership == nil {
-		return nil, errors.New("membership not found")
+		return nil, hexerr.New("membership not found")
 	}
 	return membership, nil
 }
@@ -322,19 +323,19 @@ func (s *leagueServiceInstance) IsUserMember(ctx context.Context, leagueID, user
 func (s *leagueServiceInstance) BanUserFromLeague(ctx context.Context, leagueID, userID primitive.ObjectID) error {
 	membership, err := s.membershipRepo.FindByLeagueAndUser(ctx, leagueID, userID)
 	if err != nil {
-		return fmt.Errorf("failed to find membership: %w", err)
+		return hexerr.Wrapf(err, "failed to find membership")
 	}
 	if membership == nil {
-		return errors.New("user is not a member of this league")
+		return hexerr.New("user is not a member of this league")
 	}
 
 	if membership.Status == models.MembershipBanned {
-		return errors.New("user is already banned")
+		return hexerr.New("user is already banned")
 	}
 
 	membership.Status = models.MembershipBanned
 	if err := s.membershipRepo.Update(ctx, membership); err != nil {
-		return fmt.Errorf("failed to ban user: %w", err)
+		return hexerr.Wrapf(err, "failed to ban user")
 	}
 
 	return nil
@@ -343,19 +344,19 @@ func (s *leagueServiceInstance) BanUserFromLeague(ctx context.Context, leagueID,
 func (s *leagueServiceInstance) UnbanUserFromLeague(ctx context.Context, leagueID, userID primitive.ObjectID) error {
 	membership, err := s.membershipRepo.FindByLeagueAndUser(ctx, leagueID, userID)
 	if err != nil {
-		return fmt.Errorf("failed to find membership: %w", err)
+		return hexerr.Wrapf(err, "failed to find membership")
 	}
 	if membership == nil {
-		return errors.New("user is not a member of this league")
+		return hexerr.New("user is not a member of this league")
 	}
 
 	if membership.Status != models.MembershipBanned {
-		return errors.New("user is not banned")
+		return hexerr.New("user is not banned")
 	}
 
 	membership.Status = models.MembershipActive
 	if err := s.membershipRepo.Update(ctx, membership); err != nil {
-		return fmt.Errorf("failed to unban user: %w", err)
+		return hexerr.Wrapf(err, "failed to unban user")
 	}
 
 	return nil
@@ -369,13 +370,13 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 
 	// Validate alias
 	if playerAlias == "" {
-		return nil, errors.New("player alias is required")
+		return nil, hexerr.New("player alias is required")
 	}
 
 	// Check if alias already exists in this league
 	existingMembership, err := s.membershipRepo.FindByLeagueAndAlias(ctx, leagueID, playerAlias)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check alias uniqueness: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to check alias uniqueness")
 	}
 
 	var membership *models.LeagueMembership
@@ -389,11 +390,11 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 			if !existingMembership.InvitationID.IsZero() {
 				existingInvitation, err := s.invitationRepo.FindByID(ctx, existingMembership.InvitationID)
 				if err != nil {
-					return nil, fmt.Errorf("failed to check existing invitation: %w", err)
+					return nil, hexerr.Wrapf(err, "failed to check existing invitation")
 				}
 				// If invitation exists and is still active (not used and not expired), don't allow creating a new one
 				if existingInvitation != nil && !existingInvitation.IsUsed && time.Now().Before(existingInvitation.ExpiresAt) {
-					return nil, errors.New("an active invitation already exists for this player")
+					return nil, hexerr.New("an active invitation already exists for this player")
 				}
 				// If invitation is expired or used, clear the InvitationID
 				existingMembership.InvitationID = primitive.NilObjectID
@@ -402,12 +403,12 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 			existingMembership.Status = models.MembershipPending
 			existingMembership.LastActivityAt = now
 			if err := s.membershipRepo.Update(ctx, existingMembership); err != nil {
-				return nil, fmt.Errorf("failed to update virtual membership: %w", err)
+				return nil, hexerr.Wrapf(err, "failed to update virtual membership")
 			}
 			membership = existingMembership
 		} else {
 			// Alias is taken by active or pending member
-			return nil, errors.New("alias already exists in this league")
+			return nil, hexerr.New("alias already exists in this league")
 		}
 	} else {
 		// Create new pending membership
@@ -420,14 +421,14 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 		}
 
 		if err := s.membershipRepo.Create(ctx, membership); err != nil {
-			return nil, fmt.Errorf("failed to create pending membership: %w", err)
+			return nil, hexerr.Wrapf(err, "failed to create pending membership")
 		}
 	}
 
 	// Generate cryptographically secure token
 	token, err := generateInvitationToken()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate token: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to generate token")
 	}
 
 	invitation := &models.LeagueInvitation{
@@ -440,13 +441,13 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 	}
 
 	if err := s.invitationRepo.Create(ctx, invitation); err != nil {
-		return nil, fmt.Errorf("failed to create invitation: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to create invitation")
 	}
 
 	// Update membership with invitation ID
 	membership.InvitationID = invitation.ID
 	if err := s.membershipRepo.Update(ctx, membership); err != nil {
-		return nil, fmt.Errorf("failed to link membership to invitation: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to link membership to invitation")
 	}
 
 	// Add the new member to creator's recent_co_players cache
@@ -462,29 +463,29 @@ func (s *leagueServiceInstance) CreateInvitation(ctx context.Context, leagueID, 
 func (s *leagueServiceInstance) AcceptInvitation(ctx context.Context, token string, userID primitive.ObjectID) (*models.League, error) {
 	invitation, err := s.invitationRepo.FindByToken(ctx, token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find invitation: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find invitation")
 	}
 	if invitation == nil {
-		return nil, errors.New("invitation not found")
+		return nil, hexerr.New("invitation not found")
 	}
 
 	// Validate invitation
 	if invitation.IsUsed {
-		return nil, errors.New("invitation has already been used")
+		return nil, hexerr.New("invitation has already been used")
 	}
 	if time.Now().After(invitation.ExpiresAt) {
-		return nil, errors.New("invitation has expired")
+		return nil, hexerr.New("invitation has expired")
 	}
 
 	// Check self-use: creator cannot use their own invitation
 	if invitation.CreatedBy == userID {
-		return nil, errors.New("you cannot accept your own invitation")
+		return nil, hexerr.New("you cannot accept your own invitation")
 	}
 
 	// Check if user is already an active member
 	existing, err := s.membershipRepo.FindByLeagueAndUser(ctx, invitation.LeagueID, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check membership: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to check membership")
 	}
 	if existing != nil && existing.Status == models.MembershipActive {
 		// Get league code for the error
@@ -499,10 +500,10 @@ func (s *leagueServiceInstance) AcceptInvitation(ctx context.Context, token stri
 	// Get the pending membership created with the invitation
 	membership, err := s.membershipRepo.FindByID(ctx, invitation.MembershipID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find pending membership: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find pending membership")
 	}
 	if membership == nil {
-		return nil, errors.New("pending membership not found")
+		return nil, hexerr.New("pending membership not found")
 	}
 
 	// Update pending membership to active
@@ -511,12 +512,12 @@ func (s *leagueServiceInstance) AcceptInvitation(ctx context.Context, token stri
 	membership.JoinedAt = time.Now()
 
 	if err := s.membershipRepo.Update(ctx, membership); err != nil {
-		return nil, fmt.Errorf("failed to activate membership: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to activate membership")
 	}
 
 	// Mark invitation as used
 	if err := s.invitationRepo.MarkAsUsed(ctx, invitation.ID, userID); err != nil {
-		return nil, fmt.Errorf("failed to mark invitation as used: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to mark invitation as used")
 	}
 
 	// Get and return the league
@@ -526,19 +527,19 @@ func (s *leagueServiceInstance) AcceptInvitation(ctx context.Context, token stri
 func (s *leagueServiceInstance) PreviewInvitation(ctx context.Context, token string) (*InvitationPreview, error) {
 	invitation, err := s.invitationRepo.FindByToken(ctx, token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find invitation: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find invitation")
 	}
 	if invitation == nil {
-		return nil, errors.New("invitation not found")
+		return nil, hexerr.New("invitation not found")
 	}
 
 	// Get league name
 	league, err := s.leagueRepo.FindByID(ctx, invitation.LeagueID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find league: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find league")
 	}
 	if league == nil {
-		return nil, errors.New("league not found")
+		return nil, hexerr.New("league not found")
 	}
 
 	// Get inviter info (membership alias or user name)
@@ -574,13 +575,13 @@ func (s *leagueServiceInstance) GetLeagueStandings(ctx context.Context, leagueID
 	// Get all game rounds for this league
 	rounds, err := s.gameRoundRepo.FindByLeague(ctx, leagueID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get game rounds: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to get game rounds")
 	}
 
 	// Get all memberships
 	memberships, err := s.membershipRepo.FindByLeague(ctx, leagueID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get memberships: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to get memberships")
 	}
 
 	// Get all users
@@ -588,7 +589,7 @@ func (s *leagueServiceInstance) GetLeagueStandings(ctx context.Context, leagueID
 	for _, membership := range memberships {
 		user, err := s.userRepo.FindByID(ctx, membership.UserID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get user %s: %w", membership.UserID.Hex(), err)
+			return nil, hexerr.Wrapf(err, "failed to get user %s", membership.UserID.Hex())
 		}
 		if user != nil {
 			usersMap[user.ID] = user
@@ -604,10 +605,10 @@ func (s *leagueServiceInstance) GetLeagueStandings(ctx context.Context, leagueID
 func (s *leagueServiceInstance) GetInvitationByToken(ctx context.Context, token string) (*models.LeagueInvitation, error) {
 	invitation, err := s.invitationRepo.FindByToken(ctx, token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find invitation: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find invitation")
 	}
 	if invitation == nil {
-		return nil, errors.New("invitation not found")
+		return nil, hexerr.New("invitation not found")
 	}
 	return invitation, nil
 }
@@ -615,7 +616,7 @@ func (s *leagueServiceInstance) GetInvitationByToken(ctx context.Context, token 
 func (s *leagueServiceInstance) ListMyInvitations(ctx context.Context, leagueID, userID primitive.ObjectID) ([]*models.LeagueInvitation, error) {
 	invitations, err := s.invitationRepo.FindActiveByCreator(ctx, leagueID, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list invitations: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to list invitations")
 	}
 	return invitations, nil
 }
@@ -624,40 +625,40 @@ func (s *leagueServiceInstance) CancelInvitation(ctx context.Context, token stri
 	// Get invitation by token to verify ownership
 	invitation, err := s.invitationRepo.FindByToken(ctx, token)
 	if err != nil {
-		return fmt.Errorf("failed to find invitation: %w", err)
+		return hexerr.Wrapf(err, "failed to find invitation")
 	}
 	if invitation == nil {
-		return errors.New("invitation not found")
+		return hexerr.New("invitation not found")
 	}
 
 	// Verify the user is the creator
 	if invitation.CreatedBy != userID {
-		return errors.New("you can only cancel your own invitations")
+		return hexerr.New("you can only cancel your own invitations")
 	}
 
 	// Cancel the invitation
 	if err := s.invitationRepo.Cancel(ctx, invitation.ID); err != nil {
-		return fmt.Errorf("failed to cancel invitation: %w", err)
+		return hexerr.Wrapf(err, "failed to cancel invitation")
 	}
 
 	// Handle the pending membership
 	if !invitation.MembershipID.IsZero() {
 		membership, err := s.membershipRepo.FindByID(ctx, invitation.MembershipID)
 		if err != nil {
-			return fmt.Errorf("failed to find membership: %w", err)
+			return hexerr.Wrapf(err, "failed to find membership")
 		}
 		if membership != nil && membership.Status == models.MembershipPending {
 			// Check if membership has games
 			hasGames, err := s.gameRoundRepo.HasGamesForMembership(ctx, membership.ID)
 			if err != nil {
-				return fmt.Errorf("failed to check games: %w", err)
+				return hexerr.Wrapf(err, "failed to check games")
 			}
 
 			if hasGames {
 				// Has games - convert to virtual
 				membership.Status = models.MembershipVirtual
 				if err := s.membershipRepo.Update(ctx, membership); err != nil {
-					return fmt.Errorf("failed to update membership to virtual: %w", err)
+					return hexerr.Wrapf(err, "failed to update membership to virtual")
 				}
 			} else {
 				// No games - keep as pending so player remains available for selection
@@ -665,7 +666,7 @@ func (s *leagueServiceInstance) CancelInvitation(ctx context.Context, token stri
 				// Just clear the invitation ID link
 				membership.InvitationID = primitive.NilObjectID
 				if err := s.membershipRepo.Update(ctx, membership); err != nil {
-					return fmt.Errorf("failed to clear invitation link: %w", err)
+					return hexerr.Wrapf(err, "failed to clear invitation link")
 				}
 			}
 		}
@@ -677,7 +678,7 @@ func (s *leagueServiceInstance) CancelInvitation(ctx context.Context, token stri
 func (s *leagueServiceInstance) ListMyExpiredInvitations(ctx context.Context, leagueID, userID primitive.ObjectID) ([]*models.LeagueInvitation, error) {
 	invitations, err := s.invitationRepo.FindExpiredByCreator(ctx, leagueID, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list expired invitations: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to list expired invitations")
 	}
 	return invitations, nil
 }
@@ -686,25 +687,25 @@ func (s *leagueServiceInstance) ExtendInvitation(ctx context.Context, token stri
 	// Get invitation by token to verify ownership
 	invitation, err := s.invitationRepo.FindByToken(ctx, token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find invitation: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find invitation")
 	}
 	if invitation == nil {
-		return nil, errors.New("invitation not found")
+		return nil, hexerr.New("invitation not found")
 	}
 
 	// Verify the user is the creator
 	if invitation.CreatedBy != userID {
-		return nil, errors.New("you can only extend your own invitations")
+		return nil, hexerr.New("you can only extend your own invitations")
 	}
 
 	// Can only extend if not used
 	if invitation.IsUsed {
-		return nil, errors.New("cannot extend used invitation")
+		return nil, hexerr.New("cannot extend used invitation")
 	}
 
 	// Extend by 7 days
 	if err := s.invitationRepo.Extend(ctx, invitation.ID, 7*24*time.Hour); err != nil {
-		return nil, fmt.Errorf("failed to extend invitation: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to extend invitation")
 	}
 
 	// Update membership if it exists - ensure it's linked to the invitation and is pending
@@ -735,38 +736,38 @@ func (s *leagueServiceInstance) ExtendInvitation(ctx context.Context, token stri
 func (s *leagueServiceInstance) UpdatePendingMemberAlias(ctx context.Context, membershipID primitive.ObjectID, userID primitive.ObjectID, newAlias string) error {
 	membership, err := s.membershipRepo.FindByID(ctx, membershipID)
 	if err != nil {
-		return fmt.Errorf("failed to find membership: %w", err)
+		return hexerr.Wrapf(err, "failed to find membership")
 	}
 	if membership == nil {
-		return errors.New("membership not found")
+		return hexerr.New("membership not found")
 	}
 
 	// Only pending memberships can have their alias edited
 	if membership.Status != models.MembershipPending {
-		return errors.New("can only edit alias of pending members")
+		return hexerr.New("can only edit alias of pending members")
 	}
 
 	// Get the invitation to verify ownership
 	invitation, err := s.invitationRepo.FindByID(ctx, membership.InvitationID)
 	if err != nil {
-		return fmt.Errorf("failed to find invitation: %w", err)
+		return hexerr.Wrapf(err, "failed to find invitation")
 	}
 	if invitation == nil {
-		return errors.New("associated invitation not found")
+		return hexerr.New("associated invitation not found")
 	}
 
 	// Verify the user is the creator of the invitation
 	if invitation.CreatedBy != userID {
-		return errors.New("you can only edit aliases for invitations you created")
+		return hexerr.New("you can only edit aliases for invitations you created")
 	}
 
 	if newAlias == "" {
-		return errors.New("alias cannot be empty")
+		return hexerr.New("alias cannot be empty")
 	}
 
 	membership.Alias = newAlias
 	if err := s.membershipRepo.Update(ctx, membership); err != nil {
-		return fmt.Errorf("failed to update membership alias: %w", err)
+		return hexerr.Wrapf(err, "failed to update membership alias")
 	}
 
 	return nil
@@ -829,7 +830,7 @@ func (s *leagueServiceInstance) GetSuggestedPlayers(ctx context.Context, leagueI
 	if !userID.IsZero() {
 		membership, err := s.membershipRepo.FindByLeagueAndUser(ctx, leagueID, userID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to find current user membership: %w", err)
+			return nil, hexerr.Wrapf(err, "failed to find current user membership")
 		}
 		currentMembership = membership
 	}
@@ -872,7 +873,7 @@ func (s *leagueServiceInstance) GetSuggestedPlayers(ctx context.Context, leagueI
 	// Get other players sorted by last_activity_at
 	otherMemberships, err := s.membershipRepo.FindByLeagueSortedByActivity(ctx, leagueID, excludeIDs, otherPlayersLimit)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find other members: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to find other members")
 	}
 
 	for _, membership := range otherMemberships {
@@ -909,11 +910,11 @@ func (s *leagueServiceInstance) CreateMembershipForSuperAdmin(ctx context.Contex
 	// Check if user is already a member
 	existing, err := s.membershipRepo.FindByLeagueAndUser(ctx, leagueID, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check existing membership: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to check existing membership")
 	}
 	if existing != nil {
 		if existing.Status == models.MembershipActive {
-			return nil, errors.New("user is already an active member of this league")
+			return nil, hexerr.New("user is already an active member of this league")
 		}
 		// If there's a pending membership, activate it
 		existing.UserID = userID
@@ -924,7 +925,7 @@ func (s *leagueServiceInstance) CreateMembershipForSuperAdmin(ctx context.Contex
 			existing.Alias = alias
 		}
 		if err := s.membershipRepo.Update(ctx, existing); err != nil {
-			return nil, fmt.Errorf("failed to activate membership: %w", err)
+			return nil, hexerr.Wrapf(err, "failed to activate membership")
 		}
 		return existing, nil
 	}
@@ -934,7 +935,7 @@ func (s *leagueServiceInstance) CreateMembershipForSuperAdmin(ctx context.Contex
 		// Get user info for default alias
 		user, err := s.userRepo.FindByID(ctx, userID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get user info: %w", err)
+			return nil, hexerr.Wrapf(err, "failed to get user info")
 		}
 		if user != nil && user.Name != "" {
 			alias = user.Name
@@ -946,10 +947,10 @@ func (s *leagueServiceInstance) CreateMembershipForSuperAdmin(ctx context.Contex
 	// Check if alias is available
 	existingByAlias, err := s.membershipRepo.FindByLeagueAndAlias(ctx, leagueID, alias)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check alias availability: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to check alias availability")
 	}
 	if existingByAlias != nil && (existingByAlias.Status == models.MembershipActive || existingByAlias.Status == models.MembershipPending) {
-		return nil, errors.New("alias is already taken in this league")
+		return nil, hexerr.New("alias is already taken in this league")
 	}
 
 	// Create new active membership
@@ -964,7 +965,7 @@ func (s *leagueServiceInstance) CreateMembershipForSuperAdmin(ctx context.Contex
 	}
 
 	if err := s.membershipRepo.Create(ctx, membership); err != nil {
-		return nil, fmt.Errorf("failed to create membership: %w", err)
+		return nil, hexerr.Wrapf(err, "failed to create membership")
 	}
 
 	return membership, nil

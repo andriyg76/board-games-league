@@ -4,15 +4,15 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
-	"fmt"
+	"time"
+
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/andriyg76/glog"
+	"github.com/andriyg76/hexerr"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"time"
 )
 
 type SessionService interface {
@@ -51,13 +51,13 @@ func (s *sessionService) CreateSession(ctx context.Context, userID primitive.Obj
 	// Generate rotate token
 	rotateToken, err = generateRotateToken()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate rotate token: %w", err)
+		return "", "", hexerr.Wrapf(err, "failed to generate rotate token")
 	}
 
 	// Create action token (1 hour expiry)
 	actionToken, err = user_profile.CreateAuthTokenWithExpiry(externalIDs, userCode, name, avatar, 1*time.Hour)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create action token: %w", err)
+		return "", "", hexerr.Wrapf(err, "failed to create action token")
 	}
 
 	now := time.Now()
@@ -74,7 +74,7 @@ func (s *sessionService) CreateSession(ctx context.Context, userID primitive.Obj
 	}
 
 	if err := s.sessionRepository.Create(ctx, session); err != nil {
-		return "", "", fmt.Errorf("failed to create session: %w", err)
+		return "", "", hexerr.Wrapf(err, "failed to create session")
 	}
 
 	// Update user's last activity
@@ -92,26 +92,26 @@ func (s *sessionService) RefreshActionToken(ctx context.Context, rotateToken, ip
 	// Find session by rotate token
 	session, err := s.sessionRepository.FindByRotateToken(ctx, rotateToken)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to find session: %w", err)
+		return "", "", hexerr.Wrapf(err, "failed to find session")
 	}
 	if session == nil {
-		return "", "", errors.New("session not found")
+		return "", "", hexerr.New("session not found")
 	}
 
 	// Check if session is expired
 	if time.Now().After(session.ExpiresAt) {
 		// Clean up expired session
 		_ = s.sessionRepository.Delete(ctx, rotateToken)
-		return "", "", errors.New("session expired")
+		return "", "", hexerr.New("session expired")
 	}
 
 	// Get user for creating action token
 	user, err := s.userRepository.FindByID(ctx, session.UserID)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to find user: %w", err)
+		return "", "", hexerr.Wrapf(err, "failed to find user")
 	}
 	if user == nil {
-		return "", "", errors.New("user not found")
+		return "", "", hexerr.New("user not found")
 	}
 
 	// Update session tracking
@@ -125,12 +125,12 @@ func (s *sessionService) RefreshActionToken(ctx context.Context, rotateToken, ip
 		// Generate new rotate token
 		newRotateToken, err = generateRotateToken()
 		if err != nil {
-			return "", "", fmt.Errorf("failed to generate new rotate token: %w", err)
+			return "", "", hexerr.Wrapf(err, "failed to generate new rotate token")
 		}
 
 		// Delete old session
 		if err := s.sessionRepository.Delete(ctx, rotateToken); err != nil {
-			return "", "", fmt.Errorf("failed to delete old session: %w", err)
+			return "", "", hexerr.Wrapf(err, "failed to delete old session")
 		}
 
 		// Create new session with new rotate token
@@ -140,7 +140,7 @@ func (s *sessionService) RefreshActionToken(ctx context.Context, rotateToken, ip
 		session.Version = 1
 
 		if err := s.sessionRepository.Create(ctx, session); err != nil {
-			return "", "", fmt.Errorf("failed to create new session: %w", err)
+			return "", "", hexerr.Wrapf(err, "failed to create new session")
 		}
 	} else {
 		// Update existing session
@@ -150,16 +150,16 @@ func (s *sessionService) RefreshActionToken(ctx context.Context, rotateToken, ip
 				// Retry: re-read session and update
 				session, retryErr := s.sessionRepository.FindByRotateToken(ctx, rotateToken)
 				if retryErr != nil || session == nil {
-					return "", "", fmt.Errorf("failed to retry update: %w", retryErr)
+					return "", "", hexerr.Wrapf(retryErr, "failed to retry update")
 				}
 				session.IPAddress = ipAddress
 				session.UserAgent = userAgent
 				session.UpdatedAt = time.Now()
 				if retryErr := s.sessionRepository.Update(ctx, session); retryErr != nil {
-					return "", "", fmt.Errorf("failed to update session after retry: %w", retryErr)
+					return "", "", hexerr.Wrapf(retryErr, "failed to update session after retry")
 				}
 			} else {
-				return "", "", fmt.Errorf("failed to update session: %w", err)
+				return "", "", hexerr.Wrapf(err, "failed to update session")
 			}
 		}
 	}
@@ -168,7 +168,7 @@ func (s *sessionService) RefreshActionToken(ctx context.Context, rotateToken, ip
 	userCode := utils.IdToCode(user.ID)
 	actionToken, err = user_profile.CreateAuthTokenWithExpiry(user.ExternalIDs, userCode, user.Name, user.Avatar, 1*time.Hour)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create action token: %w", err)
+		return "", "", hexerr.Wrapf(err, "failed to create action token")
 	}
 
 	// Update user's last activity

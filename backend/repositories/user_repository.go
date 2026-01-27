@@ -4,14 +4,15 @@ package repositories
 import (
 	"context"
 	"errors"
-	"fmt"
+	"time"
+
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/hexerr"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"time"
 )
 
 type UserRepository interface {
@@ -122,7 +123,7 @@ func (r *UserRepositoryInstance) Update(ctx context.Context, user *models.User) 
 		return err
 	}
 	if result.ModifiedCount == 0 {
-		return fmt.Errorf("concurrent modification detected")
+		return hexerr.New("concurrent modification detected")
 	}
 	return nil
 }

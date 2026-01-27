@@ -3,12 +3,14 @@ package gameapi
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
-	"net/http"
-	"time"
+	"github.com/andriyg76/hexerr"
 )
 
 // API структури
@@ -217,7 +219,7 @@ func (h *Handler) deleteGameType(w http.ResponseWriter, r *http.Request) {
 func validateGameType(gt *models.GameType) error {
 	// Перевірка обов'язкових полів
 	if gt.Key == "" && len(gt.Names) == 0 {
-		return fmt.Errorf("game type key or name is required")
+		return hexerr.New("game type key or name is required")
 	}
 
 	// Перевірка min/max players
@@ -235,7 +237,7 @@ func validateGameType(gt *models.GameType) error {
 			continue
 		}
 		if roleKeys[role.Key] {
-			return fmt.Errorf("duplicate role key: %s", role.Key)
+			return hexerr.New(fmt.Sprintf("duplicate role key: %s", role.Key))
 		}
 		roleKeys[role.Key] = true
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/hexerr"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -152,7 +153,7 @@ func (r *LeagueInvitationRepositoryInstance) MarkAsUsed(ctx context.Context, id 
 	}
 
 	if result.MatchedCount == 0 {
-		return errors.New("invitation not found or already used")
+		return hexerr.New("invitation not found or already used")
 	}
 
 	return nil
@@ -182,7 +183,7 @@ func (r *LeagueInvitationRepositoryInstance) Cancel(ctx context.Context, id prim
 	}
 
 	if result.MatchedCount == 0 {
-		return errors.New("invitation not found or already expired/used")
+		return hexerr.New("invitation not found or already expired/used")
 	}
 
 	return nil
@@ -233,7 +234,7 @@ func (r *LeagueInvitationRepositoryInstance) Extend(ctx context.Context, id prim
 	}
 
 	if result.MatchedCount == 0 {
-		return errors.New("invitation not found or already used")
+		return hexerr.New("invitation not found or already used")
 	}
 
 	return nil

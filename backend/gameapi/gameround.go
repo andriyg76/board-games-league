@@ -10,6 +10,7 @@ import (
 
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/utils"
+	"github.com/andriyg76/hexerr"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -106,7 +107,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 		for teamName, hasPlayers := range teamAssignments {
 			if !hasPlayers {
 				utils.LogAndWriteHTTPError(r, w, http.StatusBadRequest,
-					fmt.Errorf("team %s has no players assigned", teamName),
+					hexerr.New(fmt.Sprintf("team %s has no players assigned", teamName)),
 					"invalid team assignments")
 				return
 			}

@@ -1,12 +1,12 @@
 package wizardapi
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/hexerr"
 )
 
 // CalculateRoundScore calculates score for a round based on bid and actual tricks
@@ -26,17 +26,17 @@ func CalculateRoundScore(bid int, actual int) int {
 // ValidateBids validates bids according to game rules
 func ValidateBids(game *models.WizardGame, roundNumber int, bids []int) error {
 	if len(bids) != len(game.Players) {
-		return fmt.Errorf("bids count (%d) doesn't match players count (%d)", len(bids), len(game.Players))
+		return hexerr.New(fmt.Sprintf("bids count (%d) doesn't match players count (%d)", len(bids), len(game.Players)))
 	}
 
 	// Check all bids are valid
 	totalBids := 0
 	for i, bid := range bids {
 		if bid < 0 {
-			return fmt.Errorf("bid for player %d cannot be negative", i)
+			return hexerr.New(fmt.Sprintf("bid for player %d cannot be negative", i))
 		}
 		if bid > roundNumber {
-			return fmt.Errorf("bid for player %d (%d) cannot exceed cards count (%d)", i, bid, roundNumber)
+			return hexerr.New(fmt.Sprintf("bid for player %d (%d) cannot exceed cards count (%d)", i, bid, roundNumber))
 		}
 		totalBids += bid
 	}
@@ -51,11 +51,11 @@ func ValidateBids(game *models.WizardGame, roundNumber int, bids []int) error {
 	switch game.Config.BidRestriction {
 	case models.BidRestrictionCannotMatch:
 		if totalBids == cardsCount {
-			return errors.New("total bids cannot equal cards count")
+			return hexerr.New("total bids cannot equal cards count")
 		}
 	case models.BidRestrictionMustMatch:
 		if totalBids != cardsCount {
-			return fmt.Errorf("total bids must equal cards count (got %d, expected %d)", totalBids, cardsCount)
+			return hexerr.New(fmt.Sprintf("total bids must equal cards count (got %d, expected %d)", totalBids, cardsCount))
 		}
 	}
 
@@ -65,23 +65,23 @@ func ValidateBids(game *models.WizardGame, roundNumber int, bids []int) error {
 // ValidateResults validates actual results
 func ValidateResults(game *models.WizardGame, roundNumber int, results []int) error {
 	if len(results) != len(game.Players) {
-		return fmt.Errorf("results count (%d) doesn't match players count (%d)", len(results), len(game.Players))
+		return hexerr.New(fmt.Sprintf("results count (%d) doesn't match players count (%d)", len(results), len(game.Players)))
 	}
 
 	totalResults := 0
 	for i, result := range results {
 		if result < 0 {
-			return fmt.Errorf("result for player %d cannot be negative", i)
+			return hexerr.New(fmt.Sprintf("result for player %d cannot be negative", i))
 		}
 		if result > roundNumber {
-			return fmt.Errorf("result for player %d (%d) cannot exceed cards count (%d)", i, result, roundNumber)
+			return hexerr.New(fmt.Sprintf("result for player %d (%d) cannot exceed cards count (%d)", i, result, roundNumber))
 		}
 		totalResults += result
 	}
 
 	// Total actual tricks must equal cards count
 	if totalResults != roundNumber {
-		return fmt.Errorf("total actual tricks (%d) must equal cards count (%d)", totalResults, roundNumber)
+		return hexerr.New(fmt.Sprintf("total actual tricks (%d) must equal cards count (%d)", totalResults, roundNumber))
 	}
 
 	return nil
@@ -95,7 +95,7 @@ func CalculateDealerIndex(firstDealerIndex int, roundNumber int, playerCount int
 // CompleteRound calculates scores for all players after round completion
 func CompleteRound(game *models.WizardGame, roundIndex int) error {
 	if roundIndex < 0 || roundIndex >= len(game.Rounds) {
-		return errors.New("invalid round index")
+		return hexerr.New("invalid round index")
 	}
 
 	round := &game.Rounds[roundIndex]
@@ -103,7 +103,7 @@ func CompleteRound(game *models.WizardGame, roundIndex int) error {
 	// Check all bids and actuals are set
 	for i, pr := range round.PlayerResults {
 		if pr.Bid < 0 || pr.Actual < 0 {
-			return fmt.Errorf("player %d has missing bid or actual", i)
+			return hexerr.New(fmt.Sprintf("player %d has missing bid or actual", i))
 		}
 	}
 
@@ -140,7 +140,7 @@ func CompleteRound(game *models.WizardGame, roundIndex int) error {
 // Used when editing mistakes
 func RecalculateFromRound(game *models.WizardGame, fromRoundIndex int) error {
 	if fromRoundIndex < 0 || fromRoundIndex >= len(game.Rounds) {
-		return errors.New("invalid round index")
+		return hexerr.New("invalid round index")
 	}
 
 	// Recalculate all rounds starting from fromRoundIndex
@@ -191,7 +191,7 @@ func FinalizeGame(wizardGame *models.WizardGame, gameRound *models.GameRound) er
 	// Check all rounds are completed
 	for i, round := range wizardGame.Rounds {
 		if round.Status != models.RoundStatusCompleted {
-			return fmt.Errorf("round %d is not completed", i+1)
+			return hexerr.New(fmt.Sprintf("round %d is not completed", i+1))
 		}
 	}
 

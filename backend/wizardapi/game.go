@@ -10,6 +10,7 @@ import (
 
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/utils"
+	"github.com/andriyg76/hexerr"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -227,7 +228,7 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 				r,
 				w,
 				http.StatusInternalServerError,
-				fmt.Errorf("failed to get membership code for ID %s", player.MembershipID.Hex()),
+				hexerr.New(fmt.Sprintf("failed to get membership code for ID %s", player.MembershipID.Hex())),
 				"%s",
 				fmt.Sprintf("Error converting membership ID to code at index %d", i),
 			)
@@ -243,7 +244,7 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 	// Convert GameRoundID to code
 	gameRoundIdAndCode := h.idCodeCache.GetByID(wizardGame.GameRoundID)
 	if gameRoundIdAndCode == nil {
-		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, fmt.Errorf("failed to get game round code for ID %s", wizardGame.GameRoundID.Hex()),
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, hexerr.New(fmt.Sprintf("failed to get game round code for ID %s", wizardGame.GameRoundID.Hex())),
 			"Error converting game round ID to code")
 		return
 	}

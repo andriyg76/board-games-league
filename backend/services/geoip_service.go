@@ -3,12 +3,14 @@ package services
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/andriyg76/bgl/models"
-	"github.com/andriyg76/glog"
 	"io"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/glog"
+	"github.com/andriyg76/hexerr"
 )
 
 type GeoIPService interface {
@@ -56,11 +58,11 @@ type ipinfoError struct {
 
 func (s *geoipService) GetGeoIPInfo(ipAddress string) (*models.GeoIPInfo, error) {
 	if ipAddress == "" {
-		return nil, fmt.Errorf("ip address is required")
+		return nil, hexerr.New("ip address is required")
 	}
 
 	if s.apiToken == "" {
-		return nil, fmt.Errorf("IPINFO_TOKEN is not configured")
+		return nil, hexerr.New("IPINFO_TOKEN is not configured")
 	}
 
 	url := fmt.Sprintf("https://ipinfo.io/%s", ipAddress)
@@ -81,7 +83,7 @@ func (s *geoipService) GetGeoIPInfo(ipAddress string) (*models.GeoIPInfo, error)
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		glog.Warn("GeoIP API returned status %d for %s: %s", resp.StatusCode, ipAddress, string(body))
-		return nil, fmt.Errorf("geoip API returned status %d", resp.StatusCode)
+		return nil, hexerr.New(fmt.Sprintf("geoip API returned status %d", resp.StatusCode))
 	}
 
 	var apiResp ipinfoResponse
@@ -92,7 +94,7 @@ func (s *geoipService) GetGeoIPInfo(ipAddress string) (*models.GeoIPInfo, error)
 
 	if apiResp.Error != nil {
 		glog.Warn("GeoIP API error for %s: %s - %s", ipAddress, apiResp.Error.Title, apiResp.Error.Message)
-		return nil, fmt.Errorf("geoip API error: %s", apiResp.Error.Message)
+		return nil, hexerr.New(fmt.Sprintf("geoip API error: %s", apiResp.Error.Message))
 	}
 
 	return &models.GeoIPInfo{

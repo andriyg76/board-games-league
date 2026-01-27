@@ -3,10 +3,12 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/andriyg76/glog"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/andriyg76/glog"
+	"github.com/andriyg76/hexerr"
 )
 
 // Load Discord webhook URL from environment variable
@@ -50,7 +52,7 @@ func SendToDiscord(content string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to send to Discord, status code: %d", resp.StatusCode)
+		return hexerr.New(fmt.Sprintf("failed to send to Discord, status code: %d", resp.StatusCode))
 	}
 
 	return nil

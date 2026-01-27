@@ -1,11 +1,10 @@
 package utils
 
 import (
-	"errors"
 	"math/big"
-
 	"net/http"
 
+	"github.com/andriyg76/hexerr"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -54,7 +53,7 @@ func EncodeBase58(data []byte) string {
 // decodeBase58 decodes a base58 string to a byte slice
 func decodeBase58(s string) ([]byte, error) {
 	if len(s) == 0 {
-		return nil, errors.New("empty base58 string")
+		return nil, hexerr.New("empty base58 string")
 	}
 
 	// Create reverse alphabet map
@@ -70,7 +69,7 @@ func decodeBase58(s string) ([]byte, error) {
 	for _, char := range []byte(s) {
 		value, ok := alphabetMap[char]
 		if !ok {
-			return nil, errors.New("invalid base58 character")
+			return nil, hexerr.New("invalid base58 character")
 		}
 		num.Mul(num, base)
 		num.Add(num, big.NewInt(value))
@@ -117,7 +116,7 @@ func IdToCode(id primitive.ObjectID) string {
 //   - error: if the code is invalid or cannot be decoded
 func CodeToID(code string) (primitive.ObjectID, error) {
 	if code == "" {
-		return primitive.NilObjectID, errors.New("empty code")
+		return primitive.NilObjectID, hexerr.New("empty code")
 	}
 
 	bytes, err := decodeBase58(code)
@@ -126,7 +125,7 @@ func CodeToID(code string) (primitive.ObjectID, error) {
 	}
 
 	if len(bytes) != 12 {
-		return primitive.NilObjectID, errors.New("invalid code format: expected 12 bytes")
+		return primitive.NilObjectID, hexerr.New("invalid code format: expected 12 bytes")
 	}
 
 	var id primitive.ObjectID

@@ -21,6 +21,7 @@ import (
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
 	"github.com/andriyg76/glog"
+	"github.com/andriyg76/hexerr"
 )
 
 // BuildInfo holds build-time information injected via ldflags
@@ -180,12 +181,12 @@ func (h *DiagnosticsHandler) GetDiagnosticsHandler(w http.ResponseWriter, r *htt
 func (h *DiagnosticsHandler) ensureSuperAdmin(w http.ResponseWriter, r *http.Request) bool {
 	claims, ok := r.Context().Value("user").(*user_profile.UserProfile)
 	if !ok || claims == nil {
-		utils.LogAndWriteHTTPError(r, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"), "unauthorized")
+		utils.LogAndWriteHTTPError(r, w, http.StatusUnauthorized, hexerr.New("unauthorized"), "unauthorized")
 		return false
 	}
 
 	if !auth.IsSuperAdminByExternalIDs(claims.ExternalIDs) {
-		utils.LogAndWriteHTTPError(r, w, http.StatusForbidden, fmt.Errorf("forbidden"), "admin access required")
+		utils.LogAndWriteHTTPError(r, w, http.StatusForbidden, hexerr.New("forbidden"), "admin access required")
 		return false
 	}
 
@@ -345,7 +346,7 @@ func parseLogLines(value string) int {
 func getServerLogPath() (string, error) {
 	logDir := strings.TrimSpace(os.Getenv("LOG_DIR"))
 	if logDir == "" {
-		return "", errors.New("LOG_DIR is not configured")
+		return "", hexerr.New("LOG_DIR is not configured")
 	}
 	return filepath.Join(logDir, "server.log"), nil
 }
@@ -354,7 +355,7 @@ func readLastLines(path string, maxLines int) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("server.log not found")
+			return nil, hexerr.Wrapf(err, "server.log not found")
 		}
 		return nil, err
 	}

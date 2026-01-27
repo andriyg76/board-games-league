@@ -7,6 +7,7 @@ import (
 
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/hexerr"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -319,7 +320,7 @@ func (r *LeagueMembershipRepositoryInstance) UpdateRecentCoPlayersAfterGame(ctx 
 		return err
 	}
 	if membership == nil {
-		return errors.New("membership not found")
+		return hexerr.New("membership not found")
 	}
 
 	// Build new list of co-players

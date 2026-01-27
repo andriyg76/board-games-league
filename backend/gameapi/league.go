@@ -2,7 +2,6 @@ package gameapi
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
+	"github.com/andriyg76/hexerr"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -709,7 +709,7 @@ type invitationResponse struct {
 func (h *Handler) getIDFromChiURL(r *http.Request, codeParam string) (primitive.ObjectID, error) {
 	code := chi.URLParam(r, codeParam)
 	if code == "" {
-		return primitive.NilObjectID, errors.New("code parameter is required")
+		return primitive.NilObjectID, hexerr.New("code parameter is required")
 	}
 	idAndCode, err := h.idCodeCache.GetByCode(code)
 	if err != nil {

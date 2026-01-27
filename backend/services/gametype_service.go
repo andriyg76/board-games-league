@@ -3,9 +3,11 @@ package services
 import (
 	"context"
 	"embed"
+
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/glog"
+	"github.com/andriyg76/hexerr"
 	"gopkg.in/yaml.v3"
 )
 
@@ -54,12 +56,12 @@ type roleYAML struct {
 func (s *gameTypeService) LoadBuiltInGames(ctx context.Context) error {
 	data, err := gamesYAML.ReadFile("data/games.yaml")
 	if err != nil {
-		return glog.Error("failed to read embedded games.yaml: %w", err)
+		return hexerr.Wrapf(err, "failed to read embedded games.yaml")
 	}
 
 	var file gamesYAMLFile
 	if err := yaml.Unmarshal(data, &file); err != nil {
-		return glog.Error("failed to parse games.yaml: %w", err)
+		return hexerr.Wrapf(err, "failed to parse games.yaml")
 	}
 
 	for _, g := range file.Games {

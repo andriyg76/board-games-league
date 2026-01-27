@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/andriyg76/hexerr"
 )
 
 const dateFormat = "2006-01-02"
@@ -36,7 +38,7 @@ func (w *DailyRotatingWriter) Write(p []byte) (int, error) {
 		return 0, err
 	}
 	if w.file == nil {
-		return 0, fmt.Errorf("log file is not available")
+		return 0, hexerr.New("log file is not available")
 	}
 	return w.file.Write(p)
 }

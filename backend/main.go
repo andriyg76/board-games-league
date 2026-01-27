@@ -16,6 +16,7 @@ import (
 	"github.com/andriyg76/bgl/api"
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/db"
+	"github.com/andriyg76/hexerr"
 	"github.com/andriyg76/bgl/frontendfs"
 	"github.com/andriyg76/bgl/gameapi"
 	"github.com/andriyg76/bgl/internal/logging"
@@ -94,6 +95,7 @@ func main() {
 	defer cleanup()
 
 	log.Info("Starting...")
+	hexerr.SetFilterPrefixes("github.com/andriyg76/bgl")
 	auth.LogSuperAdmins()
 
 	mongourl := os.Getenv("MONGODB_URI")

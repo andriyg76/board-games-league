@@ -3,14 +3,15 @@ package repositories
 import (
 	"context"
 	"errors"
-	"fmt"
+	"time"
+
 	"github.com/andriyg76/bgl/db"
 	"github.com/andriyg76/bgl/models"
+	"github.com/andriyg76/hexerr"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"time"
 )
 
 type SessionRepository interface {
@@ -111,7 +112,7 @@ func (r *SessionRepositoryInstance) Update(ctx context.Context, session *models.
 		return err
 	}
 	if result.ModifiedCount == 0 {
-		return fmt.Errorf("concurrent modification detected")
+		return hexerr.New("concurrent modification detected")
 	}
 	return nil
 }
@@ -122,7 +123,7 @@ func (r *SessionRepositoryInstance) Delete(ctx context.Context, rotateToken stri
 		return err
 	}
 	if result.DeletedCount == 0 {
-		return errors.New("session not found")
+		return hexerr.New("session not found")
 	}
 	return nil
 }

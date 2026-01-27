@@ -3,16 +3,18 @@ package userapi
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/andriyg76/bgl/auth"
 	"github.com/andriyg76/bgl/models"
 	"github.com/andriyg76/bgl/repositories"
 	"github.com/andriyg76/bgl/services"
 	"github.com/andriyg76/bgl/user_profile"
 	"github.com/andriyg76/bgl/utils"
+	"github.com/andriyg76/hexerr"
 	log "github.com/andriyg76/glog"
-	"net/http"
-	"strings"
-	"time"
 )
 
 func (h *Handler) CheckAliasUniquenessHandler(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +39,7 @@ func (h *Handler) CheckAliasUniquenessHandler(w http.ResponseWriter, r *http.Req
 func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	claims, ok := r.Context().Value("user").(*user_profile.UserProfile)
 	if !ok || claims == nil {
-		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, fmt.Errorf("claims are null or bad %v", r.Context().Value("user")), "server error")
+		utils.LogAndWriteHTTPError(r, w, http.StatusInternalServerError, hexerr.New(fmt.Sprintf("claims are null or bad %v", r.Context().Value("user"))), "server error")
 		return
 	}
 
@@ -47,7 +49,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if user == nil {
-		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, fmt.Errorf("user profile not found"), "user profile not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, hexerr.New("user profile not found"), "user profile not found")
 		return
 	}
 
@@ -163,7 +165,7 @@ type SessionInfo struct {
 func (h *Handler) GetUserSessionsHandler(w http.ResponseWriter, r *http.Request) {
 	claims, ok := r.Context().Value("user").(*user_profile.UserProfile)
 	if !ok || claims == nil {
-		utils.LogAndWriteHTTPError(r, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"), "unauthorized")
+		utils.LogAndWriteHTTPError(r, w, http.StatusUnauthorized, hexerr.New("unauthorized"), "unauthorized")
 		return
 	}
 
@@ -173,7 +175,7 @@ func (h *Handler) GetUserSessionsHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if user == nil {
-		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, fmt.Errorf("user not found"), "user not found")
+		utils.LogAndWriteHTTPError(r, w, http.StatusNotFound, hexerr.New("user not found"), "user not found")
 		return
 	}
 

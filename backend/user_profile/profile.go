@@ -1,12 +1,14 @@
 package user_profile
 
 import (
-	"github.com/andriyg76/bgl/utils"
-	"github.com/andriyg76/glog"
-	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/andriyg76/bgl/utils"
+	"github.com/andriyg76/glog"
+	"github.com/andriyg76/hexerr"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 var config = struct {
@@ -59,7 +61,7 @@ func CreateAuthToken(IDs []string, Code, name, avatar string) (string, error) {
 
 func CreateAuthTokenWithExpiry(IDs []string, Code, name, avatar string, expiry time.Duration) (string, error) {
 	if Code == "" {
-		return "", glog.Error("code should be specified for usertoken.")
+		return "", hexerr.New("code should be specified for usertoken.")
 	}
 	claims := UserProfile{
 		Code:        Code,
@@ -90,7 +92,7 @@ func ParseProfile(cookie string) (*UserProfile, error) {
 func GetUserProfile(r *http.Request) (*UserProfile, error) {
 	profile, ok := r.Context().Value("user").(*UserProfile)
 	if !ok || profile == nil {
-		return nil, glog.Error("user profile is not found in profile.")
+		return nil, hexerr.New("user profile is not found in profile.")
 	}
 	return profile, nil
 }
