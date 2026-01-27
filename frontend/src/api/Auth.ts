@@ -1,4 +1,5 @@
 import {User} from "@/api/UserApi";
+import { resolveApiUrl } from "@/api/apiClient";
 
 type AuthCallbackResponse = User & { rotateToken?: string };
 
@@ -10,7 +11,7 @@ export default {
             stateToken += letters.charAt(Math.floor(Math.random() * letters.length));
         }
 
-        return `/api/auth/google?provider=${provider}&state=${stateToken}`;
+        return resolveApiUrl(`/api/auth/google?provider=${provider}&state=${stateToken}`);
     },
 
     async logout(): Promise<void> {
@@ -21,7 +22,7 @@ export default {
                 headers['Authorization'] = `Bearer ${rotateToken}`;
             }
 
-            const response = await fetch('/api/auth/logout', {
+            const response = await fetch(resolveApiUrl('/api/auth/logout'), {
                 method: 'POST',
                 credentials: 'include',
                 headers,
@@ -36,7 +37,7 @@ export default {
         }
     },
     async handleAuthCallback(params: string): Promise<User | null> {
-        const response = await fetch(`/api/auth/google/callback?${params}`, {
+        const response = await fetch(resolveApiUrl(`/api/auth/google/callback?${params}`), {
             credentials: 'include',
             method: 'POST'
         });

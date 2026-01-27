@@ -32,6 +32,13 @@ const messages = {
             user: 'User',
             diagnostics: 'Diagnostics'
         },
+        ui: {
+            switchPrompt: 'It looks like the {mode} version fits your device better. Switch?',
+            mode: {
+                mobile: 'mobile',
+                desktop: 'desktop'
+            }
+        },
         home: {
             title: 'Board Games League',
             welcome: 'Welcome to your board games tracking dashboard',
@@ -392,6 +399,13 @@ const messages = {
             user: 'Користувач',
             diagnostics: 'Діагностика'
         },
+        ui: {
+            switchPrompt: 'Схоже, що для вашого пристрою краще {mode} версія. Перейти?',
+            mode: {
+                mobile: 'мобільна',
+                desktop: 'десктопна'
+            }
+        },
         home: {
             title: 'Ліга настільних ігор',
             welcome: 'Ласкаво просимо до вашої панелі відстеження настільних ігор',
@@ -751,6 +765,13 @@ const messages = {
             leagues: 'Liigad',
             user: 'Kasutaja',
             diagnostics: 'Diagnostika'
+        },
+        ui: {
+            switchPrompt: 'Paistab, et teie seadmele sobib paremini {mode} versioon. Kas vahetada?',
+            mode: {
+                mobile: 'mobiilne',
+                desktop: 'töölaua'
+            }
         },
         home: {
             title: 'Lauamängude liiga',

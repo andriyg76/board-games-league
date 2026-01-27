@@ -116,17 +116,51 @@ jobs:
             BUILD_BRANCH=${{ steps.build-vars.outputs.branch }}
             BUILD_DATE=${{ steps.build-vars.outputs.date }}
 
-      # Sign the resulting Docker image digest except on PRs.
-      # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
-      # https://github.com/sigstore/cosign
-      - name: Sign the published Docker image
-        if: ${{ github.event_name != 'pull_request' }}
-        env:
-          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta.outputs.tags }}
-          DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+      - name: Deploy and check backend on ext-test (main branch only)
+        if: github.ref_name == 'main'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ~/board-games-league-ext-test
+            echo ""
+            echo "=========================================="
+            echo "Starting containers..."
+            echo "=========================================="
+            docker compose up -d
+            echo ""
+            echo "Waiting 10 seconds for containers to start..."
+            sleep 10
+            echo ""
+            echo "=========================================="
+            echo "Backend logs (last 100 lines):"
+            echo "=========================================="
+            docker compose logs backend --tail 100
+            echo ""
+            echo "=========================================="
+            echo "Checking backend container status..."
+            echo "=========================================="
+            CONTAINER_INFO=$(docker compose ps backend --format "{{.Name}},{{.Status}}" | head -1)
+            if [ -z "$CONTAINER_INFO" ]; then
+              echo "ERROR: Backend container not found!"
+              docker compose ps
+              exit 1
+            fi
+            CONTAINER_STATUS=$(echo "$CONTAINER_INFO" | cut -d',' -f2)
+            echo "Container status: $CONTAINER_STATUS"
+            if echo "$CONTAINER_STATUS" | grep -qE "(Exited|Dead|Restarting)"; then
+              echo "ERROR: Backend container is not in a healthy state!"
+              echo "Status: $CONTAINER_STATUS"
+              docker compose ps backend
+              exit 1
+            fi
+            if ! echo "$CONTAINER_STATUS" | grep -q "Up"; then
+              echo "ERROR: Backend container is not running!"
+              echo "Status: $CONTAINER_STATUS"
+              docker compose ps backend
+              exit 1
+            fi
+            echo "✓ Backend container is running successfully"

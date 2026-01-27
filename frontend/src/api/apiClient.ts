@@ -11,6 +11,21 @@
 // Track ongoing refresh to prevent multiple simultaneous refresh attempts
 let refreshPromise: Promise<boolean> | null = null;
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
+export const resolveApiUrl = (url: string): string => {
+    if (!API_BASE_URL) {
+        return url;
+    }
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) {
+        return url;
+    }
+    if (url.startsWith('/')) {
+        return `${API_BASE_URL}${url}`;
+    }
+    return `${API_BASE_URL}/${url}`;
+};
+
 /**
  * Attempt to refresh the auth token using the rotate token from localStorage
  * Returns true if refresh succeeded, false otherwise
@@ -22,7 +37,7 @@ async function refreshAuthToken(): Promise<boolean> {
     }
 
     try {
-        const response = await fetch('/api/auth/refresh', {
+        const response = await fetch(resolveApiUrl('/api/auth/refresh'), {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -67,7 +82,8 @@ export async function apiFetch(
         credentials: 'include',
     };
 
-    let response = await fetch(url, fetchOptions);
+    const resolvedUrl = resolveApiUrl(url);
+    let response = await fetch(resolvedUrl, fetchOptions);
 
     // If unauthorized, try to refresh and retry
     if (response.status === 401) {
@@ -82,7 +98,7 @@ export async function apiFetch(
         
         if (refreshed) {
             // Retry the original request
-            response = await fetch(url, fetchOptions);
+            response = await fetch(resolvedUrl, fetchOptions);
         }
         // If refresh failed, return the original 401 response
         // The caller can handle it (e.g., redirect to login)

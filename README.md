@@ -85,6 +85,26 @@ npm run dev
 ### Environment Variables
 See `.env.example` for required environment variables.
 
+### Electron Wrapper (Mobile UI)
+The Electron shell is intended to always show the mobile UI.
+
+Example environment config:
+```
+VITE_ELECTRON=true
+VITE_API_BASE_URL=https://api.example.com
+VITE_PUBLIC_WEB_BASE_URL=https://app.example.com
+
+# Electron runtime options
+ELECTRON_PROTOCOL=bgl
+ELECTRON_START_URL=http://localhost:5173
+ELECTRON_INITIAL_ROUTE=/m?ui=mobile
+```
+
+Deep link example:
+```
+bgl://m/accept-invite/INVITE_TOKEN?ui=mobile
+```
+
 ## League System Usage
 
 ### Creating a League (Superadmin Only)

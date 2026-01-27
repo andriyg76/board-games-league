@@ -190,7 +190,9 @@ watch(() => props.invitation, () => {
 
 const invitationLink = computed(() => {
   if (!props.invitation) return '';
-  return `${window.location.origin}/ui/leagues/join/${props.invitation.token}`;
+  const publicBase = (import.meta.env.VITE_PUBLIC_WEB_BASE_URL || '').trim();
+  const baseUrl = publicBase ? publicBase.replace(/\/$/, '') : window.location.origin;
+  return `${baseUrl}/ui/leagues/join/${props.invitation.token}`;
 });
 
 const copyToClipboard = async () => {

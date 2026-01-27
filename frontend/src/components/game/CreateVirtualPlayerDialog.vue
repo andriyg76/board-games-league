@@ -120,7 +120,9 @@ const create = async () => {
     const invitation = await LeagueApi.createInvitation(props.leagueCode, alias.value.trim());
     
     // Build invitation link
-    invitationLink.value = `${window.location.origin}/join/${invitation.token}`;
+    const publicBase = (import.meta.env.VITE_PUBLIC_WEB_BASE_URL || '').trim();
+    const baseUrl = publicBase ? publicBase.replace(/\/$/, '') : window.location.origin;
+    invitationLink.value = `${baseUrl}/join/${invitation.token}`;
     
     // Copy to clipboard
     await copyLink();

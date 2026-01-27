@@ -1,5 +1,5 @@
 // League API types and methods
-import { apiFetch, apiJson, apiJsonPost } from './apiClient';
+import { apiFetch, apiJson, apiJsonPost, resolveApiUrl } from './apiClient';
 
 export type LeagueStatus = 'active' | 'archived';
 export type LeagueMembershipStatus = 'active' | 'banned' | 'pending' | 'virtual';
@@ -182,7 +182,7 @@ export default {
      * Preview an invitation (public, no auth required)
      */
     async previewInvitation(token: string): Promise<InvitationPreview> {
-        const response = await fetch(`/api/leagues/join/${encodeURIComponent(token)}/preview`);
+        const response = await fetch(resolveApiUrl(`/api/leagues/join/${encodeURIComponent(token)}/preview`));
         if (!response.ok) {
             throw new Error('Invitation not found');
         }
