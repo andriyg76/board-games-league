@@ -149,59 +149,59 @@ jobs:
         env:
           DEPLOY_TEST_DIR: ${{ secrets.DEPLOY_TEST_DIR }}
           DEPLOY_VERSION: ${{ needs.build.outputs.deploy_version }}
-        script: |
-          set -e
-          cd "$DEPLOY_TEST_DIR"
-
-          if [ -f .env ] && grep -q "^BACKEND_VERSION=" .env; then
-            sed -i "s|^BACKEND_VERSION=.*|BACKEND_VERSION=${DEPLOY_VERSION}|" .env
-            echo "Updated BACKEND_VERSION in .env to ${DEPLOY_VERSION}"
-          else
-            if [ -f .env ]; then
-              echo "BACKEND_VERSION=${DEPLOY_VERSION}" >> .env
+          script: |
+            set -e
+            cd "$DEPLOY_TEST_DIR"
+  
+            if [ -f .env ] && grep -q "^BACKEND_VERSION=" .env; then
+              sed -i "s|^BACKEND_VERSION=.*|BACKEND_VERSION=${DEPLOY_VERSION}|" .env
+              echo "Updated BACKEND_VERSION in .env to ${DEPLOY_VERSION}"
             else
-              echo "BACKEND_VERSION=${DEPLOY_VERSION}" > .env
+              if [ -f .env ]; then
+                echo "BACKEND_VERSION=${DEPLOY_VERSION}" >> .env
+              else
+                echo "BACKEND_VERSION=${DEPLOY_VERSION}" > .env
+              fi
+              echo "Added BACKEND_VERSION=${DEPLOY_VERSION} to .env"
             fi
-            echo "Added BACKEND_VERSION=${DEPLOY_VERSION} to .env"
-          fi
-
-          echo ""
-          echo "=========================================="
-          echo "Pulling images and starting containers..."
-          echo "=========================================="
-          docker compose pull
-          docker compose up -d
-
-          echo ""
-          echo "Waiting 10 seconds for containers to start..."
-          sleep 10
-
-          echo ""
-          echo "=========================================="
-          echo "Backend logs (last 50 lines):"
-          echo "=========================================="
-          docker compose logs backend --tail 50
-
-          echo ""
-          echo "=========================================="
-          echo "Checking backend container status..."
-          echo "=========================================="
-          CONTAINER_INFO=$(docker compose ps backend --format "{{.Name}},{{.Status}}" | head -1)
-          if [ -z "$CONTAINER_INFO" ]; then
-            echo "ERROR: Backend container not found!"
-            docker compose ps
-            exit 1
-          fi
-          CONTAINER_STATUS=$(echo "$CONTAINER_INFO" | cut -d',' -f2)
-          echo "Container status: $CONTAINER_STATUS"
-          if echo "$CONTAINER_STATUS" | grep -qE "(Exited|Dead|Restarting)"; then
-            echo "ERROR: Backend container is not in a healthy state!"
-            docker compose ps backend
-            exit 1
-          fi
-          if ! echo "$CONTAINER_STATUS" | grep -q "Up"; then
-            echo "ERROR: Backend container is not running!"
-            docker compose ps backend
-            exit 1
-          fi
-          echo "Backend container is running successfully"
+  
+            echo ""
+            echo "=========================================="
+            echo "Pulling images and starting containers..."
+            echo "=========================================="
+            docker compose pull
+            docker compose up -d
+  
+            echo ""
+            echo "Waiting 10 seconds for containers to start..."
+            sleep 10
+  
+            echo ""
+            echo "=========================================="
+            echo "Backend logs (last 50 lines):"
+            echo "=========================================="
+            docker compose logs backend --tail 50
+  
+            echo ""
+            echo "=========================================="
+            echo "Checking backend container status..."
+            echo "=========================================="
+            CONTAINER_INFO=$(docker compose ps backend --format "{{.Name}},{{.Status}}" | head -1)
+            if [ -z "$CONTAINER_INFO" ]; then
+              echo "ERROR: Backend container not found!"
+              docker compose ps
+              exit 1
+            fi
+            CONTAINER_STATUS=$(echo "$CONTAINER_INFO" | cut -d',' -f2)
+            echo "Container status: $CONTAINER_STATUS"
+            if echo "$CONTAINER_STATUS" | grep -qE "(Exited|Dead|Restarting)"; then
+              echo "ERROR: Backend container is not in a healthy state!"
+              docker compose ps backend
+              exit 1
+            fi
+            if ! echo "$CONTAINER_STATUS" | grep -q "Up"; then
+              echo "ERROR: Backend container is not running!"
+              docker compose ps backend
+              exit 1
+            fi
+            echo "Backend container is running successfully"
