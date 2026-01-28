@@ -32,6 +32,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/DiagnosticsView.vue'),
   },
   {
+    path: '/ui/admin/server',
+    name: 'ServerAdmin',
+    component: () => import('../views/ServerAdminView.vue'),
+  },
+  {
     path: '/ui/game-rounds',
     name: 'GameRounds',
     component: () => import('@/gametypes/GameroundsList.vue')

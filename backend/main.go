@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	stdlog "log"
 	"net/http"
 	"net/http/httputil"
@@ -46,30 +47,30 @@ func (a *cacheAdapter) Size() int {
 
 const logPermissions = 0o755
 
-func setupLogging() (*stdlog.Logger, func(), error) {
+func setupLogging() (*stdlog.Logger, func(), io.Writer, io.Writer, error) {
 	logDir := strings.TrimSpace(os.Getenv("LOG_DIR"))
 	if logDir == "" {
-		return nil, func() {}, nil
+		return nil, func() {}, nil, nil, nil
 	}
 
 	if err := os.MkdirAll(logDir, logPermissions); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	serverWriter, err := logging.NewDailyRotatingWriter(filepath.Join(logDir, "server.log"))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	accessWriter, err := logging.NewDailyRotatingWriter(filepath.Join(logDir, "access.log"))
 	if err != nil {
 		_ = serverWriter.Close()
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	debugWriter, err := logging.NewDailyRotatingWriter(filepath.Join(logDir, "debug.log"))
 	if err != nil {
 		_ = serverWriter.Close()
 		_ = accessWriter.Close()
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	log.SetWriters(serverWriter, serverWriter, log.INFO)
@@ -84,15 +85,20 @@ func setupLogging() (*stdlog.Logger, func(), error) {
 		_ = debugWriter.Close()
 	}
 
-	return accessLogger, cleanup, nil
+	return accessLogger, cleanup, serverWriter, debugWriter, nil
 }
 
 func main() {
-	accessLogger, cleanup, err := setupLogging()
+	accessLogger, cleanup, serverWriter, debugWriter, err := setupLogging()
 	if err != nil {
 		stdlog.Fatalf("Failed to configure logging: %v", err)
 	}
 	defer cleanup()
+
+	// Store log writers for runtime level changes
+	if serverWriter != nil && debugWriter != nil {
+		api.SetLogWriters(serverWriter, debugWriter)
+	}
 
 	log.Info("Starting...")
 	hexerr.SetFilterPrefixes("github.com/andriyg76/bgl")
@@ -248,6 +254,7 @@ func main() {
 	authHandler := auth.NewDefaultHandler(userRepository, sessionService, requestService)
 	userProfileHandler := userapi.NewHandlerWithServices(userRepository, sessionRepository, geoIPService)
 	diagnosticsHandler := api.NewDiagnosticsHandler(requestService, geoIPService, cacheCleanupService)
+	serverAdminHandler := api.NewServerAdminHandler()
 
 	log.Info("Handlers instances connector initialised")
 
@@ -266,6 +273,12 @@ func main() {
 		r.Post("/auth/refresh", authHandler.RefreshTokenHandler)
 
 		gameApiHandler.RegisterPublicRoutes(r)
+
+		// Server admin routes (token-based auth)
+		r.Route("/admin/server", func(r chi.Router) {
+			r.Use(bglmiddleware.AdminTokenMiddleware)
+			serverAdminHandler.RegisterRoutes(r)
+		})
 
 		// Protected routes
 		r.Group(func(r chi.Router) {
