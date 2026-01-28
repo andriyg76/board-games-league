@@ -15,6 +15,16 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      update_test:
+        description: 'Оновити test після білда'
+        required: true
+        type: choice
+        default: default
+        options:
+          - default
+          - yes
+          - no
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -30,21 +40,10 @@ jobs:
     permissions:
       contents: read
       packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      # Install the cosign tool except on PR
-      # https://github.com/sigstore/cosign-installer
-      - name: Install cosign
-        if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
-        with:
-          cosign-release: 'v2.2.4'
 
       # Set up BuildKit Docker container builder to be able to build
       # multi-platform images and export cache
@@ -97,6 +96,20 @@ jobs:
           echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
+      - name: Set deploy version
+        id: deploy-version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            V="${{ steps.build-vars.outputs.version }}"
+            if [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-|$) ]]; then
+              echo "version=v${V}" >> $GITHUB_OUTPUT
+            else
+              echo "version=${V}" >> $GITHUB_OUTPUT
+            fi
+          fi
+
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image
@@ -116,17 +129,79 @@ jobs:
             BUILD_BRANCH=${{ steps.build-vars.outputs.branch }}
             BUILD_DATE=${{ steps.build-vars.outputs.date }}
 
-      # Sign the resulting Docker image digest except on PRs.
-      # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
-      # https://github.com/sigstore/cosign
-      - name: Sign the published Docker image
-        if: ${{ github.event_name != 'pull_request' }}
+    outputs:
+      deploy_version: ${{ steps.deploy-version.outputs.version }}
+
+  deploy-test:
+    needs: build
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+      || (github.event_name == 'workflow_dispatch' && (inputs.update_test == 'yes' || (inputs.update_test == 'default' && github.ref == 'refs/heads/main')))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to test and check health
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DEPLOY_TEST_DIR,DEPLOY_VERSION
         env:
-          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta.outputs.tags }}
-          DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+          DEPLOY_TEST_DIR: ${{ secrets.DEPLOY_TEST_DIR }}
+          DEPLOY_VERSION: ${{ needs.build.outputs.deploy_version }}
+        script: |
+          set -e
+          cd "$DEPLOY_TEST_DIR"
+
+          if [ -f .env ] && grep -q "^BACKEND_VERSION=" .env; then
+            sed -i "s|^BACKEND_VERSION=.*|BACKEND_VERSION=${DEPLOY_VERSION}|" .env
+            echo "Updated BACKEND_VERSION in .env to ${DEPLOY_VERSION}"
+          else
+            if [ -f .env ]; then
+              echo "BACKEND_VERSION=${DEPLOY_VERSION}" >> .env
+            else
+              echo "BACKEND_VERSION=${DEPLOY_VERSION}" > .env
+            fi
+            echo "Added BACKEND_VERSION=${DEPLOY_VERSION} to .env"
+          fi
+
+          echo ""
+          echo "=========================================="
+          echo "Pulling images and starting containers..."
+          echo "=========================================="
+          docker compose pull
+          docker compose up -d
+
+          echo ""
+          echo "Waiting 10 seconds for containers to start..."
+          sleep 10
+
+          echo ""
+          echo "=========================================="
+          echo "Backend logs (last 50 lines):"
+          echo "=========================================="
+          docker compose logs backend --tail 50
+
+          echo ""
+          echo "=========================================="
+          echo "Checking backend container status..."
+          echo "=========================================="
+          CONTAINER_INFO=$(docker compose ps backend --format "{{.Name}},{{.Status}}" | head -1)
+          if [ -z "$CONTAINER_INFO" ]; then
+            echo "ERROR: Backend container not found!"
+            docker compose ps
+            exit 1
+          fi
+          CONTAINER_STATUS=$(echo "$CONTAINER_INFO" | cut -d',' -f2)
+          echo "Container status: $CONTAINER_STATUS"
+          if echo "$CONTAINER_STATUS" | grep -qE "(Exited|Dead|Restarting)"; then
+            echo "ERROR: Backend container is not in a healthy state!"
+            docker compose ps backend
+            exit 1
+          fi
+          if ! echo "$CONTAINER_STATUS" | grep -q "Up"; then
+            echo "ERROR: Backend container is not running!"
+            docker compose ps backend
+            exit 1
+          fi
+          echo "Backend container is running successfully"
